@@ -1,0 +1,17 @@
+# Whitelist approach: ignore everything, then explicitly allow what should be public.
+# Personal work files, editor state, and shader caches are excluded by default.
+
+# Ignore everything
+*
+
+# Allow root-level tracked files (anchored so chapter-level equivalents are excluded)
+!/.gitignore
+# !/credits-references-recommendations.txt  (uncomment when ready to publish)
+
+# Allow chapter directories so git can traverse into them
+!raymarching-chapter-*/
+
+# Within each chapter, only track project.godot and the public/ folder
+!raymarching-chapter-*/project.godot
+!raymarching-chapter-*/public/
+!raymarching-chapter-*/public/**
