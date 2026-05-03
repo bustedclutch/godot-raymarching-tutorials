@@ -1,0 +1,66 @@
+CREDITS, REFERENCES, AND RECOMMENDATIONS
+=========================================
+
+SPONSORS
+--------------------
+Georgia Game Developers Association - And in particular Andrew Greenberg, for somehow talking me into doing this. I dunno if "sponsor" is the right word, because they didn't give me money, but they did put me on their YouTube and Discord, and in a world where fame seems to be more valuable than actual dollars for whatever reason, maybe sponsor is exactly the right word. Or alternatively, someone in charge of keeping me from going overboard, like an Alcoholics Anonymous sponsor.
+
+
+DISCLAIMER ABOUT MY QUALIFICATIONS
+--------------------
+Although I am qualified to teach a variety of other skills, such as aerial straps, outdoor rock climbing, and various lawyering skills, I am completely and totally unqualified to teach coding, game design, and pretty much anything posted to my GitHub. But fortunately, unlike my other subjects, there is no risk of death, dismemberment, paralysis, or a malpractice lawsuit if I make a mistake with a game dev tutorial. So I'm doing it anyway!
+
+
+THAT WHOLE COPYRIGHT BUSINESS (SKIP IF IT'S BORING)
+-------
+
+Although I did a decent amount of coding myself, I learned a lot during this process by asking various chatbots to take a stab at it, and then correcting for the resulting errors. Nonetheless, much of the code they dispensed, and their analysis of my own code, was immeasurably helpful. For that, I am extremely grateful to the countless developers, authors, and speakers whose content made its way into the chatbots' training data, along with the developers and the LLMs themselves.
+
+It's hard to talk about copyright in the math-focused coding context, where math ideas and thus much of their coding expressions aren't subject to copyright, and harder still when our work becomes indifferentiable from the cumulative mass of human knowledge and experience, now bleeding into LLM weights. My main "creative insight" was to try and order things so that they would be accessible to beginners, often at the explicit cost of efficiency.
+
+There are plenty of occasions where I most definitely borrow from others, such as IQ's formulas or the open sourced GDQuest robot ("Gobot"). I'll try to keep a running list of those here, but to the extent I forget, it's absolutely your responsibility to make sure nothing unsafe makes its way into your commercial project.
+
+Below, I provide a list that will be updated as I go of resources, books, thoughts on said resources, and so forth, with priority given to those whose material is accessible to total beginners. If you're thinking "how did you not mention [famous person here]?" it's because this is for an audience of true beginners. 
+
+
+ABOUT THOSE CHATBOTS
+----------
+
+I initially used ChatGPT and Gemini but later settled on Claude for many of my basic coding questions. I would strongly recommend learning the foundations from other resources (I try to mention them below!) rather than just vibe coding via AI your way through everything, as the chatbots will definitely go sideways and you won't know how or why they're going sideways without knowing stuff in the more foundational books. I would have given up or gone crazy had I just tried to use chatbots to get through any of this. Although the bots tend to get it wrong more than half the time, they're are extremely useful for helping to find mistakes in your own code and explaining fixes, which can be a great bridge from formal books and lessons.
+
+You may see a "co-authored by Claude" line in GitHub commits, which is auto appended due to Claude handling my GitHub uploads on my behalf, and doesn't mean Claude helped or did not help writing any particular portion.
+
+Maybe should change that line to "co-authored by indistinguishable mass of human knowledge and experience".
+
+Lastly, I'm aware that the chatbots raise a lot of moral issues, and I have my own thoughts, considering my own work has been plagiarized literally thousands of times for profit by humans who knew what they were doing prior to LLMs, and my own work and that of countless friends was almost certainly scraped without my ever giving permission for the LLMs. 
+
+Sadly, it's not within my power to wave a magic wand and take away Sam Altman's private jet, or unilaterally acquire the AI companies and redistribute their profits to the authors whose materials fed them, or the unpaid scientists whose research made them possible. The country (mine anyway) still seems stuck on basic questions such as "do people deserve to have rights" and so I am picking my battles and standing in front of the AI train is not one. But I can give you a list of references and classes/people/books that you can support with your subscriptions/cash/etc. And that's not just an idle statement--if you don't learn the foundations, your art will be uncreative, ugly, and erroneous.
+
+
+ONLINE REFERENCES/CREDITS SPECIFIC TO RAYMARCHING, GODOT, ART, or TECH ART
+----------
+
+Freya Holmér - She's got a twelve hour intro series to shaders on YouTube which she could justifiably charge a zillion dollars for but for some people the work is enough. Shader code is similar across engines, so don't be dissuaded that it's in Unity if you're working in another engine.  
+
+GDQuest - For learning the Godot engine and the basic programming knowledge needed to drive it. I paid for their online class and it's worth it. They don't cover the creation of artistic assets, but ironically, provide great ones so you can focus on learning the game dev side before falling down the Blender rabbit hole. I'll be using their Gobot model but they have more. 
+
+CGCookie - This was totally worth the monthly membership to learn Blender. The library on designing game assets is more limited than I'd like, but there's a big gulf awaiting you after the online Blender tutorial about making a donut, and as useful as the donut tutorial is, you'll have to go deeper in Blender. But do make the donut.
+
+Íñigo Quílez - Although he's famous for raymarching, I would actually advise against starting with IQ if you're new to tech art, Godot, or game design, as his approach is intermediate/advanced and he'll melt your brain with his proofs before you've had time to deal with more basic stuff, like how shaders work. Or how to get a project and some nodes going in Godot. (I would read Penny de Byl's book first, for example.) You should, however, refer to his simple list of 3D SDF functions for my tutorial, from which I explicitly draw, which is early on. You might see specific citations to his word in the code instead of here. Due to his omnipresence in pioneering the field, it sometimes feels more like a question of what shouldn't be attributed to him rather than what should.
+https://iquilezles.org/articles/distfunctions/
+
+Programming with Mosh - Although his YouTube class about Python is about Python, GDScript is very similar to Python, so I'm counting it. If you have zero programming knowledge at all, and want to have a meaningful sense of it before jumping into a game engine, I'd do this first.
+
+CodeBeauty - Saldina Nurak kind of reminds me of the ASMR voices I listen to at bedtime, which is really refreshing in a sea of programming talking heads that somehow feel too loud for my brain. She takes a language I used to find scary (C++) and makes it not scary. As far as compliments to teachers go, that's a really high one. Although you don't technically need C++ itself, the shader language you're working in, whether in Godot or elsewhere, is likely styled the same way, and if the style is totally unfamiliar to you, you'll need to learn the style somewhere via an intro C++ series.
+
+
+BOOK RECOMMENDATIONS
+--------------------
+
+Mathematics for Game Programming and Computer Graphics, by Penny de Byl - This is the best book I've yet to read so far about any of this, and I've read about 20+ of them. She uses Python to keep things simple while she takes you through a lot of the essential math behind game design and computer graphics. If you're looking for a textbook because you can't go to a university, this is it. You'll bounce over to Godot tutorials to keep you focused on the dream, but I constantly come back to this book to remember things I keep forgetting. A phenomenal work in teaching.
+
+Godot 4 Game Development Projects, by Chris Bradfield - Tiny little games to make in Godot that introduce you, one chunk at a time, to important concepts. One of the best pieces of advice I got was to make tiny games to learn, and this gets you into the important philosophy taught by my ceramics teacher, "no work is too precious". She was referring to clay pieces that often exploded in the kiln, but it applies to game design.
+
+Game Development with Blender and Godot, by Kumsal Obuz - This takes you through creating a 3D game level, start to finish. Although it's written for someone who's never touched Godot or Blender, it hits everything from baking in pathfinding to adding a water shader. If you choose to follow the tutorial word for word, do yourself a favor and download the version of Godot it was written for, so you don't go nuts. It's easier to learn the updates to Godot later, after you've learned the basics, and I wouldn't call it sufficiently educational to step every half hour to diagnose an error caused by a version change.
+
+

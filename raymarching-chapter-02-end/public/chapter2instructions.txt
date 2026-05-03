@@ -1,0 +1,263 @@
+EDIT/TOGGLE WORD WRAP, or ALT+Z to Word Wrap this document in Godot.
+
+Chapter 1 concluded with the basic raymarcher shader on a quad, with a camera and a sphere in the scene cloning the conditions of the raymarching shader so we could get a feel for what the raymarcher was doing and whether it aligned with our expectations.
+
+Chapter 2's goal is to get a quick game on the board; something messy, easy, and that takes as little time as possible. I'd like to have a character that can run around on a simple platform, along with a few 3D spheres (henceforth: "marbles"). In chapter 3, we'll take the locations of the marbles and pass them into the shader, along with the location of the camera, so that we can take a stab at rendering objects in the raymarching shader. At that point in time, we'll have blended the raymarching shader with Godot's in-game reality.
+
+But first we need the simple game. Ultimately, I'll want a 3d character running around on a platform with basic WASD movement, and a jump button. I'll also want the player to be able to interact with the marbles, such that if the player left clicks, marbles will be pushed away, and if the player right clicks, marbles will be pulled toward. If you already know how to make that, make it, and skip straight to chapter 3. 
+
+At first, we'll need:
+	A root node
+	A solid platform (StaticBody3D)
+	A node to function as our player (CharacterBody3D)
+	A cute character downloaded from the internet to be our player
+	Some marbles that respond to real world physics determined by the engine (RigidBody3D)
+	Collision shapes for everything along the way
+	A script for the character to move
+	Camera and a pivot point parent for the camera
+	Basic lighting and world environment
+	
+I begin with a new scene with a 3D root node that I'm calling, uncreatively, "GameWorld". Fun fact: Beware the fact that "3d" and "3D" are not the same when scripting, as Godot's coding languages (as is the case with most others) is case sensitive, so beware that as you type things in. If you have dyslexia, I recommend letting Godot's auto-complete fill such things in.
+
+Next, I need a boring platform for my character to stand on, and a "StaticBody3D" fits the bill. 
+Add a StaticBody3D as a child of the root "GameWorld" node. I'm leaving it with its default name for now, but feel free to rename it "Floor" or similar. It will have a warning label alerting you to the fact that it needs a "collision shape".
+To fix the missing collision shape problem, right click the node, add a "CollisionShape3D" node, and set the Shape in the Inspector panel on the right to a box or more specifically, "BoxShape3D".
+Although the floor has a collision shape and your chacter could already stand on it, we want it to be visible. To create something visible, add another child node to the floor, a "MeshInstance3D", which we used to create a quad in chapter 1. Set its shape in the Inspector dropdown to BoxMesh. 
+Both shapes start out as small, one meter boxes, and we need a floor, so in the Inspector panel, scale the box's visual mesh node and its collision shape node to be something floor-like. Maybe in the 10-20 meter range? We're actually now at a juncture where distance matters--your ray marching shader had a max render distance, so for now, ensure your floor isn't setting up something bigger than that. (Or: Make the raymarcher march further.)
+
+This thing that we've just done is a thing you do a lot in Godot--creating a physics object of some kind, then giving it both a visual mesh and a collision shape. So don't worry about whether you'll forget that part--you're gonna be doing it a lot.
+
+So far, the node tree looks like this:
+	
+-GameWorld
+	-StaticBody3D a.k.a. Floor
+		-CollisionShape3D
+		-MeshInstance3D
+
+The floor will obscure whatever new objects you add to the scene, so go ahead and move the entire floor down by about 1.5 meters. Make sure you select the StaticBody3D node, so that its child nodes all move with it as you move it around. 
+
+The game now needs marbles, and I'll be adding three. Follow the same pattern for the floor, but note that the marbles will use a different kind of physics node, the RigidBody3D. I'll be referencing those marbles in the shader to render them, so although initially your tree will look like this:
+
+-GameWorld
+	-StaticBody3D a.k.a. Floor
+		-CollisionShape3D
+		-MeshInstance3D
+	-RigidBody3D
+		-CollisionShape3D (set to sphere)
+		-MeshInstance3D (also set to sphere)
+
+...you'll need to rename that RigidBody3D to "Marble1"
+	
+-GameWorld
+	-StaticBody3D a.k.a. Floor
+		-CollisionShape3D
+		-MeshInstance3D
+	-Marble1 (I've been renamed!)
+		-CollisionShape3D
+		-MeshInstance3D
+
+Confirm your collision shape for the marbles matches its mesh; I left both at the default. Note that the default Godot sphere as of this writing had a 0.5 meter radius--you likely want this to match what's in your raymarched shader. (Though one could imagine creative reasons for making them different.)
+
+I like to test that my scene functions as soon and as frequently as possible, and with two physics objects, it's time to see if they interact. The bare minimum to render the scene is a camera and lighting, we we'll get those put in now.
+
+Toss in a Camera3D as a child of the GameWorld node. Leave the camera at 0,0,0 (don't move the camera) and instead move the other two objects around so that when you hit "play scene", the marble will fall a meter or so and land on the floor. With the camera, your tree will look like this:
+	
+-GameWorld
+	-StaticBody3D a.k.a. Floor
+		-CollisionShape3D
+		-MeshInstance3D
+	-Marble1
+		-CollisionShape3D
+		-MeshInstance3D
+	-Camera3D
+
+This will (hopefully!) play if you hit "play scene" or F6, but it will either be grey or perhaps black nothingness, since the scene has no lighting or world environment yet. In keeping with our "just get something on the board" philosophy, there's a chain of three buttons above your 3D viewport that look like a sun, a world, and three dots; these handle "toggle preview sunlight", "toggle preview environment", and "edit sun and environment settings". Click the triple dot, and in the window that opens, click "Add Sun to Scene" and then click "Add Environment to Scene". Your tree will now look like this:
+	
+-GameWorld
+	-WorldEnvironment
+	-DirectionalLight3D
+	-StaticBody3D a.k.a. Floor
+		-CollisionShape3D
+		-MeshInstance3D
+	-Marble1
+		-CollisionShape3D
+		-MeshInstance3D
+	-Camera3D
+
+A "DirectionalLight3D" is like a sun or a moon light or anything that's universally present and aimed in one direction. The light that functions like a spotlight is called SpotLight3D. The light that behaves like a simple lightbulb is called OmniLight3D. 
+
+Run the scene again, and it should show up, lit like you see in the 3D viewport.
+
+We need two more marbles; select your Marble1, hit CTRL+D to duplicate it, and it'll create a second marble. Immediately move it somewhere a little above and to the side of your first marble, so that gravity puts them on a collision course with each other. Then add a third marble, with the same pattern. Hit the run scene button, and your marbles should fall down, collide with each other, and roll around a bit. With two more marbles, the tree now looks like this:
+	
+-GameWorld
+	-WorldEnvironment
+	-DirectionalLight3D
+	-StaticBody3D a.k.a. Floor
+		-CollisionShape3D
+		-MeshInstance3D
+	-Marble1
+		-CollisionShape3D
+		-MeshInstance3D
+	-Marble2
+		-CollisionShape3D
+		-MeshInstance3D
+	-Marble3
+		-CollisionShape3D
+		-MeshInstance3D
+	-Camera3D
+
+Now we need a character to move around with. A CharacterBody3D node is the more commmon choice, but I might replace it with another RigidBody3D node later instead depending on what the feel of the game turns out to be. I'm also just going to use a temporary skin for it. 
+Don't get too invested in the character or its movement script, as we might replace the character with a raymarched one. Toss a CharacterBody3D in, and give it a collision shape of a capsule. I moved the node to the top of the tree, since the player node will be a node with a script that I'll be clicking on frequently. I'll also add a 3D node as a child to the CharacterBody3D node called "CameraPivot", and make the camera a child of that pivot node. The tree ends up like this:
+	
+-GameWorld
+	-CharacterBody3D
+		-CameraPivot
+			-Camera3D
+		-CollisionShape3D (set to capsule)
+	-WorldEnvironment
+	-DirectionalLight3D
+	-StaticBody3D a.k.a. Floor
+		-CollisionShape3D
+		-MeshInstance3D
+	-Marble1
+		-CollisionShape3D
+		-MeshInstance3D
+	-Marble2
+		-CollisionShape3D
+		-MeshInstance3D
+	-Marble3
+		-CollisionShape3D
+		-MeshInstance3D
+
+For prototyping, we could (and some do) just toss in a mesh capsule or box child of the CharacterBody3D to visualize it. But GDQuest makes a cute robot, so I'm tossing in the robot instead. As of this writing, you can download it here:
+	https://github.com/gdquest-demos/godot-4-3D-Characters/
+I enjoyed GDQuest's free and paid online courses--so check them out if you want to get into the meat and potatoes of scripting games, as I'll be trying to focus on the raymarching aspect.
+I'll eventually get rid of the robot, but if you're new to Godot, you want to know how to quickly toss in a pre-configured 3D character with minimal effort. 
+Add a subfolder to your project called "licensed_assets" and dragged the "gdquest_robot" folder from the file available for download above to get Gobot's files added--it'll include his GLB file as well as a TSCN file that we'll use to import him with his Godot scripting intact.
+
+How to name files and folders internally is better left to someone who actually knows what they're talking about, but for now, I want to have a system that helps me keep track of assets that I didn't make myself, for when I write an attributions section. If I ever want to sell my game for money, it would be good to have already separated out the parts of the game that I downloaded from the internet, so that I can replace that material with my own creations (or get it commercially licensed, etc.).
+
+Now, instead of adding a MeshInstance3D as a child of CharacterBody3d, I'll right click CharacterBody3D, and select "Instantiate Child Scene" and choose the Gobot TSCN file, which in this case is gobot_skin.tscn. You can also pop open that TSCN file separately, and you should see Gobot in an idle animation.
+
+Instantiation as a concept is a bit weird for me. When you do it in the scene tree, as we just did, it has a degree of permanence. You save the scene, exit, re-open, and there it is again. It's part of the scene as you first see and edit it. You'll also be instantiating things in scripts for mere moments, such as fireballs or bullets. For our purposes, when keeping things locked into the scene tree like this, you should treat the internals of whatever is instantiated in this way as mostly-settled in terms of it being creatively finished. But if it wasn't done, like, if you wanted to change the look of Gobot, change his eye color, for example, you'd pop open the Gobot TSCN file, edit THAT file, and then reload whatever scene you were working in to see changes.
+
+Gobot's here, but he's got a couple problems. First, he's looking toward the positive Z direction. While in your GameWorld scene, rotate the GobotSkin node 180 degrees so he's facing down the negative Z axis, which is the correct direction. There is a universe in which looking down the positive Z axis is the correct direction, but the Godot camera by default looks down the negative Z axis, the raymarching shader looks down the negative Z axis, and we aren't rotating the entire world to match the skin. So rotate that Gobot 180 degrees.
+
+Second, his collision shape will not initially match his skin, so modify the collision shape dimensions to match him. Collision shapes for humanoid characters are typically capsules, unless your game is unusual.
+
+Third, the camera won't be in the right place respective to Gobot--if they're both at the world origin, the camera is probably just giving a close up view of his butt. You'll need to split the 3D viewport to give you an additional window showing the camera. Click VIEW--2 VIEWPORTS (ALT). Then click the button in the top left of the viewport that *probably* currently says "Perspective" and select "Cinematic Preview". You'll be using Cinematic Preview a lot, so make sure you know where it is.
+
+We want the camera to follow Gobot from behind and above him. We also want a 3D pivot point for use later. So, make a Node3D that is a child of CharacterBody3D, rename it CameraPivot, and then make the Camera3D a child of CameraPivot. Your CharacterBody3D portion of the tree will now look like this:
+	
+	-CharacterBody3D
+		-CameraPivot
+			-Camera3D
+		-CollisionShape3D
+		-GobotSkin
+		
+To fix the camera view, move the Camera3D node along the Z axis in a positive direction by about 1.5 to 5 meters (this is your game, so experiment) and then rotate the Camera3D node's parent, CameraPivot, around the X axis by about 35 to 50 degrees. There's a button along the top of the 3D viewport, that looks like a cube, which toggles Local and Global space. I recommend setting it to local space as you adjust the camera's position and angle using position transforms to the camera and rotation of the pivot node to get the look that you want.
+
+Hit run scene, and we have a fourth problem: Gobot cannot move, nor does he seem affected by gravity. As a CharacterBody3D, you have to script his movement using direct changes to his position and velocity. You also need his movement script to call for animations based on whatever he seems to be doing, often based on his position and velocity.
+
+RigidBodies, on the other hand, cannot have their positions directly edited in scripts--they use a different set of functions, such as "impulse" and "integrate_forces", which allow you to modify what is happening to the objects in your scene that have movements dictated by the Godot engine's real-world physics. 
+
+We also want the character to reliably interact with surrounding objects, for when we push and pull the marbles. The collision shape is marked out, but not the position that determines where our push and pull forces originate from. Create a Marker3D node as a child of the CharacterBody3D. Rename it "Wand". (You might use this node for a far more popular type of game than something that fires projectiles with wands, but "Wand" is kid friendly. Also it's a game about marbles.)
+
+For the next steps, you'll need to assign hotkeys to move the character within project settings, as well as give the CharacterBody3D a script to enable movement, gravity, and collisions. Open your project settings, and update "ui_up", "ui_down", "ui_left", "ui_right", to your favorite movement keys on the keyboard. (For most this is WASD, but I'm a heretic who uses ESDF, so you might notice that difference if you downloaded the finished project off my GitHub). There's a "show built-in actions" toggle if you can't initially see these.
+
+Aside from up/left/down/right, ui_accept will initially be your jump key if you use my script.
+
+For my custom game actions, create actions in that window for "fire" and "pull". I chose left and right click.
+
+This isn't a tutorial/workshop about character movement--GDQuest already has some great tutorials on that subject, which are free and online (along with paid ones that I also recommend for more detail), so I'm going to skip that, and just have you copy and paste in my movement script. Right click your CharacterBody3D and click "attach script".
+
+I'll include the script below, and then discuss in order the sections that aren't movement based, along with a few things that I struggled with. (WRITE THIS LATER)
+
+Lastly, since this is the last step of this chapter, here's what the scene tree should look like at this point (and largely needs to look like for the game to work).
+
+-GameWorld
+	-CharacterBody3D
+		-CameraPivot
+			-Camera3D
+		-CollisionShape3D
+		-GobotSkin
+		-Wand (renamed from Marker3D)
+	-WorldEnvironment
+	-DirectionalLight3D
+	-StaticBody3D a.k.a. Floor
+		-CollisionShape3D
+		-MeshInstance3D
+	-Marble1
+		-CollisionShape3D
+		-MeshInstance3D
+	-Marble2
+		-CollisionShape3D
+		-MeshInstance3D
+	-Marble3
+		-CollisionShape3D
+		-MeshInstance3D
+
+
+extends CharacterBody3D
+
+const SPEED = 5.0
+const JUMP_VELOCITY = 4.5
+
+#Add a ready function with a line to capture the mouse.
+func _ready() -> void:
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED #Be sure to have an exit for this.
+	
+#Add this entire input block to handle the mouse movement as well as escape.
+func _input(event) -> void:
+	var wand_position = $Wand.global_position
+	var wand_firing_direction = $Wand.global_basis.z * -1
+	var wand_firing_length = 15
+	if event is InputEventMouseMotion:
+		rotate_y(-event.relative.x * 0.005)
+	if event.is_action_pressed("ui_cancel"):
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	if event.is_action_pressed("fire"):
+		print("fire pressed")
+		
+		var space = get_world_3d().direct_space_state
+		var query = PhysicsRayQueryParameters3D.create(wand_position, wand_position + wand_firing_direction * wand_firing_length)
+		var result = space.intersect_ray(query)
+		print(result)
+		if result and result.collider is RigidBody3D:
+			result.collider.apply_impulse(wand_firing_direction * 10)
+	if event.is_action_pressed("pull"):
+		var space = get_world_3d().direct_space_state
+		var query = PhysicsRayQueryParameters3D.create(wand_position, wand_position + wand_firing_direction * wand_firing_length)
+		var result = space.intersect_ray(query)
+		if result and result.collider is RigidBody3D:
+			result.collider.apply_impulse(wand_firing_direction * -10)
+
+func _physics_process(delta: float) -> void:
+	# Add the gravity.
+	if not is_on_floor():
+		velocity += get_gravity() * delta
+
+	# Handle jump.
+	if Input.is_action_just_pressed("ui_accept") and is_on_floor():
+		velocity.y = JUMP_VELOCITY
+		$GobotSkin.jump()
+		
+
+	# Get the input direction and handle the movement/deceleration.
+	# As good practice, you should replace UI actions with custom gameplay actions.
+	var input_dir := Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
+	var direction := (transform.basis * Vector3(input_dir.x, 0, input_dir.y)).normalized()
+	if direction:
+		velocity.x = direction.x * SPEED
+		velocity.z = direction.z * SPEED
+	else:
+		velocity.x = move_toward(velocity.x, 0, SPEED)
+		velocity.z = move_toward(velocity.z, 0, SPEED)
+
+	move_and_slide()
+	
+#	Add the below line to drive run and idle animations:
+	if is_on_floor():
+		$GobotSkin.idle() if velocity.length() < 0.01 else $GobotSkin.run()
+		

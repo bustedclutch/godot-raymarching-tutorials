@@ -1,0 +1,219 @@
+EDIT/TOGGLE WORD WRAP, or ALT+Z to Word Wrap this document in Godot.
+
+With the game in place, we need the game itself to be broadcasting the locations of the objects to the shader.
+
+To keep the prior shader available, duplicate it, and name the new one "camera_gel.gdshader".
+
+Add a quad to our game scene, make it a child of the Camera3D, and using the surface override, assign the camera_gel shader as its shader.
+
+Pull the gel slightly forward in its local space, along its -Z axis, by at least half a meter, though I'll do a full meter for now. Assuming you left transparency on in the shader for its background, you should know see what we're doing, which is treating the quad as a gel that's sitting in front of the camera lens.
+
+This method will cause all kinds of problems to solve later, but for now, mentally set those aside.
+
+We already hard coded the shader to have the same 75 degree field of view as the default Godot camera, but we now need the shader to know:
+	where the three marbles are, 
+	the location of the camera, and 
+	the direction of the camera.
+	
+Because these various objects live in different parts of the scene tree, there's not a super obvious place for the script to live that calls out where these objects are, but I'm choosing to attach a script to the root GameWorld node. That feels the simplest to me, for now.
+
+In the script attached to the root game_world node, which I've unceremoniously named "game_world.gd", I have several objectives:
+	1. Identify all the objects with properties that need to interact with the shader, so that they can then be declared as variables.
+	2. Identify the shader itself and declare it as a variable, so I have a destination to send this information to.
+	3. Send the properties necessary to visualize the scene to the shader as shader parameters, such as the location of the various objects and the location of the camera.
+	4. Get this script to actually run in the editor, so that I can actually see the shader updating as I make changes, rather than constantly hitting "run scene" to see what things look like.
+
+Looking further into the future and the end of this chapter, I'll also need to alter my shader to receive and use these parameters.
+
+If you're feeling cocky, you can just go ahead and copy the end state of the script in (though I would NOT copy and paste in the "@tool" line up top yet, see below) and tease out from there what each line does. You might even then decide to update the shader code on your own if you're feeling spicy. But I'll describe each gdscript code block and what it does regardless, before moving on to the shader revisions. I'll discuss @tool as well.
+
+Part 1: Declaring the gdscript variables for scene objects with properties to pass into the shader:
+
+extends Node3D
+
+#Getting all the variables needed in the process function to pass every frame
+#into the the shader.
+@onready var camera = $CharacterBody3D/CameraPivot/Camera3D
+@onready var marble1 = $Marble1
+@onready var marble2 = $Marble2
+@onready var marble3 = $Marble3
+
+The above code is relatively straightforward--we'll initially just pass the XYZ location of each marble (though eventually we'll need to provide rotation and potentially scale as well). @onready is a standard notation for declaring a variable that references something on the scene tree. The scene tree doesn't necessarily come into existence before the script runs, so you need the script to wait until those marbles exist before trying to do stuff with them.
+
+Part 2: Identify the shader itself so you have a place to send parameters to.
+
+@onready var raymarching_gel = $CharacterBody3D/CameraPivot/Camera3D/RaymarchingGel
+@onready var shader_material = raymarching_gel.get_active_material(0)
+
+These two lines answer a question, which is "What shader material?" The first line answers, "It's one of the shader materials that the camera gel uses." The second line assigns it to a variable called "shader_material", by using a method called "get_active_material(). I've passed "0" in as an argument to the parameter, as objects can have more than one material, and the method accepts a numbered index to identify which material. There's only one material on the gel, and we're using the historic programming convention where numbers start at 0, so here the method looks for the 0th material.
+
+Part 3: Pass important details about our objects to the shader.
+
+func _ready() -> void:
+	pass # Replace with function body.
+
+
+# Called every frame. 'delta' is the elapsed time since the previous frame.
+func _process(delta: float) -> void:
+	shader_material.set_shader_parameter("camera_pos", camera.global_position)
+	shader_material.set_shader_parameter("camera_basis", camera.global_basis)
+	shader_material.set_shader_parameter("marble1_pos", marble1.global_position)
+	shader_material.set_shader_parameter("marble2_pos", marble2.global_position)
+	shader_material.set_shader_parameter("marble3_pos", marble3.global_position)
+
+My _ready function isn't doing anything yet, so it's just a stub with "pass" underneath.
+
+Shader materials have a method called "set_shader_parameter" with two parameters. First, the name of the variable, and second, the actual information you're passing along. Here, I'm passing along the camera's global position, the camera's global basis, and the three marbles' positions. That's really the bare minimum of what's needed to visualize the scene. We need to know where the camera is in space (position) along with what direction it's facing (basis). Without those, we don't have a moving camera. 
+
+BEGIN SIDEBAR ABOUT CAMERA BASIS PHILOSOPHY
+
+A sidebar about basis philosophy, in case, you find it confusing. You could certainly have a convention for rotation in which three numbers are enough. This would be something like pitch/roll/yaw, each expressed in 360 degrees. You have three degrees of freedom in rotation, so three is the minimum number required. This might tempt you to think that basis would pass as a vec3, like a color. But it isn't! Basis is expressed as a 3x3 matrix, with each column expressing an x, y, and z vector, where the default is "where is my right hand pointing, where is the top of my head pointing, and where is my back pointing" each making up a column of the matrix. Basis also includes scale--doubling the x vector of the basis doubles the x scale. Additionally, basis makes up the top left of the larger 4x4 transform matrix.
+
+If this was in a generic rendering pipeline, you'd be taking the transform matrix to fix the object's position in global space, then using the view matrix to place the object within (or without) the view of the camera, and then the projection matrix to give everything a sense of perspective. Raymarching isn't a generic rendering pipeline, but we need to know what's happening with the generic rendering pipeline in order to bolt a raymarcher on top of it. Both because every game engine is spitting out information on the premise that you're using a generic pipeline, and because you need your raymarched quad to match up with anything rendered in a generic fashion.
+
+One noodle, however: Spatial shaders already have access to the active camera's transform and basis: It's quite literally contained in the view matrix built-in, so you could, in theory, negate the third column of the of the inverse view matrix to grab a forward direction, and grab the fourth column to obtain the camera's position. (You'd drop the fourth row in each case, this is the mysterious "w" row used for under-the-hood math.) It would look something like this in a shader: 
+
+vec3 cam_pos = MAIN_CAM_INV_VIEW_MATRIX[3].xyz; mat3 cam_basis = mat3(MAIN_CAM_INV_VIEW_MATRIX); vec3 cam_direction = -MAIN_CAM_INV_VIEW_MATRIX[2].xyz;
+
+Is this method better? For teaching purposes, I would say no--this is complicated enough already. But you should know that INV_VIEW_MATRIX and VIEW_MATRIX exist.
+
+END SIDEBAR ABOUT CAMERA BASIS PHILOSOPHY
+
+Part 4: Get your shader parameter script actively running in the editor
+
+If you're already familiar with @tool and what it does and the catastrophes that it's capable of wreaking, the sure, go ahead and type that five character word into your script and hope that you're in alignment with the Godot gods. If you're unfamiliar with @tool, do make sure you've saved your work before you use it.
+
+As you may have already surmised, Godot is not sandboxed. So if you write or download a script that performs the equivalent of "delete everything on my hard drive and send my most scandalous photos to my parents", it'll do it when you hit the "run scene" button with a node in the tree that triggers the script.
+
+@tool runs the script immediately, now, while the engine is running. Like all things that are equal parts cool and dangerous, this means caution while having fun. The most traditional case for @tool would be something like actively tweaking the movement speed of a platform, or spawning mobs in the editor to see what they actually do as you adjust them.
+
+Here we're using @tool because without it, our raymarched scene will render black while we're in the editor--the shader won't have the necessary parameters to run, so the shader won't render at all, and by now, we're accustomed to modifying our shader code and seeing updates instantly on screen. 
+
+Thus, you wouldn't want to put @tool in a script that modifies your file structure or does anything outside of the sphere of the game itself--unless that's the goal and you live off the high of actively modifying files via scripts as you type them. Generally, you're going to keep @tool disabled unless the script is in a draft that's safe to execute and everything the script references exists. That should be the case now (confirm your shader gel both exists and has a shader material), and hopefully you've saved your work and all scenes. As one final precaution, you should go ahead and run the game (or play current scene) to trigger the script and see if the game crashes. If the game crashes from the script, so might the editor with @tool, so fix whatever errors are raised first. Once the game runs without crashing, you should be able to go ahead and add the @tool line:
+
+@tool
+
+And voila. Hopefully Godot didn't crash.
+
+In case you're running this tutorial slightly out of order (you might have put in the shader code revisions first) you may need to save and reload the scene or the project to get @tool running and the script shipping parameters out.
+
+ACT 2: UPDATING THE SHADER CODE
+
+We don't actually have a lot of changes to the shader, so you might choose to drop them in yourself. 
+
+We have three goals now for the shader code used by the gel:
+1. Declare the variables that were shipped from the script.
+2. Replace the hardcoded numbers for the marbles with the variables shipped by the gdscript.
+3. Replace the hardcoded camera numbers with the variables shipped by gdscript.
+
+Part 1: Declare the shipped variables
+
+Add this to the top of the shader code, along with any other global uniforms:
+
+//Ch2. Start pullin in uniforms from the script.
+uniform vec3 camera_pos;
+//Be aware that camera basis is a matrix when declaring and using later
+uniform mat3 camera_basis; 
+uniform vec3 marble1_pos;
+uniform vec3 marble2_pos;
+uniform vec3 marble3_pos;
+
+I haven't verified this, but I think the shader code adopts gdscript's shipped versions of all these as soon as they're declared here. Simple enough.
+
+Part 2: Replace the hard coded marble positions with those passed by gdscript
+
+Modify your core signed distance function to sub in the uniforms above. Previously, you were hard coding in specific vec3's to confirm your SDF worked. As before, the SDF for a sphere is p - o, or point - origin, or "current location of the ray minus location of the center of the sphere".
+
+float get_scene_distance(vec3 point) {
+	float d = get_distance_to_sphere(point-marble1_pos, 0.5);
+	d = min(d, get_distance_to_sphere(point-marble2_pos, 0.5));
+	d = min(d, get_distance_to_sphere(point-marble3_pos, 0.5));
+	return d;
+}
+
+This is all rather straightforward, but it's easy to accidentally trip yourself with the transition from the hard coded numbers by spelling out your old variable name instead of the one shipped by gdscript. Make sure the spelling aligns through the chain from how it's declared in gdscript, to how it's declared at the top of the shader, confirming it isn't reset elsewhere, and finally to the SDF itself.
+
+Part 4: Replacing the camera's hard coded variables with those shipped by gdscript
+
+Go ahead and modify the "camera code" portion of the raymarching shader, which for our purposes, is the ray origin (camera position) and the ray direction.
+
+vec3 ray_origin = camera_pos;
+vec3 ray_direction = normalize(camera_basis*(vec3(screen_uv, -camera_focal_length)));
+
+The new ray origin is straightforward--we previously had chosen something in xyz space from which to shoot rays. Now it's just something else.
+
+But the camera basis isn't a mere replacement--you're instead multiplying the existing ray direction, a vec3, by the camera basis, a mat3. I know that I've explained a lot of other things in this tutorial, but for now, I will leave it between you and Jesus and/or YouTube and/or long-dead mathematicians to discern why multiplying a three-numbered vector by a nine-numbered matrix allows you to rotate your ray toward whatever the matrix exresses. If you're content with the short version, "it just works", then you can move on. Just remember that turning your vec3 ray in the right direction means multiplying it by a mat3. The result is still a vec3, just turned in a new direction.
+
+ACT 3: SOME FINAL TWEAKS AND CLOSING THOUGHTS
+
+You'll now have a gel sitting in front of your camera rendering your marbles, moving with your camera as your character moves. With @tool on, you should be seeing this gel in the editor.
+
+With the "cinematic preview" on in one pane of the editor, and a regular 3D viewport open on the other side, adjust the distance of your gel from the camera to get the spheres in perfect alignment. We've hardcoded the field of view in the shader to match Godot's default 75 degree field of view, so check this number if it's still off.
+
+And that's it for chapter 3! If you want to adjust the field of view, you'll need a function to do it with. That function, along with the proof for it, is below.
+
+
+
+PROVING FIELD OF VIEW
+
+If you're feeling zany, you can draw this formula out in 3D space:
+
+vec3 ray_direction = normalize(vec3(screen_uv, -camera_focal_length));
+
+...and for ease of explanation, assume a screen_uv of (-1,0), and where the focal length is 1. Vec3's measured from 0,0 produce a triangle with one 90 degree angle. In this case, the 90 degree angle is opposite of the hypotenuse, at the center of the screen. If seen from above, it would look like this:
+
+CAMERA (0,0,0)
+.
+|\
+| \
+|  \
+|   \
+|    \
+------.
+       LEFT EDGE OF SCREEN (-1,0,-1)
+
+If the angle by the camera was 45 degrees, then the angle at the left edge of the screen would also be 45 degrees. The field of view of the camera would be double that first number, so a focal length of 1 produces a camera with a 90 degree field of view. But what if the focal length gets bigger?
+
+|\
+|  \
+|    \
+|      \
+|        \
+----------.
+
+The angle by the camera can shift; a wider FOV is usually preferred by competitive shooter players so they can see more around them, though a narrower field of view effectively zooms in your view. In any event, we can do a proof on the relationships of the angles to find the function for the field of view.
+
+The angle by the camera shall be theta, or "t". The focal length shall be "l". And the distance between the center of the screen to the edge of the screen will be "u", if only because that the moment, it happens to be the U in the UV coordinates of the current diagram.
+
+
+ |\
+ |t \
+ |    \
+l|      \
+ |        \
+ ----------.
+     u
+
+These have a primary school geometry relationship, as tan of theta = u/l.
+
+Theta is one-half of Godot's field of view, which we care about more than theta. Let's say that theta is equal to 1/2(g), and revise the equation:
+
+tan[(1/2)*g] = u/l
+
+u is actually a fixed quantity here--we know that it's of length 1 in this example, and because triangles follow rules of similarity, this function will work in all other cases, including the ones where u isn't zero, because that particular ray will be forming a differently shaped triangle that creates the same relationship. (I think this is the best way of putting it, you might come up with something better.)
+
+tan[(1/2)*g] = 1/l
+
+We need to solve for length. Multiply both sides by l to get it out of the denominator on the right side.
+
+l * tan[(1/2)*g] = 1
+
+Finally, isolate l.
+
+l = 1 / tan(1/2*g)
+
+This will be expressed in shader code as:
+
+camera_focal_length = 1 / (tan(radians(fov_in_degrees)*0.5))
+
+...but confirm your variable names match up, and that your radians method is spelled however your editor wants it.

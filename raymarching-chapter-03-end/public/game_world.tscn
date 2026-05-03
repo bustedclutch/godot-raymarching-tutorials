@@ -55,7 +55,7 @@ transform = Transform3D(1, 0, 0, 0, 0.8040852, 0.59451413, 0, -0.59451413, 0.804
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 4.281297)
 
 [node name="RaymarchingGel" type="MeshInstance3D" parent="CharacterBody3D/CameraPivot/Camera3D" unique_id=1198379325]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -1)
+transform = Transform3D(1.54, 0, 0, 0, 1.54, 0, 0, 0, 1.54, 0, 0, -1)
 mesh = SubResource("QuadMesh_vs8q8")
 surface_material_override/0 = SubResource("ShaderMaterial_3048b")
 
