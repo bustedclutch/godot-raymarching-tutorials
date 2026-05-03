@@ -6,7 +6,7 @@
 
 # Allow root-level tracked files (anchored so chapter-level equivalents are excluded)
 !/.gitignore
-# !/credits-references-recommendations.txt  (uncomment when ready to publish)
+!/credits-references-recommendations.txt
 
 # Allow chapter directories so git can traverse into them
 !raymarching-chapter-*/
