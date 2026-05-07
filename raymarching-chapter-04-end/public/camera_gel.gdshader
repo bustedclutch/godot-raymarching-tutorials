@@ -29,7 +29,7 @@ float get_distance_to_sphere(vec3 point_minus_origin, float r) {
 
 float get_distance_to_box( vec3 point_minus_origin, vec3 box_dimensions )
 {
-  vec3 q = abs(point_minus_origin) - box_dimensions;
+  vec3 q = abs(point_minus_origin) - box_dimensions * 0.5;
   return length(max(q,0.0)) + min(max(q.x,max(q.y,q.z)),0.0);
 }
 
@@ -38,7 +38,7 @@ float get_scene_distance(vec3 point) {
 	float d = get_distance_to_sphere(point-marble1_pos, 0.5);
 	d = min(d, get_distance_to_sphere(point-marble2_pos, 0.5));
 	d = min(d, get_distance_to_sphere(point-marble3_pos, 0.5));
-	d = min(d, get_distance_to_box(point-game_floor_pos,game_floor_size*0.5));
+	d = min(d, get_distance_to_box(point-game_floor_pos,game_floor_size));
 	return d;
 }
 
