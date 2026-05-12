@@ -1,0 +1,115 @@
+EDIT/TOGGLE WORD WRAP, or ALT+Z to Word Wrap this document in Godot.
+
+I've decided, for now, because I think it would be cool af, to turn this into a pinball game. And to raymarch everything in the scene. Why have one when you can have two, for twice the price? (Though mathematically, in this case, each thing costs exponentially more, but we're not going to think about that now.)
+
+It's worth thinking about some of the objects in our scene, and what raymarching can do for us that we're not doing yet. What if we want our objects to look slightly dirty, dirty enough that we can see an otherwise uniformly textured object rotate? Pinballs are metallic--they should have reflection, meaning the ray will need to bounce. Other objects in the scene, like the edges of bumpers, should have translucent plastic to make things pop--that means refraction of the ray. And it wouldn't be a pinball bar if there wasn't some cigarette smoke, or maybe the machine should have some American Gladiator style fog effects--that requires a ray to step through a volume and accumulate light or darkness. Pinball machines also have those lights on the machine floor--that means bringing in either abstract or actual quads into the raymarcher, and additional light sources with non-Lambertian behavior. And if the GPU isn't dead after all that, we'll toss in shadows.
+
+The great majority of these additions require rendering specific objects with specific colors, and noise. Visualizing our noise on any 3D objects will be a lot harder than visualizing it on a 2D object, so the natural start in my opinion is to replace our rasterized floor with a raymarched one, and give it a noise-based texture, different from the marbles. That sets us up with noise functions we can use everywhere else, and an in-scene canvas on which we can experiment.
+
+ACT 1: REPLACING THE RASTERIZED BOX WITH A RAYMARCHED BOX
+
+First, we need to add a box. Knowing what you know now, you might feel like taking a crack at it, just using the outline.
+	1. Add the function for a generic box from the IQ reference sheet to your shader's code as a generic box function
+	2. Add the position of your existing box to your gdscript code so that the Godot engine ships the properties of the box to the shader as a shader parameter
+	3. Add the box to your shader code, inside of the main signed distance function, using the shipped box properties to render the box in your shader.
+
+
+PART 1: Add the function for a box from the IQ reference sheet
+
+From https://iquilezles.org/articles/distfunctions/
+
+	float sdBox( vec3 p, vec3 b )
+{
+  vec3 q = abs(p) - b;
+  return length(max(q,0.0)) + min(max(q.x,max(q.y,q.z)),0.0);
+}
+
+
+I worded the sphere's code in the shader like this:
+
+	float get_distance_to_sphere(vec3 point_minus_origin, float r) {
+		return length(point_minus_origin) - r;
+	}
+
+Keeping my wordier conventions for the box looks like this:
+
+	float get_distance_to_box( vec3 point_minus_origin, vec3 box_dimensions )
+	{
+	vec3 q = abs(point_minus_origin) - box_dimensions;
+	return length(max(q,0.0)) + min(max(q.x,max(q.y,q.z)),0.0);
+	}
+
+
+To make sure the function works, I'll add a box to the core SDF of the shader, at the origin of the world, and one unit large:
+
+float get_scene_distance(vec3 point) {
+	float d = get_distance_to_sphere(point-marble1_pos, 0.5);
+	d = min(d, get_distance_to_sphere(point-marble2_pos, 0.5));
+	d = min(d, get_distance_to_sphere(point-marble3_pos, 0.5));
+	d = min(d, get_distance_to_box(point-vec3(0.0),(vec3(1.0))));
+	return d;
+}
+
+Hopefully, this delivers you a working box, that obscures your player character. 
+
+WARNING: It just so happens that our floor isn't rotated yet, but when that happens, we'll need another function to rotate the box.
+
+PART 2: Add existing properties of the floor to your gdscript to ship out as shader parameters
+
+I think it's worth getting a bit more detailed with the parameters that get shipped from the floor, now that this is shaping up to be more like a game, so I've renamed the StaticBody3D as "GameFloor", and then in gdscript added this object below the similar lines for the marbles:
+
+@onready var game_floor = $GameFloor/CollisionShape3D
+
+Warning 1: You shouldn't use the word "floor" because "floor" is a built-in and you never want to shadow your built ins. So don't name your nodes "Floor" either.
+
+Warning 2: If you've made it this far, it's worth pointing out that although I love Godot, it's not perfect. After I mistakenly called an outdated node name and corrected it, Godot kept throwing errors, until... I reloaded the project. As a new coder, this can be a bit of a nightmare, since 98% of the time, it's a you problem. But every so often you hit those 2% of cases where it's actually an editor problem. I imagine Unreal and Unity also have the occasional error, but even if Unity and Unreal were bug free, Godot is still money-free, super fast, and runs on your phone.
+
+Now, go ahead and take a stab at adding a "game_floor_pos" and "game_floor_size" pair of a shader parameters. For a hint, pop open the CollisionShape3D node, and in the inspector panel on the right, hover over the various properties. You'll notice that the tooltips that appear when your mouse hovers over the properties tell you the name of each property for referencing it in gdscript, as well as the variable type, like vec3. I find myself doing this... all the time.
+
+I ended up with these:
+
+	shader_material.set_shader_parameter("game_floor_pos", game_floor.global_position)
+	shader_material.set_shader_parameter("game_floor_size", game_floor.shape.size)
+
+
+Make sure you game runs now before proceeding--this is a very bug prone section. Note that here, I'm using the global_position of the CollisionShape3D, but to get its actual size, I'm pulling from the shape contained inside of it, thus the ".shape.size" verbiage.
+
+I also toggled off the visibility of the existing rasterized game floor, so that we can see if the new floor shows up when it gets added to the raymarching shader.
+
+PART 3: Add the box to your core SDF function in your shader code using the shipped box properties to render the box in your shader
+
+No surprises here when you declare the two new variables inside the shader code:
+
+	uniform vec3 game_floor_pos;
+	uniform vec3 game_floor_size;
+
+And when you first plug in the box, it will likely look like something like this:
+
+float get_scene_distance(vec3 point) {
+	float d = get_distance_to_sphere(point-marble1_pos, 0.5);
+	d = min(d, get_distance_to_sphere(point-marble2_pos, 0.5));
+	d = min(d, get_distance_to_sphere(point-marble3_pos, 0.5));
+	d = min(d, get_distance_to_box(point-game_floor_pos,game_floor_size));
+	return d;
+}
+
+Now, it runs, but if you cloned my repo, there's two bugs. First, the rendered box is too high--we seem to be getting needled by the distinction between the CollisionShape3D and it's shape sub-component.
+
+The second bug isn't technically a bug--it's just that IQ's function for a box uses what is essentially the radius of the box, AKA its extents. This is baked into how he proved the formula for the box SDF. 
+
+To fix the first bug, go to the CollisionShape3D node, and reset its position (in my repo, I had accidentally moved its y position). I'm leaving this bug and its correction in, because this is a really common mistake you'll find yourself making in Godot, so you want to get used to noticing and correcting for it. Every node inherits positioning from its parents. For any particular distinct object in your game that's made up of multiple nodes, you often (though not always) want all of the children to share the same position (and potentially scale, rotation, etc) of the parents, which means setting the children's position and rotation to zero, while the parent node (the highest node for any independently moving thing in the world) handles the position and scale.
+
+To fix the second bug, we have a decision to make: Where do we put in the 1/2 conversion so that the SDF function works for all of our boxes? In the spirit of "don't repeat yourself", I don't want to do this for every box on the shader side, or every box on the gdscript side, so I'm going to update the generic box function.
+
+	float get_distance_to_box( vec3 point_minus_origin, vec3 box_dimensions )
+	{
+	vec3 q = abs(point_minus_origin) - box_dimensions * 0.5;
+	return length(max(q,0.0)) + min(max(q.x,max(q.y,q.z)),0.0);
+	}
+
+This was a very short chapter, but I believe in short chapters. Also the next chapter involves a refactor for multiple parts of the shader, so I thought that should be broken in two.
+
+ACT 2: GIVING THE BOX A SEPARATE COLOR (move this into the next chapter)
+
+
+ACT 3: GIVING THE BOX SOME NOISE (Move this to the next chapter, chapter 5)

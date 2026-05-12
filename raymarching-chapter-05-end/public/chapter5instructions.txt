@@ -1,0 +1,65 @@
+EDIT/TOGGLE WORD WRAP, or ALT+Z to Word Wrap this document in Godot.
+
+We're going to borrow a concept from the rasterization world, and give each object in the scene its own material ID. The problem this poses for us is that to track the material ID throughout the shader, many of our floats have to become vec2's. You've already seen how ALBEDO is expressed in Godot's shader as a vector3, so you're already familiar with the fact that the vectors often are not about vector math at all--they're just a way to force multiple floats to travel together under a single variable. 
+
+Here, the distance function has existed throughout the shader as a float, to track distance. If we want to hot-glue-gun a material ID on top of it, it needs to become a vec2. The x component can continue to be distance, but the y component will store the material ID.
+
+Right now, the object list, a/k/a the parent get_scene_distance function, looks like this:
+	
+	float get_scene_distance(vec3 point) {
+	float d = get_distance_to_sphere(point-marble1_pos, 0.5);
+	d = min(d, get_distance_to_sphere(point-marble2_pos, 0.5));
+	d = min(d, get_distance_to_sphere(point-marble3_pos, 0.5));
+	d = min(d, get_distance_to_box(point-game_floor_pos,game_floor_size));
+	return d;
+	}
+
+As you can see, it just goes through every object in the scene, finds the object with the smallest/closest distance, and returns whatever distance that is. This is the function where you could be storing information about which of the objects you're coming the closest to, and thus, what material to use, but right now, the simple min method gets rid of that information. In order to preserve it, each line of the object list needs an upgrade from the current question, which is just "Is this object closer than the last object?" Instead, it should ask a better question: "Is this object's distance, stored as X, closer than the last object, and if it is, take a note of the object's material ID, stored as Y."
+
+I'll be writing this in customarily wordy format, like so:
+
+vec2 min_and_material(vec2 first_object_d_and_m, vec2 second_object_distance_d_and_m) {
+	if (first_object_d_and_m.x < first_object_d_and_m.x){
+		return first_object_d_and_m;
+	} else {
+		return second_object_d_and_m;
+	}
+}
+
+It can also be written as a potentially more efficient ternary, like so:
+
+	vec2 min_and_material(vec2 first_object_d_and_m, vec2 second_object_distance_d_and_m) {
+	return (first_object_d_and_m.x < second_object_d_and_m.y)
+	?
+	first_object_d_and_m : second_object_d_and_m;
+	
+Finally, in the field, you'd likely encounter a far less wordy version that looks closer to the IQ canon, such as:
+	vec2 opUnion(vec2 a, vec2 b){
+		return(a.x<b.x) ? a : b;
+	}
+
+If this gets incorporated into the object list/parent SDF, then the float that the rest of the shader depends on becomes a vec2, and the rest of the code breaks. So, it's worth planning ahead for what components each part of the shader will reference. We know that the function that calculates normals only cares about distance, so refactoring it will just mean adding the X component everywhere.
+
+The marcher itself is slightly more confusing, because there's a hit branch that only needs the X component, and a shading branch that can now use the Y component. 
+
+The object list itself needs to be creating the material IDs, which is where the Y component gets introduced.
+
+The additional lines that bring in logic to separate and do different things with the different materials can exist later, but everything before that has to be done in one pass. So, the steps:
+	
+ACT 1, PART 1:
+	0. Save a backup copy of your shader code, cause things are about to get sloppy
+	1. Add the function that takes a minimum distance comparison between two objects, and attaches the appropriate material ID as a Y component to create a vec2
+	2a. Update the get_scene_distance object list of SDFs to add each object's material ID as a Y component, so that it has a Y component to pass
+	2b. Update that same object list of SDFs to replace the min() method with the fancier function that can remember a material ID
+	3. Update the normal function to use the X components
+	4a. Update the raymarching function's hit detection branch to use the X component
+	4b. Update the raymarching function's shading branch to use the Y component
+	5. Hope that the scene now looks exactly like it did before this journey started
+
+
+
+
+ACT 2: GIVING THE BOX A SEPARATE COLOR (move this into the next chapter)
+
+
+ACT 3: GIVING THE BOX SOME NOISE (Move this to the next chapter, chapter 5)
