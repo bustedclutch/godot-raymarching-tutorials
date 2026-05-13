@@ -1,8 +1,14 @@
 EDIT/TOGGLE WORD WRAP, or ALT+Z to Word Wrap this document in Godot.
 
+FIRST, A NOTE ABOUT HOW THE CODE CHANGES IN THIS CHAPTER ARE HANDLED: This chapter has a significant and confusing refactor of the gel shader. So, a few guideposts about how I structured it:
+1. I worked top to bottom, in both my explanation and the changes to the code.
+2. I typically give a before-and-after for each line that changes, but you can also look at the end state of the previous chapter and compare it to the end state of this chapter.
+3. For each block of code I change, I commented out the old section, and retyped the new section, with a comment noting the change that aligns with the instructions in this guide.
+4. Perhaps most helpful at all, as you begin the refactor, Godot will start spitting out a new error at the bottom of the screen. You'll see these errors literally go away as you work, since we'll be clearing the errors top-to-bottom.
+
 We're going to borrow a concept from the rasterization world, and give each object in the scene its own material ID. The problem this poses for us is that to track the material ID throughout the shader, many of our floats have to become vec2's. You've already seen how ALBEDO is expressed in Godot's shader as a vector3, so you're already familiar with the fact that the vectors often are not about vector math at all--they're just a way to force multiple floats to travel together under a single variable. 
 
-Here, the distance function has existed throughout the shader as a float, to track distance. If we want to hot-glue-gun a material ID on top of it, it needs to become a vec2. The x component can continue to be distance, but the y component will store the material ID.
+Here, the distance function has existed throughout the shader as a float, to track a single number: distance. 
 
 Right now, the object list, a/k/a the parent get_scene_distance function, looks like this:
 	
@@ -14,52 +20,232 @@ Right now, the object list, a/k/a the parent get_scene_distance function, looks 
 	return d;
 	}
 
-As you can see, it just goes through every object in the scene, finds the object with the smallest/closest distance, and returns whatever distance that is. This is the function where you could be storing information about which of the objects you're coming the closest to, and thus, what material to use, but right now, the simple min method gets rid of that information. In order to preserve it, each line of the object list needs an upgrade from the current question, which is just "Is this object closer than the last object?" Instead, it should ask a better question: "Is this object's distance, stored as X, closer than the last object, and if it is, take a note of the object's material ID, stored as Y."
+As you can see, the distance function goes through every object in the scene, finds the distance, compares it to the distance of the previous object, and goes through the full list until the smallest distance is found. That smallest number is returned as "d". 
 
-I'll be writing this in customarily wordy format, like so:
+Thus, although this function could also be keeping track of which of these objects was returning the smallest "d", right now, that information is getting thrown away.
 
-vec2 min_and_material(vec2 first_object_d_and_m, vec2 second_object_distance_d_and_m) {
-	if (first_object_d_and_m.x < first_object_d_and_m.x){
+In order to preserve that information, each line of the object list needs an upgrade from the current question, which is just "Is this object closer than the last object?" Instead, it should ask a better question: "Is this object's distance, stored as X, closer than the last object, and if it is, take a note of the object's material ID, and store that information as Y."
+
+This means we're going to take "d", previously a float, and turn it into a vec2, which is just a pair of floats, so that we can hot-glue-gun the material ID on as the Y component.
+
+That means replacing the "min()" method with a new handwritten function, which compares two distances submitted to it as x components of a vec2, also collects the material IDs of the y components, and then returns the vec2 with the smallest x component and whichever y component was traveling with it as a passenger. 
+
+I'll be writing this in my customarily wordy format, like so:
+
+vec2 min_and_material(vec2 first_object_d_and_m, vec2 second_object_d_and_m) {
+	if (first_object_d_and_m.x < second_object_d_and_m.x){
 		return first_object_d_and_m;
 	} else {
 		return second_object_d_and_m;
 	}
 }
 
-It can also be written as a potentially more efficient ternary, like so:
+I've called it "min_and_material" to remind me that this function is finding the minimum and also returning the material ID that went with the minimum.
 
-	vec2 min_and_material(vec2 first_object_d_and_m, vec2 second_object_distance_d_and_m) {
-	return (first_object_d_and_m.x < second_object_d_and_m.y)
+It can also be written as a potentially more efficient ternary, like so, and I've shortened "min_and_material" to "min_n_mat":
+
+	vec2 min_n_mat(vec2 first_object_d_and_m, vec2 second_object_d_and_m) {
+	return (first_object_d_and_m.x < second_object_d_and_m.x)
 	?
 	first_object_d_and_m : second_object_d_and_m;
+	}
 	
-Finally, in the field, you'd likely encounter a far less wordy version that looks closer to the IQ canon, such as:
+Finally, in the real world, you'd likely encounter a far less wordy version that looks closer to the Inigo Quilez canon, such as:
 	vec2 opUnion(vec2 a, vec2 b){
 		return(a.x<b.x) ? a : b;
 	}
 
-If this gets incorporated into the object list/parent SDF, then the float that the rest of the shader depends on becomes a vec2, and the rest of the code breaks. So, it's worth planning ahead for what components each part of the shader will reference. We know that the function that calculates normals only cares about distance, so refactoring it will just mean adding the X component everywhere.
+I'm using wordy versions of everything for teaching purposes, but if this isn't your first rodeo, or just like to be succinct, just write it as an a/b function.
 
-The marcher itself is slightly more confusing, because there's a hit branch that only needs the X component, and a shading branch that can now use the Y component. 
+One big refactoring problem: If this gets incorporated into the object list/parent SDF, then the float that the rest of the shader depends on becomes a vec2, and everything else in the code breaks. So, it's worth planning ahead for what components each part of the shader will reference. We know that the function that calculates normals only cares about distance, so refactoring it will just mean refactoring its input to explicitly consider the X component everywhere it normally considers distance.
+
+The marcher itself is slightly more confusing, because there's a hit branch that only needs the X component for distance, and a shading branch that can now use the Y component for making different shading choices based on the material ID. 
 
 The object list itself needs to be creating the material IDs, which is where the Y component gets introduced.
 
-The additional lines that bring in logic to separate and do different things with the different materials can exist later, but everything before that has to be done in one pass. So, the steps:
+The additional lines that bring in logic to separate and do different things with the different materials can exist later, but everything before that has to be done in one pass--until then, our shader will be temporarily broken. So, the steps:
 	
 ACT 1, PART 1:
 	0. Save a backup copy of your shader code, cause things are about to get sloppy
-	1. Add the function that takes a minimum distance comparison between two objects, and attaches the appropriate material ID as a Y component to create a vec2
-	2a. Update the get_scene_distance object list of SDFs to add each object's material ID as a Y component, so that it has a Y component to pass
-	2b. Update that same object list of SDFs to replace the min() method with the fancier function that can remember a material ID
+	1. Add the function that takes a minimum distance comparison between two objects, and attaches the appropriate material ID as a Y component to return a vec2
+	2. Update the get_scene_distance object list of SDFs to add each object's material ID as a Y component, replace the min() method with the fancier function that can remember a material ID, and update its language and parentheses with "vec2" throughout
 	3. Update the normal function to use the X components
-	4a. Update the raymarching function's hit detection branch to use the X component
-	4b. Update the raymarching function's shading branch to use the Y component
+	4. Update the raymarching function's hit detection logic to only consider the X component
 	5. Hope that the scene now looks exactly like it did before this journey started
+	6. The thing we're not doing yet: Actually using the material ID to shade different objects differently
+
+PART 1, SCENE 0: BACKUPS
+
+Back up your shader. Copy it somewhere.
+
+PART 1, SCENE 1: THE MIN AND MATERIAL FUNCTION
+
+I'll construct the min_n_mat function as a ternary, because I'm really bad at ternaries, and I need the practice.
+
+vec2 min_n_mat(vec2 first_object_d_and_m, vec2 second_object_d_and_m){
+	return 
+	(first_object_d_and_m.x < second_object_d_and_m.x)
+	?
+	first_object_d_and_m : second_object_d_and_m;
+}
+
+An easy typo here is to forget to request the x component in the comparison, while returning the entire vec2.
+
+PART 1, SCENE 2: UPDATE get_scene_distance WITH Y COMPONENTS AND THE min_n_mat FUNCTION
+
+First, go ahead and change "float" to "vec2" on the line that declares the function, so that it goes from this:
+
+	float get_scene_distance(vec3 point) {
+
+...to this:
+
+	vec2 get_scene_distance(vec3 point) {
+
+Your shader has stopped working, and Godot will inform you that the function isn't returning a vec2 as expected. It'll be a while before we can make the shader work again, but we should be able to make the vec2 error go away.
+
+First, update all of the objects to start passing in material IDs. The first object declares a float, which also needs to become a vec2. It'll go from this:
+
+	float d = get_distance_to_sphere(point-marble1_pos, 0.5);
+
+...to this:
+
+	vec2 d = vec2(get_distance_to_sphere(point-marble1_pos, 0.5), 1);
+
+Marble 1 is thus getting a material ID of 1.
+
+Marble 2's line will deploy the min_n_mat function, going from this:
+
+	d = min(d, get_distance_to_sphere(point-marble2_pos, 0.5));
+
+...to this:
+
+	d = min_n_mat(d, vec2(get_distance_to_sphere(point-marble2_pos, 0.5), 2));
+
+You can see I've given it a material ID of 2.
+
+I'll give the same treatment to Marble 3 and the game floor, but instead of giving the game floor a material ID of 4, I'm going to give it an arbitrarily high material ID of 50. That way if there's more marbles in the scene, I don't confuse myself later. Perhaps the 60's, 70's, or 80's will be used later for bumpers and other things. The code goes from this:
+
+	d = min(d, get_distance_to_sphere(point-marble3_pos, 0.5));
+	d = min(d, get_distance_to_box(point-game_floor_pos,game_floor_size));
+
+...to this:
+
+	d = min_n_mat(d, vec2(get_distance_to_sphere(point-marble3_pos, 0.5), 3));
+	d = min_n_mat(d, vec2(get_distance_to_box(point-game_floor_pos,game_floor_size), 50));
+
+Inserting "vec2" and the parentheses in the right place is the tricky part here.
+
+PART 1, SCENE 3: UPDATE THE NORMAL FUNCTION TO USE X COMPONENTS
+
+You should now be getting an error message from Godot that the normal function is no longer working, with something like: 
+
+	"Error at line 56: Invalid arguments for the built-in function: "vec3(vec2, vec2, vec2)".
+
+The normal function is the easiest to fix, as get_scene_distance is returning a vec2, so we need to just have it consistently request the X component every time it's used. So the normal function goes from this:
+
+vec3 get_surface_normal(vec3 point) {
+	float offset = 0.001;
+	return normalize(vec3(
+		get_scene_distance(point + vec3(offset, 0.0, 0.0)) - get_scene_distance(point - vec3(offset, 0.0, 0.0)),
+		get_scene_distance(point + vec3(0.0, offset, 0.0)) - get_scene_distance(point - vec3(0.0, offset, 0.0)),
+		get_scene_distance(point + vec3(0.0, 0.0, offset)) - get_scene_distance(point - vec3(0.0, 0.0, offset))
+	));
+}
+
+...to this:
+
+vec3 get_surface_normal(vec3 point) {
+	float offset = 0.001;
+	return normalize(vec3(
+		get_scene_distance(point + vec3(offset, 0.0, 0.0)).x - get_scene_distance(point - vec3(offset, 0.0, 0.0)).x,
+		get_scene_distance(point + vec3(0.0, offset, 0.0)).x - get_scene_distance(point - vec3(0.0, offset, 0.0)).x,
+		get_scene_distance(point + vec3(0.0, 0.0, offset)).x - get_scene_distance(point - vec3(0.0, 0.0, offset)).x
+	));
+}
+
+That will clear the error Godot was spitting out about the normal function, and hopefully offer some satisfaction about making progress.
+
+ACT 1, PART 1, SCENE 4: UPDATE THE MARCHER'S HIT DETECTION BRANCH TO USE THE X COMPONENT:
+
+Godot is now firing off the error, "Error at line 81: Invalid arguments to operator '=': 'float, vec2'." And highlighting in red this line:
+
+			distance_to_surface = get_scene_distance(current_position);
+
+And note that we previously declared "distance_to_surface as a float, with the line:
+
+	float distance_to_surface = 0.0;
+
+Now, however, distance has been loaded with an additional paired Y component to include the material ID. Whatever object we're closest to is going to be the object we strike, so whenever that distance hits zero, we need to read the Y component stored with it, read it,and do a magic shading thing. First, declare distance_to_surface as a vec2 instead:
+
+	vec2 distance_to_surface = vec2(0.0, 0.0);
+
+STYLE NOTE: Remember to watch your indentation here, as everything in the march branch is living inside of your fragment shader. Though technically it's shader code and indents are ignored.
+
+This clears the error that was presenting for this line, we can leave as-is:
+
+	distance_to_surface = get_scene_distance(current_position);
+
+...it's still doing what it's supposed to, just getting more information by also obtaining the material ID and storing it in the y component of distance_to_surface.
+
+This line, however, is broken:
+
+		if (distance_to_surface < SURFACE_EPSILON || total_distance > MAX_MARCH_DISTANCE) {
+
+The comparison was expecting two floats, but distance_to_surface is a vec2 now. The distance it's looking for is in the x component, so change it to:
+
+	if (distance_to_surface.x < SURFACE_EPSILON || total_distance > MAX_MARCH_DISTANCE) {
+
+The total_distance variable can and should remain a float. So just update its corresponding line to only add the X component of distance_to_surface, which takes it from this:
+
+	total_distance += distance_to_surface;
+
+...to this:
+
+	total_distance += distance_to_surface.x;
+
+Correct the next mention of the hit comparison, here:
+
+	if (distance_to_surface < SURFACE_EPSILON) {	
+
+...so that it is instead:
+
+	if (distance_to_surface.x < SURFACE_EPSILON) {	
+
+PART 1, ACT 1, SCENE 5: CELEBRATE?
+
+It's at this moment in time that the last error clears and your shader pops back into view. Hopefully.
+
+Because this is the biggest refactoring project yet, I've duplicated the shader and named it as "camera_gel_min_and_mat.gdshader" so that you can compare it to your own changes, in case you ran into any problems. You can compare it line by line to the end state of Chapter 4's gel, and I've also included commented-out portions of each line that changed.
+
+Parentheses, actually writing out "vec2" every time a vec2 exists (not just when you declare a vec2 as a variable), and semicolons in right place are probably the most likely problems.
+
+This chapter is written in such a way that you should literally work from top-to-bottom, and you should also see Godot's errors clear as you handle each section.
 
 
+ACT 2, A VICTORY LAP: GIVING A MARBLE A COLOR
 
+Now that you're out of refactor hell, you might consider taking a stab at just modifying the shader branch of the marcher to give Marble 1 a red color.
 
-ACT 2: GIVING THE BOX A SEPARATE COLOR (move this into the next chapter)
+Take this:
 
+		ALBEDO = vec3(diffuse); // Basic Lambert shading
+		ALPHA = 1.0;
 
-ACT 3: GIVING THE BOX SOME NOISE (Move this to the next chapter, chapter 5)
+And turn it into this:
+
+	if (int(distance_to_surface.y) == 1) {
+		ALBEDO = vec3(1.0, 0.0, 0.0); // Basic Lambert shading
+		ALPHA = 1.0;
+	}
+	else {
+		ALBEDO = vec3(diffuse); // Basic Lambert shading
+		ALPHA = 1.0;
+	}
+
+That will do something quirky, which is make marble 1 a pure, unshaded red, which will kill any semblance of 3D. 
+
+But if it's red, then you've succeeded in passing a material ID all the way to the shader, which was the purpose of this whole chapter. 
+
+In the next chapter, we should clean up the shading so that color is incorporated into the Lambertian shading, and clean up the logic with a MATCH statement instead of IF so that it's cleaner.
+
+In the chapter after that, we can finally start looking into noise.

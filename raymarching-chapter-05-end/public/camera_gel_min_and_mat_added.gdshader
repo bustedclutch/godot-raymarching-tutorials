@@ -126,18 +126,8 @@ void fragment() {
 		vec3 surface_position = ray_origin + ray_direction * total_distance;
 		vec3 surface_normal = get_surface_normal(surface_position);
 		float diffuse = clamp(dot(normalize(surface_normal), normalize(light_direction)), 0.0, 1.0);
-		////Chapter 5: Give a marble a different color using an if branch, to confirm the
-		//// Y component has made its long journey south.
-		//ALBEDO = vec3(diffuse); // Basic Lambert shading
-		//ALPHA = 1.0;
-		if (int(distance_to_surface.y) == 1) {
-			ALBEDO = vec3(1.0, 0.0, 0.0); // Basic Lambert shading
-			ALPHA = 1.0;
-		}
-		else {
-			ALBEDO = vec3(diffuse); // Basic Lambert shading
-			ALPHA = 1.0;
-		}
+		ALBEDO = vec3(diffuse); // Basic Lambert shading
+		ALPHA = 1.0;
 		
 		
 	} else {

@@ -6,6 +6,8 @@ It's worth thinking about some of the objects in our scene, and what raymarching
 
 The great majority of these additions require rendering specific objects with specific colors, and noise. Visualizing our noise on any 3D objects will be a lot harder than visualizing it on a 2D object, so the natural start in my opinion is to replace our rasterized floor with a raymarched one, and give it a noise-based texture, different from the marbles. That sets us up with noise functions we can use everywhere else, and an in-scene canvas on which we can experiment.
 
+Before we can even get to that part, we'll need a box, and in the next chapter, a way to give different materials to different objects.
+
 ACT 1: REPLACING THE RASTERIZED BOX WITH A RAYMARCHED BOX
 
 First, we need to add a box. Knowing what you know now, you might feel like taking a crack at it, just using the outline.
