@@ -1,0 +1,78 @@
+EDIT/TOGGLE WORD WRAP, or ALT+Z to Word Wrap this document in Godot.
+
+PART 1, SCENE 1: FIXING THAT UNSHADED RED 
+
+The solid red color is pretty absurd, so fixing that is the first order of business. The diffuse line is still doing the hard work of calculating Lambertian shading with white light:
+
+	float diffuse = clamp(dot(normalize(surface_normal), normalize(light_direction)), 0.0, 1.0);
+
+In case you've forgotten, Lambertian shading is taking the dot product of the surface normal and the light direction. That's it. Those two inputs are cleaned up with a normalize() method, and the output is clamped between 0 and 1 to prevent artifacts, but that's really all that's happening there. You'll encounter this elsewhere when you need to hardcode Lambertian shading, such as with cel shaders.
+
+In other words, let's not mess with that line, since it's serving a very core mathematical principle. We'll shade the red later, in this line:
+
+	if (int(distance_to_surface.y) == 1) {
+		ALBEDO = vec3(1.0, 0.0, 0.0);
+
+You might find this funny, but giving Lambertian shading a color is as easy as... multiplying the Lambertian shading by the color. That means tweaking it to this will turn the marble from flat-red to shaded-red:
+
+	ALBEDO = diffuse*vec3(1.0, 0.0, 0.0);
+
+And boom, Marble 1 has shaded red.
+
+PART 1, SCENE 2: ABSTRACTING OUT MARBLE 1'S COLOR
+
+As a learning exercise, we could abstract that red out to be a uniform that's accessible via the Inspector's color picker. We've already shipped variables from GDScript, so it's worth remembering how to get those to show up.
+
+Replace the line with this instead:
+
+	ALBEDO = diffuse*marble1_color;
+
+This temporarily breaks the shader. Now declare the color as a uniform up at the top of the shader:
+
+	uniform vec3 marble1_color : source_color = vec3(1.0, 0.0, 0.0);
+
+Now if you click the RaymarchingGel node, and click Shader Parameters in the Inspector (usually the right side of the screen), you should see a zillion different uniforms you already declared (like camera position, camera basis, marble position, and so on, using their shader names) and the color red. Change it.
+
+WARNING: Changing variables in the Inspector panel when coding shaders is actually a really fast way to go insane, and you should consider avoiding it, because it quickly becomes impossible to differentiate whether your shader is pulling information from the Inspector or from your code. You're already dealing with multiple competing realities when writing raymarching shaders that are cloning Godot reality, so adding an Inspector-level reality will cause shader-induced-psychosis. But it's great for finding the perfect color!
+
+Lastly, while we're here, go ahead and add colors for the other scene objects:
+
+	uniform vec3 marble2_color : source_color = vec3(0.0, 1.0, 0.0);
+	uniform vec3 marble3_color : source_color = vec3(0.0, 0.0, 1.0);
+	uniform vec3 game_floor_color : source_color = vec3(1.0, 0.5, 0.0);
+
+PART 2, SCENE 1: CLEANING THE LOGIC
+
+At present, the logic in the line:
+
+	if (int(distance_to_surface.y) == 1) 
+
+Allows for a branch to do all kinds of fun things.
+
+WARNING: Note that I used an int() method to clean up the material ID. It's the Y component of a vec2, so it's basically functioning as a float. There are other ways of handling this that I've heard of, such as checking whether the float is less than 1.5 and greatoer than 0.5--but I'll be using int(). Just know it's a thing.
+
+If you're coming from GDScript, then your first instinct would be to do something like "match"; if it were possible to use match, then it would look something like this:
+
+match distance_to_surface.y:
+	1: ALBEDO = diffuse*marble1_color;
+	2: ALBEDO = diffuse*marble2_color;
+	//some more colors//
+	_: ALBEDO = diffuse
+
+Match, however, is not a thing. Maybe that's bad, if you're coming from GDScript, and were hoping things to be matchy matchy. Or maybe that's great, if you're coming from Unreal/Unity/Shadertoy/etc. and you were hoping that Godot behaves like shaders everywhere else, which it largely seems to. So you'll use "switch" and "case" language instead, which looks like this:
+
+	switch (int(distance_to_surface.y)) {
+		case 1: ALBEDO = diffuse*marble1_color; ALPHA=1.0; break;
+		default: ALBEDO = vec3(diffuse); ALPHA=1.0; break;
+	}
+
+Assuming that works (don't forget the int method to clean up the inputs), you can add in your other material IDs:
+
+		switch (int(distance_to_surface.y)) {
+			case 1: ALBEDO = diffuse*marble1_color; ALPHA=1.0; break;
+			case 2: ALBEDO = diffuse*marble2_color; ALPHA=1.0; break;
+			case 3: ALBEDO = diffuse*marble3_color; ALPHA=1.0; break;
+			case 50: ALBEDO = diffuse*game_floor_color; ALPHA=1.0; break;
+			default: ALBEDO = vec3(diffuse); ALPHA=1.0; break;
+		}
+
