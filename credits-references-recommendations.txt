@@ -16,9 +16,11 @@ THAT WHOLE COPYRIGHT BUSINESS (SKIP IF IT'S BORING)
 
 Although I did a decent amount of coding myself, I learned a lot during this process by asking various chatbots to take a stab at it, and then correcting for the resulting errors. Nonetheless, much of the code they dispensed, and their analysis of my own code, was immeasurably helpful. For that, I am extremely grateful to the countless developers, authors, and speakers whose content made its way into the chatbots' training data, along with the developers and the LLMs themselves.
 
-It's hard to talk about copyright in the math-focused coding context, where math ideas and thus much of their coding expressions aren't subject to copyright, and harder still when our work becomes indifferentiable from the cumulative mass of human knowledge and experience, now bleeding into LLM weights. My main "creative insight" was to try and order things so that they would be accessible to beginners, often at the explicit cost of efficiency.
+It's hard to talk about copyright in the math-focused coding context, where math ideas and thus much of their coding expressions aren't subject to copyright, and harder still when our work becomes indifferentiable from the cumulative mass of human knowledge and experience, now bleeding into LLM weights. 
 
-There are plenty of occasions where I most definitely borrow from others, such as IQ's formulas or the open sourced GDQuest robot ("Gobot"). I'll try to keep a running list of those here, but to the extent I forget, it's absolutely your responsibility to make sure nothing unsafe makes its way into your commercial project.
+My main "creative insight" in this project was to try and order things so that they would be accessible to beginners, often at the explicit cost of efficiency, as well as significant deviations from how things are "supposed to be done". Ideally, if you follow along, you'll be able to recognize the same functions out in the wild based on what they do, as opposed to conventions for how they're named. Raymarching is notoriously expensive, so efficiency tricks are very important, but I'm putting those off.
+
+There are plenty of occasions where I most definitely borrow from others, such as IQ's formulas or the open sourced GDQuest robot ("Gobot"). I'll try to keep a running list of those, but to the extent I forget, it's absolutely your responsibility to make sure nothing unsafe makes its way into your commercial project.
 
 Below, I provide a list that will be updated as I go of resources, books, thoughts on said resources, and so forth, with priority given to those whose material is accessible to total beginners. If you're thinking "how did you not mention [famous person here]?" it's because this is for an audience of true beginners. 
 
