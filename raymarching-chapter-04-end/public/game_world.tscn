@@ -62,6 +62,7 @@ mesh = SubResource("QuadMesh_vs8q8")
 surface_material_override/0 = SubResource("ShaderMaterial_3048b")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="CharacterBody3D" unique_id=940706488]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.72, 0)
 shape = SubResource("CapsuleShape3D_5itm1")
 
 [node name="GobotSkin" parent="CharacterBody3D" unique_id=1111350075 instance=ExtResource("1_bcdym")]
