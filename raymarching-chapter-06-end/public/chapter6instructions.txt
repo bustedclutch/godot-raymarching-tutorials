@@ -76,3 +76,4 @@ Assuming that works (don't forget the int method to clean up the inputs), you ca
 			default: ALBEDO = vec3(diffuse); ALPHA=1.0; break;
 		}
 
+That takes us through assigning different materials.
