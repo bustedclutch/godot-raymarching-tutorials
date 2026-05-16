@@ -1,0 +1,265 @@
+EDIT/TOGGLE WORD WRAP, or ALT+Z to Word Wrap this document in Godot.
+
+So... what's noise?
+
+If you're thinking, "random function that makes random details" then you're most of the way there. But noise has some specific qualities that are worth pointing out before going down the rabbit hole, and this rabbit hole is an extremely deep one. You can spend a lifetime on noise, and noise is a very current field of study. The main thing that makes noise noise, and not just another mathematical function, is that noise remains deterministic despite creating the appearance of randomness. 
+
+You probably already knew that, and you probably already knew that noise is used for things like terrain generation, giving a dirty appearance to 3D objects by altering their normals or albedo or both, or giving cel shaders a hand-painted look. You also already know that it's useful for using not very much data to give everyone everywhere the same result--an infinite world with a few lines of code and a seed, for the same players all over the world.
+
+Quality noise has other characteristics: It can't have obvious repetition. It needs to be cheap to compute; which matters a lot in raymarching, where we're calculating at least per pixel and potentially per march. Noise's quality may be judged by how well it interpolates values. Good noise is often unique in what it brings to the table--we don't need another version of the same noise, we're always looking for a noise that does something the other noise patterns can't do yet. Noise often needs to be customizable to fit a certain design need--noise doesn't have a traditional user interface, so a series of easily editable variables that result in separate somewhat-predictable results *is* the UI. And in the real world, noise is typically judged by how well it clones effects from the real world. Noise might have a lot of fun potential for weird effects to post online, but most noise is going to be evaluated for how well it convincingly sells a realistic look for erosion, terrain, age, botanical growth, cells, weathering, and so forth. The best noise tends to be the noise you don't peg as noise. Some noise patterns are idealized for exhibiting fractal-like behavior, whereby they produce similar patterns regardless of how zoomed-in or zoomed-out you are. Noise needs to take as input and produce output on the required number of dimensions--you might need a vec3 input to produce a vec3, or vec4, or something else.
+
+Noise can use fractals, but it doesn't have to.
+
+Noise output tends to be in a 0 to 1 space or -1 to 1 space--you've seen this before if you've ever taken a sin curve (-1 to 1) and normalized it to be 0 to 1. Most noise tends not to have significant sections of pure black/0 or pure white/1 output, as a clamp function is always at hand to produce that result where needed.
+
+As far as how you deploy noise in a raymarcher, two paths diverge in a wood, which is whether the noise function lives inside of the shader code, or if you ship it from outside the shader. Generally speaking, if the noise is shipped to the GPU from outside of the shader code, it's because the noise was expensive to create and you only needed to render it once.
+
+Noise can modify anything in the scene. It can modify normals, which gives a sense of roughness. It can modify actual distance, creating pockets or terrain. Modifying color can produce watercolor effects.
+
+USING NOISE TO MODIFY ALBEDO
+
+For objects that don't move, we could get away with all kinds of things when using noise. We could, for example, just plug in the distance_traveled variable when a ray hits, route that through a noise function, and call it a day.
+
+But we're in 3D space and objects in our game are already moving and will continue to move. So instead, we're going to start off using noise functions that accept four dimensional input and produce one dimensional output. This will allow us to plug in a location and time input as a vec4, and get a float output.
+
+NOTE: In the long run, in order to have objects move and rotate, we'll also be moving the vec3 that goes into the noise pattern. 
+
+ALTERING ALBEDO WITH THE SIMPLEST NOISE POSSIBLE
+
+We've already branched off the floor into its own logic, so now, and we're already familiar with multiplying the lambertian shading by any color we like.
+
+Now, let's try taking the vec3 that was stored as the hit in the raymarcher, and add a simple noise function up top, so that we can plug in the hit location and multiply the albedo accordingly for the game floor color.
+
+PART 1: ADD A SIMPLE NOISE FUNCTION
+
+float simple_hash_noise(vec3 p, float t) {
+	return fract(sin(dot(p+t,vec3(13.74,71.89,31.92)))*10000.01);
+}
+
+The fract method returns whatever comes after the decimal place, which tends to be where the chaos lives in a lot of numbers. Also, it always produces a number between 0 and 1.
+
+Our marcher is already storing the hit location as a vec3, "surface_position". We'll leave time alone for now.
+
+	case 50: ALBEDO = diffuse*game_floor_color*simple_hash_noise(surface_position, 1.0); ALPHA=1.0; break;
+
+But something weird happens, which is that the noise pattern on the floor around the marbles changes as the marble moves. It looks a bit like how gravity alters light around a black hole, because we're observing a similar phenomenon. The rays, as they march, take shorter steps around the marble the closer the marble gets. This causes the ray to hit in an extremely close but slightly different position on the floor. Something in the 0.00000001 difference-ish range. 
+
+The noise function, however, takes any difference, no matter how small, and produces a totally different result. That's... not what we want here, because it's producing bad visual artifacts. How do we address the problem? Options include:
+	
+	Change the noise method to something inherently smoother, so subtle changes to inputs cause output changes that are too small to notice
+	Clean up the input so that very tiny changes aren't picked up in the first place
+	Explicitly map the dimensions of the floor into the shader itself, since we don't technically need to rely on the ray marcher to know where the floor is
+	Project the noise onto the surface similar to how rasterization handles textures via UVs
+	Some other possibility
+	
+The last two possibilities feel a little too much for me like rebuilding raytracing and rasterization inside of a raymarcher. I won't kink shame you if that's what you want, but you're probably here because you want to achieve effects that you can't achieve through raytracing and rasterization. So let's experiment with the first two.
+
+Quantization is a method via which we can clean up the input, and switching to a noise function that uses interpolation is one (just one) path toward a function that has less jittery output.
+
+They're both worth learning about, because noise is really confusing without them, and game development in general relies on them for tons of other things. If you've played a multiplayer first person shooter, ever, then you know how annoying jitter can be.
+
+Because quantization and interpolation are basically everywhere, you might already be an expert, in which case skip ahead. But if you're not, you'll need both concepts eventually.
+
+CLEANING UP THE INPUT, VIA QUANTIZATION
+
+Right now, a vec3 has a zillion decimal places. So a vec3 of (0.000000005, 0, 0) produces a completely different output than (0.000000006, 0, 0). Because computers are constantly discarding whatever is outside of their floating point unit, the numbers at the edge tend to both jitter and be garbage. As a living breathing human we usually can recognize that that particular variable was just some floating point discrepancy that should have ended up at 0, but didn't. How you snap it (up, down, or rounded) as well as what threshold you choose (three decimal places? six?) are probably the simplest questions for quantizing something.
+
+So let's quantize!
+
+For learning the math, we can detour back to gdscript. That's a lot easier to figure out than a shader.
+
+Create a new scene with a 3D node as the root. Call the node MathExperiment and attach a script to it. Save the scene and the script.
+
+Run the scene and verify nothing happens. (It should just be a grey box). Close it.
+
+Go ahead and grab the noise function from the shader you were editing, and paste it into the math_experiment.gd script. It should produce errors, since it's in shader language, which descended from C, and GDScript descended from Python.
+
+	float simple_hash_noise(vec3 p, float t) {
+		return fract(sin(dot(p+t,vec3(13.74,71.89,31.92)))*10000.01);
+	}
+
+Take your best shot at converting it to GDScript. Here's where I began:
+
+	func simple_hash_noise(p: Vector3, t:float):
+		return fract(sin(dot(p+t, Vector3(13.74,71.89,31.92)))*10000.01)
+
+...alas, even then, everything blows up. Renaming it and redoing how the parameters are written still leaves a few problems. GDScript supports sin() as a global thing you can just call anywhere, but it doesn't have fract(), it doesn't deploy dot() in quite the same way, and it doesn't support just adding a float to a vector.
+
+NOTE: I tend to use cute coloring-book language for a lot of stuff, because I have an English degree and a law degree and thus I ran out of space in my brain for new words. But you might read elsewhere that the problem is you're trying to add a scalar to a vector. Or that GLSL is "implicitly broadcasting". I'll define those in a bit.
+
+CLEANING THINGS UP
+
+I think this will be a lot easier to follow if I abstract out the hardcoded numbers as variables, so go ahead and replace the vector with numbers with a variant called "some_vector" and the big float at the end with a variant called "some_float":
+
+	var some_vector : Vector3 = Vector3(13.74,71.89,31.92)
+	var some_float : float = 10000.01
+
+REPLACING FRACT WITH AN EQUIVALENT GDSCRIPT FUNCTION
+
+Let's work left to right, starting with the function that doesn't exist: Fract. Fract in GLSL discards the whole number and leaves behind just what came after the decimal place, a.k.a. the fractional part. We need the fractional part of X, so we just need to subtract the integer part. Take a stab at that function, or just read the solution below.
+
+	func fract(x: float):
+		return x - floor(x)
+
+Adding this to the script will clear one of the errors.
+
+NOTE: It's possible that some later version of Godot will add a "fract" built-in, and if they do, they'll probably name it "fract". So if that ever happpens, and you're using that version of Godot, then you'll notice that you'll probably be creating some other error, which is known as shadowing a built-in. It's the same reason our game's floor is called "game_floor" and not "floor", because "floor()" is a built-in, like "ready()" or "process()". To avoid this possibility, I'll rename the function fractional_part and refactor:
+
+	func fractional_part(x: float):
+		return x - floor(x)
+
+	func simple_hash_noise(p: Vector3, t:float):
+		return fractional_part(sin(dot(p+t, some_vector))*10000.01)
+
+ADDING A SCALAR TO A VECTOR
+
+Clearing the second error means dealing with the fact that unlike GLSL, GDScript doesn't inherently attempt to add a float to a Vector3. This, I'm sure, is very much on purpose: When coding a 3D game, it's surprisingly easy to add a scalar to a Vector3 on accident, and you're better off with Godot stopping you from doing it than just assuming it's what you intended. Usually in a game, if you're adding a scalar to a Vector3, you only want to add it to one dimension, e.g. jumping increasing your Y/elevation only, not all three axes at once. In shader language that's done on purpose all the time, so it does something called "implicit broadcasting", wherein "broadcasting" is applying a single number to all three axes of the vector at once. As mentioned above, I ran out of room for all but the most essential new words, so you probably won't ever hear me use the word "broadcasting" again.
+
+The GLSL function already adds the float to to all three components of p. To make it work in GDScript, we need something more explicit. A couple options:
+
+	Vector3(t, t, t)
+	Vector3.ONE*t
+
+The first one is easier so I'll sub in that one.
+
+	return fractional_part(sin(dot(p+Vector3(t,t,t), some_vector))*10000.01)
+
+USING DOT PRODUCT AS A METHOD INSTEAD OF A BUILT-IN FUNCTION
+
+Now to fix the dot product situation.
+
+There's a lot of parentheses happening, so it's worth breaking out the dot product situation into its own situation:
+
+return fractional_part(sin(  dot(p+Vector3(t,t,t), some_vector)  )*10000.01)
+
+Clarified here as:
+
+return fractional_part(sin(  "the-dot-product-situation"  )*10000.01)
+
+...where the "dot-product-situation" is this:
+
+dot(p+Vector3(t,t,t), some_vector)
+
+In GLSL, dot() is a built-in function with two parameters, where the first argument is the first vector, the second argument is the second vector. The order they're in is irrelevant, and as a reminder of what a dot product is, if the first vector is (a,b,c), and the second vector is (x,y,z), then the dot product is ax + by + cz. Which is a scalar. It seems like it shouldn't be as powerful as it is, but we've seen it already with lambertian shading, which evaluates the dot product of a surface normal and the direction toward which you'd be directly facing the light source. The light source vector is kind of like whatever vector a sunflower would have as it points itself toward the sun. (MOVE THIS TO LAMBERTIAN SHADING SECTION OF UNWRITTEN CHAPTER 1)
+
+Dot products exist as a method on a Vector3 in GDScript. Because dot products evaluate the same way regardless of which vector is first or second, it doesn't actually matter whether we call the dot product method on the first or second vector. But I'll do it on the first just to keep things looking similar as I go. So the revised dot product situation becomes:
+
+(p+Vector3(t,t,t)).dot(some_vector)
+
+Insert it back into the function where it was removed.
+
+return fractional_part(sin(  "the-dot-product-situation"  )*10000.01)
+
+...becomes:
+
+return fractional_part(sin(  (p+Vector3(t,t,t)).dot(some_vector)  )*10000.01)
+
+TESTING THE FUNCTION WORKS 
+
+Let's say our point is... (2.0, 5.0, 7.0). Declare that as a simple_point :
+
+	var simple_point : Vector3 = Vector3(2.0, 5.0, 7.0)
+
+
+and print the result of running it through the hash function where t=0:
+
+	func _ready() -> void:
+		print(simple_hash_noise(simple_point, 1.0))
+
+I got this number:
+
+0.70663887369028
+
+Let's add a slightly_different_point:
+
+	var slightly_different_point := Vector3(2.00001, 5.0, 7.0)
+
+And print both:
+
+	func _ready() -> void:
+		print(simple_hash_noise(simple_point, 1.0))
+		print(simple_hash_noise(slightly_different_point,1.0))
+
+The result:
+
+
+0.70663887369028
+0.43695384990679
+
+Now, if you add a zero to the slight_different_point, and take it from 2.00001 to 2.000001, then your second number might end up the same as the first, and at some point, it definitely will.
+
+But say, for our purposes, that we don't care about anything beyond 2.00. Maybe we want 2.005 and 2.008 and 2.000 to all produce the same result, to all snap to 2.00. That's quantization, and the formula for that is:
+
+floor(x * steps) / steps
+
+The steps are the number of decimal places. Whole numbers have a step size of 1. Tenths are a step size of 10. If we want 2.006 to equal 2.004, then we need everything to the hundreths, or a step size of 100. So are quantization function becomes:
+
+floor(x * 100) / 100
+
+And in the GDScript function, we can declare that as a function:
+
+	func quantized_vector(vector : Vector3):
+		var x = floor(vector.x*100)/100
+		var y = floor(vector.y*100)/100
+		var z = floor(vector.z*100)/100
+		return Vector3(x,y,z)
+
+NOTE: This is a long-form version of a similar built-in method, "snapped", but as with everything else, I'm throwing efficiency to the wind.
+
+Now, update the _ready function to add a print of the quantized version of both vectors. In theory, the first vector should produce the same result (the quantization function shouldn't have no effects) whereas the second vector should instead produce the same hash as the first. Update the _ready function:
+
+	func _ready() -> void:
+		print(simple_hash_noise(simple_point, 1.0))
+		print(simple_hash_noise(slightly_different_point,1.0))
+		#Quantized
+		print(simple_hash_noise(quantized_vector(simple_point), 1.0))
+		print(simple_hash_noise(quantized_vector(slightly_different_point),1.0))
+
+For me, my result was:
+
+0.70663887369028
+0.43695384990679
+0.70663887369028
+0.70663887369028
+
+
+
+SMOOTHING THE OUTPUT BY CHANGING THE NOISE FUNCTION ITSELF, AND A DESCRIPTION ON WHAT INTERPOLATION ISN'T
+
+Our current hash function lives up to its name, as hash functions are designed to produce wildly different outcomes with extremely similar inputs (that's why they're common in security). Let's take a look at our current noise function:
+
+sin(dot(p+t,vec3(13.74,71.89,31.92)))*10000.01
+
+A lot of the chaos lives in that big number at the end, which I've abstracted out as "some_float". Let's try this again with a smaller float. Copy and paste the simple_hash_noise function with a renamed smoother_hash_noise function, and replace "some_float" with the number 1:
+
+func smoother_hash_noise(p: Vector3, t:float):
+	return fractional_part(sin(  (p+Vector3(t,t,t)).dot(some_vector)  )*1)
+
+Now print the results of those two:
+
+func _ready() -> void:
+	##Earlier prints, if you left them in
+	print(smoother_hash_noise(simple_point,1.0))
+	print(smoother_hash_noise(slightly_different_point,1.0))
+
+My results were:
+
+0.1986714652159
+0.19874449664049
+
+Here, the results are much closer together. A very similar input has produced a very similar output. If these two numbers were mapped onto RGB colors, they'd result in the same color.
+
+You might be tempted, like sirens luring Odysseus, to draft a function interpolating those two values. You should not. I mean, as a learning exercise, do whatever you want, but something to point out now is that making noise functions smooth is math that happens inside of the noise function.
+
+In the context of a shader, that printed result corresponds to the color of that pixel. The GPU evaluated every pixed on your screen, picked out a final number, and printed it on screen. You don't interpolate by looking at adjacent colors on the screen and smoothing it out--it would be extremely expensive, and it would have the effect of applying a blur filter to your screen.
+
+When noise functions interpolate, they quantize and interpolate the outcome within the noise function itself.
+
+
+
+***Follow same pattern with quantization, and a different noise function.***
+	
+
+	
+
+	
