@@ -1,0 +1,15 @@
+[gd_scene format=3 uid="uid://jtb6h62xfudh"]
+
+[ext_resource type="Shader" uid="uid://cbmsqt0nkbdc5" path="res://worley_basics.gdshader" id="1_xxhe6"]
+
+[sub_resource type="QuadMesh" id="QuadMesh_iec37"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_tqi6c"]
+render_priority = 0
+shader = ExtResource("1_xxhe6")
+
+[node name="WorleyBasics" type="Node3D" unique_id=1915151246]
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=718683864]
+mesh = SubResource("QuadMesh_iec37")
+surface_material_override/0 = SubResource("ShaderMaterial_tqi6c")

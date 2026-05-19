@@ -1,0 +1,114 @@
+EDIT/TOGGLE WORD WRAP, or ALT+Z to Word Wrap this document in Godot.
+
+As a reminder, here's where I left off in the last chapter:
+
+PREPARING FOR THE NEXT CHAPTER
+
+If you're feeling spicy, go ahead and apply these changes to the GLSL shader without a walkthrough, and if you're feeling spicier, look up a few noise functions and apply them to the floor. See how both quantizing your input and the noise function itself affects the problem at hand, and what benefits (or costs) come from using one, the other, or both. Try to avoid assuming that any superficially ugly artifact is bad--literally every shader begins as an ugly duckling, a potential miracle that you pull from the mud. "One man's banding is another man's cel-shading", as they say.
+
+Besides these topics, future directions include rotating objects and their noise, and applying noise in domains besides albedo.
+	
+Before we embark on bigger journeys like clouds and procedural terrain generation, let's get to work on making the floor not look like some version of buggy orange TV static.
+
+The last chapter introduced a quantizing function, which in gdscript, looked like this:
+
+	func quantized_vector(vector : Vector3):
+		var x = floor(vector.x*100)/100
+		var y = floor(vector.y*100)/100
+		var z = floor(vector.z*100)/100
+		return Vector3(x,y,z)
+
+I also tried simplifying the hash function to replace the big number at the end with a little one (literally one):
+
+	func smoother_hash_noise(p: Vector3, t:float):
+	return fractional_part(sin(  (p+Vector3(t,t,t)).dot(some_vector)  )*1)
+
+QUANTIZING IN SHADER CODE
+
+The floor is handled in this line of the shader code:
+
+	case 50: ALBEDO = diffuse*game_floor_color*simple_hash_noise(surface_position, 1.0); ALPHA=1.0; break;
+
+It's currently calling the surface_position raw. What if it called the quantized surface position instead?
+
+Let's add a quantizing formula to the top of the shader, for quantizing vec3's:
+
+	vec3 quantized_vec3(vec3 p) {
+		return floor(p*100.0)/100.0;
+	}
+
+As you can see, it's a lot easier to write the function in shader code--it was built around these kinds of shenanigans.
+
+Now, instead of just calling for the surface position in the floor section of the switch logic, call for the quantized surface position instead:
+
+	case 50: ALBEDO = diffuse*game_floor_color*simple_hash_noise(quantized_vec3(surface_position), 1.0); 
+	ALPHA=1.0; break;
+
+Run the scene.
+
+THIS SOLVES TWO PROBLEMS, NOT JUST ONE 
+
+You'll notice that two problems get solved. Our original artifact, the chaotic aura around the moving spheres, has gone away.
+
+An additional problem gets nuked as well: The floor's pattern remains fixed even as the camera moves around the scene. Before, the camera's own movement was introducing small changes into the hash noise function that were getting picked up.
+
+The pattern still seems to shift too much when more than a few meters away. Try tweaking the quantization function to be in tenths instead:
+
+	return floor(p*10.0)/10.0;
+
+This causes a pixellated result. But it also causes the result at the far end of the platform to be steadier. 
+
+Switch back to hundreths.
+
+SMOOTHING THE NOISE FUNCTION ITSELF 
+
+As of now, the hash function is this:
+
+	float simple_hash_noise(vec3 p, float t) {
+	return fract(sin(dot(p+t,vec3(13.74,71.89,31.92)))*10000.01);
+
+Replace the big number at the end with just 1.0, and see what happens.
+
+You'll notice that you end up with a rather boring sin curve. Increasing the number just takes you closer to TV static, with no intersting in-between. This hash function is well known because it's simple, and it's effective if you need static, but it's time to move on to better noise functions.
+
+I'M SKIPPING AN EXPLANATION OF NOISE
+
+The Book of Shaders has a good primer on noise, and it's interactive--so take a minute to read the couple pages they have on noise. I'll be here when you return.
+
+I AM, IN FACT, HERE ON YOUR RETURN 
+
+Learned about noise? Great!
+
+We're going to keep the hash noise function in case we need it later. Even when using complicated and beautiful noise functions, you might call on simpler, crazier noise functions to spice up your main noise function somehow. 
+
+I'm partial to Worley noise, partly because I'm a fan of the look, and also because it relies on distance functions. Since raymarching is all about the distance function, this is probably the smallest leap.
+
+In the very beginning of this work, there was shader of "Hello, World" level complexity. It looked like this:
+
+	col = vec3(length(uv));
+
+When the UV origin was mapped to zero, it produced a black blob in the middle (where the length of the vector was zero) that greyed out to white the further you were from the center. Each pixel color was its measurement of distance to the origin. Worley noise works similarly, except instead of measuring distance to one point, it measures the distance to 9 surrounding points in 2D space, and 27 points in 3D space (essentially turning a Sudoku puzzle into a Rubik's cube).
+
+You might choose to follow the tutorial in the Book of Shaders, but since there's some Godot-specific challenges, I'm going to translate some elements of their work into a Godot package.
+
+Create a new scene, create a 3D node called WorleyBasics, create a MeshInstance3D with a quad mesh, override the surface material in the Inspector, and give it a new shader called worley_basics.gdshader. Start with this foundation:
+
+shader_type spatial;
+render_mode unshaded;
+
+void fragment() {
+	vec2 uv = UV;
+
+	uv = vec2(uv.x,(1.0-uv.y));
+	
+	uv = uv*2.0 - 1.0 ;
+	
+	col = vec3(length(uv));
+	col = clamp(col, 0.0, 1.0);
+	col = pow(col, vec3(2.2));
+	
+	ALBEDO = col; ALPHA = 1.0;
+}
+
+As of now, making the color equal the length of the UV effectively measures the length to the center, since the UV origin is at the middle of the quad, and what we're treating as 0,0.
+
