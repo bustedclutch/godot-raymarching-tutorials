@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://jtb6h62xfudh"]
 
-[ext_resource type="Shader" uid="uid://cbmsqt0nkbdc5" path="res://worley_basics.gdshader" id="1_xxhe6"]
+[ext_resource type="Shader" uid="uid://cbmsqt0nkbdc5" path="res://public/worley_basics.gdshader" id="1_xxhe6"]
 
 [sub_resource type="QuadMesh" id="QuadMesh_iec37"]
 
