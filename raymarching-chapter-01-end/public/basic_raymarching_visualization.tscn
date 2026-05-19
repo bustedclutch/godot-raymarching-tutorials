@@ -2,6 +2,19 @@
 
 [ext_resource type="Shader" uid="uid://danbxqhjaasbe" path="res://public/simple_raymarcher.gdshader" id="1_a1dfs"]
 
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_a1dfs"]
+sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
+ground_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
+
+[sub_resource type="Sky" id="Sky_id0dh"]
+sky_material = SubResource("ProceduralSkyMaterial_a1dfs")
+
+[sub_resource type="Environment" id="Environment_j7hqb"]
+background_mode = 2
+sky = SubResource("Sky_id0dh")
+tonemap_mode = 2
+glow_enabled = true
+
 [sub_resource type="QuadMesh" id="QuadMesh_odm11"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_jekxt"]
@@ -10,9 +23,18 @@ shader = ExtResource("1_a1dfs")
 
 [sub_resource type="SphereMesh" id="SphereMesh_bxmgd"]
 
+[sub_resource type="SphereMesh" id="SphereMesh_j7hqb"]
+
 [node name="BasicRaymarchingVisualization" type="Node3D" unique_id=2124946624]
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=29824163]
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=710095900]
+environment = SubResource("Environment_j7hqb")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=153541388]
+transform = Transform3D(0.70710677, -0.40860704, 0.5770964, 0, 0.8161376, 0.5778576, -0.70710677, -0.40860704, 0.5770964, 0, 0, 0)
+shadow_enabled = true
+
+[node name="RaymarchingQuad" type="MeshInstance3D" parent="." unique_id=29824163]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1)
 mesh = SubResource("QuadMesh_odm11")
 surface_material_override/0 = SubResource("ShaderMaterial_jekxt")
@@ -20,5 +42,9 @@ surface_material_override/0 = SubResource("ShaderMaterial_jekxt")
 [node name="Camera3D" type="Camera3D" parent="." unique_id=630523184]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 3)
 
-[node name="MeshInstance3D2" type="MeshInstance3D" parent="." unique_id=1798837010]
+[node name="GodotUniverseSphere" type="MeshInstance3D" parent="." unique_id=1798837010]
 mesh = SubResource("SphereMesh_bxmgd")
+
+[node name="RaymarchedSunLocation" type="MeshInstance3D" parent="." unique_id=175087944]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 1)
+mesh = SubResource("SphereMesh_j7hqb")

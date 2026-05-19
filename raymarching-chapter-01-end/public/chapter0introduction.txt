@@ -1,0 +1,64 @@
+EDIT/TOGGLE WORD WRAP, or ALT+Z to Word Wrap this document in Godot.
+
+Hi! This is an introduction. If you want to skip straight to the "how to do stuff" part, move on to the instructions titled Chapter 1.
+
+Most books begin with an introduction describing the author's expertise in the field. 
+
+This isn't one of those cases. 
+
+I began each chapter with a goal I didn't know how to accomplish, and then wrote instructions for how to follow me on the journey. I'm not an experienced programmer, and I knew nothing about raymarching at the outset of writing a book about how to do it. But the worst case scenario of me making a mistake is that your code breaks, and you'll probably learn something by unbreaking it. With the stakes set low, I've been able to relax a lot more than I've been able to in my other teaching capacities.
+
+I encourage you to embrace that same feeling of fun as you make your own journey through shaders, raymarching, and Godot. As you chase down errors, try to think of the bright red warnings as missing pieces of knowledge on your main quest to becoming a game design champion. Mistakes are what real life experience points are made of. Even if you chose to do game design for work, you chose to do it because it's fun, as having the skills required to design a high-end game allow you to make far more money in a lot of other sectors. People who know how to code GPU instructions could be working in banking or AI or sales, but they're not. You're here doing this instead, so: Always remember to enjoy yourself!
+
+As a teacher, I will do my best to assume that you know nothing. Nothing about Godot, nothing about shaders, nothing about raymarching, and very little about programming. My biggest assumption about your knowledge is that you've done a six hour coding-101 tutorial somewhere, such that you can declare variables and functions, know what methods are, and can print("Hello world") to the terminal. If you encounter anything in the book where you were mystified or had trouble following along, please let me know so that I can make corrections. I do expect that you'll google a term or two as you go, as well as "How to do X in Godot", but beyond that I'd like people to be able to follow along easily.
+
+Conversely, if there's parts of the book that are too easy or too simple, it's up to you to skim and skip those portions. You might not need an explanation for what a normal or vec3 is, but someone out there does.
+
+WHAT IS RAYMARCHING?
+
+I actually don't know how to answer this question.
+
+Strictly speaking, raymarching involves shooting a ray out from your camera, and using an iterative function to define how that ray steps forward through space until it gathers enough data to choose what color to render to the screen.
+
+In more detail: For each pixel on the screen, a ray marches forward a distance and a direction determined by separate distance and direction functions. At each step, the ray will stop or continue. It might only collect data at the end of its journey, but it can also collect data at multiple times along its journey. The ray will probably intersect with something eventually, but it might not. Where it does intersect, it might decide to end its journey then and there. If it hits glass, it will likely change its angle to account for refraction and continue on. If the ray hits something reflective like a mirror, then it will bounce away and into something else. For simple objects, rays collect data wherever they stop marching--if it hits an opaque, non-reflective red ball, then the ray needs to report the color red and how brightly illuminated the red ball is. 
+
+Because the rays can travel in steps, they're naturally good at handling volumes, such as fog or clouds or suspensions. In those instances, the ray can collect data as it travels, so that the ray can report back whether there was a little, or a lot, of smoke or fog or ice, and the degree to which it's illuminated or shadowed.
+
+Although not required, because a ray can march with any function you come up with, rays typically evaluate how far they can safely travel each step with what's called a "signed distance function", or simply, a distance function. The common acronym is "SDF". As a ray travels, it evaluates its distance from every object in a scene, and then travels the smallest of those distances. "Signed" simply means that the function can report a positive or negative number--if a ray is outside of an object, the number will be positive, but if for any reason the ray travels into the inside of an object, the number will be negative, and report the distance to the walls of the object its inside of. If I'm inside of a sphere with a radius of 100 meters, and I'm at the very center, then my distance function will report negative 100 meters. If I was closer to a wall, but still inside, it could be -10 meters.
+
+A ray can be compared to a submarine with sonar--it can hear pings that tell it how far it is from something, and thus, how far it can safely travel without crashing into something. You want your ray to crash into something, but you want that thing to be the closest thing. 
+
+WHY RAYMARCHING?
+
+Raymarching expresses the shapes of objects, and their meaning, using mathematical functions. The appeal of that could be aesthetic, or it can be because you enjoy math.
+
+The primary graphics pipeline in game design is not raymarching, but rather, rasterization. Rasterization relies on expressing shapes using meshes with polygons, specifically triangles. 
+
+(I'm skipping a discussion of raytracing, except to point out the main difference: Raytracing differs from raymarching because there's no iterative march--raytracing is about finding the ray's intersection in one function, not as a series of steps.)
+
+Raymarching often solves problems that can't be answered with a mesh. To be fair, a mesh can express most things. If you're an indie devloper working with Godot and trying to learn the many, many job titles normally split among a staff of people at a studio, getting more realistic fog/glass/water might not be high on your priority list, but I address why you might want to learn it anyway, below.
+
+RAYMARCHING ISN'T FOR THE THINGS THIS BOOK STARTS WITH (AND WHY IT'S OK THAT THE BEGINNING IS BORING)
+
+In order to learn how to raymarch, you have to learn how to make basic shapes with basic colors. For that reason, the first few chapters will feel like you're making something boring and stupid and in want of a larger purpose. I don't think the world needs more things that leave people feeling trapped in "tutorial hell", and one of the call-signs of tutorial hell is rapidly copying things you don't have time to practice or fully understand that results in something that looks cool but that you can't meaningfully build from. I try my best to make it fun, but learning foundations is inherently, at times, a little boring and a little tough. If you haven't heard this advice before, always hack the class by practicing with your own elements and changes until you feel confident writing similar code and creating similar scenes on your own with your own changes.
+
+If you want some inspiration for where raymarching eventually can take you, you should click through the various demo scenes on Shadertoy, which is essentially the internet's de facto raymarching playground. Not all of the shaders are marched, but by the end of chapter 1, you'll be able to recognize and spot a raymarching function. What you'll probably notice is that the raymarched scenes have a certain aesthetic--the sharp lines feel organic, the colors read almost gooey, and the flaws feel welcome rather than rasterization's uncanny valley grotesque.
+
+SHOULD I DO THIS JOURNEY IF I DON'T REALLY CARE ABOUT MAKING REALISTIC FOG EFFECTS?
+
+That's a question between you and Jesus, but I'm doing my best to make this book an intro to Godot and shaders more broadly. If you can make a decent raymarching shader, you'll be equipped to make tons of other non-raymarching shaders. Many of the concepts are required for 3D games. You'll need a working grasp of vectors just to move things around in a scene. Noise is a requirement for a variety of non-graphics game design, such as procedural terrain generation. Comfortably using nodes and the inspector and having variables output by one scene so they can get used by somewhere else is part and parcel of the Godot engine. 
+
+And in the words of Freya Holmer, when asked whether you can avoid shaders in your video game, the answer is: "You don't have a choice." Your game runs on shaders. Whether your game looks beautiful, or ugly, can easily hinge on your shaders.
+
+You might be doing shaders already--those material nodes in Blender, if you've been using them, are shaders. If you're used to working with node trees in a material editor, one of the first things you'll notice when learning to code shaders is a sense of "oh god, this is what node trees are doing under the hood".
+
+I think there's an argument that in terms of time and style and cost, shaders are cheap. Take note of how short some of the shader code is on Shadertoy, and that each shader is typically written by one person (and even then, they virtually always incorporate elements written by other people). Hand painting something highly stylized is magnificent, as are the games that strive for absolute realism. But those approaches mean enormous effort for small teams. Shaders notoriously enable reuse--once you've arrived at the style, you can populate your game with the same shader but apply different tweaks to give a universe-wide aesthetic at minimal cost.
+
+A NOTE ABOUT RAYMARCHING'S ORIGINS AND CREATORS, AND A DEDICATION
+
+I'm definitely not the person to ask in terms of the history of raymarching and its developers. The Book of Shaders does a much better job than I can do in terms of giving the history of who was responsible for the many developments in shader design.
+
+That said, giving credit to the right person for a specific formula is quite difficult for anyone. This is common in plenty of other fields--I teach circus acrobatics, and various tricks are invented, co-invented, and re-invented, simultaneously all over the world, making crediting the right person for anything frequently impossible. I've created many things over the years that blew up in popularity and with my name long ago removed--and not out of ill will (well, except for the occasional explicit plagiarism situations where removing my name in Photoshop required actual labor, which always struck me as weird for works I was giving away for free, but I digress). The same problem exists in shaders--you have famous raymarchers like Inigo Quilez and the noise makers Perlin and Worley, but lots of unknown people stumble on different mathematical tricks all the time that explode in popularity and their known attachment to their ideas vanish. And even among the famous, their teachers' names are often omitted. Only historians know the name of Genghis Khan's mother, but if she hadn't forced her way back into power in a campaign of fury and vengeance after being exiled to an assumed death, little Genghis would have been a dead child on a riverbank, and if by some other miracle he survived, she was the one who taught him how to conquer the world.
+
+It's worth giving explicit credit to all of the people whose names were lost in transmission and whose ideas made their way to me. I learned a great deal from them, even though I have no idea who they are, along with the artists I wish I could meet but who chose to remain anonymous. For all the ways the unnamed people, the teachers, and the moms, have influenced my work, I'd like to credit them most of all.
+

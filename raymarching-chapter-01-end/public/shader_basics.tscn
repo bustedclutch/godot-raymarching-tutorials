@@ -1,0 +1,37 @@
+[gd_scene format=3 uid="uid://6c8ngak33285"]
+
+[ext_resource type="Shader" uid="uid://cac7uii454x1t" path="res://public/shader_basics.gdshader" id="1_n3sp5"]
+
+[sub_resource type="QuadMesh" id="QuadMesh_r0qrm"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_haaq1"]
+render_priority = 0
+shader = ExtResource("1_n3sp5")
+
+[sub_resource type="BoxMesh" id="BoxMesh_n3sp5"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_r0qrm"]
+render_priority = 0
+shader = ExtResource("1_n3sp5")
+
+[sub_resource type="SphereMesh" id="SphereMesh_haaq1"]
+
+[node name="ShaderBasics" type="Node3D" unique_id=1036846780]
+
+[node name="Quad" type="MeshInstance3D" parent="." unique_id=452395030]
+mesh = SubResource("QuadMesh_r0qrm")
+surface_material_override/0 = SubResource("ShaderMaterial_haaq1")
+metadata/_edit_lock_ = true
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=143766933]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1.0870594)
+
+[node name="Cube" type="MeshInstance3D" parent="." unique_id=624042457]
+transform = Transform3D(0.8664701, 0, -0.49922892, 0, 1, 0, 0.49922892, 0, 0.8664701, 1.953809, 0, -0.78287745)
+mesh = SubResource("BoxMesh_n3sp5")
+surface_material_override/0 = SubResource("ShaderMaterial_r0qrm")
+
+[node name="Cube2" type="MeshInstance3D" parent="." unique_id=1639743075]
+transform = Transform3D(0.8664701, 0, -0.49922892, 0, 1, 0, 0.49922892, 0, 0.8664701, -2.462853, 0, -0.78287745)
+mesh = SubResource("SphereMesh_haaq1")
+surface_material_override/0 = SubResource("ShaderMaterial_r0qrm")
