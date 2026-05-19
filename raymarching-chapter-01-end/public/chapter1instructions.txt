@@ -1,0 +1,377 @@
+PRESS ALT+Z TO WORD WRAP
+
+Pop open Godot and create a project and save it somewhere. Like any creative work, nothing you're doing here is too precious, so don't think too hard about the name or where it goes.
+
+Godot will open with three main sections--the left, the middle, and the right section. The left section contains the scene tree and the file system, the middle section contains the viewport and your code, and the right section contains your inspector.
+
+You tend not to use the file system on the bottom left much, though you'll touch it occasionally to duplicate, rename, and organize files.
+
+The upper left section, with the scene tree, you'll be playing with a ton--this is where you add nodes. Nodes in Godot can be anything. They can be actual player characters, they can be the camera from which your game renders, they can be lights. If you're an experienced programmer, nodes are classes. (More specifically: Instantiations of classes, once they're added to the scene tree.) Nodes can have parents and children, and that parent-child relationship has a lot of effects. Nodes don't have to be added to the scene tree to exist--you can attach scripts which instantiate all the nodes that way instead, and this is common for instantiating things like bullets. A bullet-hell game would be impossible to make in Godot if you had to add all the bullets as nodes--they're the kind of thing that gets instantiated when the game runs, and which may exist as a separate saved scene.
+
+Critically, every node's place in the universe, such as "3 meters to the left on the X axis", is relative to its parent. Thus, if a parent node is at (3, 4, 5) in XYZ space, and you want the child node to also be at 3,4,5, then the child's position would be set to 0, 0, 0. If the child were to be one meter above its parent, then its position would be at 3,5,5. Children move with their parents, so if a script animates a parent to move, the child will travel with it.
+
+It's important to understand this system of relative position, or you'll quickly lose track of where everything is and should be. An extremely common error, which you'll probably make eventually, is to move a child that merely represents the visualization of its parent, such as the mesh for a player character, rather than the parent node that represents the player character itself, including its physics body. Instinctively, we grab and move the things we can see. That instinct often causes you to grab and move the wrong thing.
+
+Aspects like "position" for any given node are known as "properties", and they can be set in the inspector, though you can also use the gizmos to move objects around in the 3D viewport.
+
+CREATING A NODE TO REPRESENT THE KNOWN UNIVERSE 
+
+There's several file types in Godot, including scripts and shaders. Organized collections of nodes are stored as "scenes". Scenes store parent-child relationships, properties for the various nodes, script attachments, and similar data. Although you might initially read a scene as being like a level in a game, because that's how levels tend to be organized, complicated objects are usually packaged as separate scenes. If you make a platformer, often the game level is a scene, and instantiated into that scene are your player character (a separate scene), the coins they pick up, the chests they open, animated lights, (a scene, a scene, a scene), and so on. 
+
+ When you create your first scene, you'll be prompted to choose its root node, with the initial options being "2D Scene", "3D Scene", "User Interface", and "Other Node". Select 3D scene, which will create a Node3D as the root node. (Alternatively, push CTRL+A while your mouse is hovering over the scene tree to create a node.) We're making a generic 3D node the root, as our current objective is to depict a three-dimensional universe. Name it anything you like; I called mine "BasicRaymarchingVisualization". Save the file now, so that you can quickly CTRL+S to save changes to your scene.
+
+This is your root node. Every other node in the scene has to be a child (or grandchild, etc.) of this root node.
+
+If it's not open already, select "3D" at the top center of Godot (between 2D and Script) and you'll see a 3D space with your typical 3d editor gizmos. At the moment, it's empty.
+
+CREATE THE GODOT UNIVERSE DEPICTION OF OUR RAYMARCHED SHADER 
+
+We'll be writing a raymarching shader in which a sphere is at the world origin, 0, 0, 0,; and the camera is three meters away from the sphere and looking straight at it. The camera will be at 0, 0, 3.
+
+A QUICK NOTE ABOUT AXES
+
+In Blender, Rhino, and elsewhere, you'll likely be used to the Z axis representing up and down. In game design, the conventions change depending on context.
+
+In the context of your 3D viewport, where you operate most of the time in Godot, the Y axis represents up and down, with positive Y going up. The camera, in this context, looks toward the negative z axis by default. You can check your rotation gizmo at the top right of the viewport for a reminder of which direction is positive or negative, and which axis is which. So for most player characters, their hair is positive Y, their chest is pointed at negative Z, their back is pointed toward positive z, their right shoulder is pointed toward positive X, and their left shoulder pointed toward negative X. Every node you make in Godot that sits in this particular 3D space is going to follow this pattern in terms of what left, right, up, down, back, and front are. It's not that different from Blender, in that the letters Y and Z are reversed.
+
+But things get crazier.
+
+In 2D games, positive X is right, and positive Y is, surprisingly, down. This is a vestigial structure from when computer monitors interpreted everything as the distance from the top left corner.
+
+We also discuss 3D objects in terms of their "normals". You'd be better off reviewing a quick internet primer on what normals are if you're new to them, but normals can use the Z axis as up down in certain contexts, particularly texturing normal maps.
+
+Another coordinate space are object UV's. Every object has a visual map for textures and other purposes. ("Other purposes" is about to take on monumental importance in the context of raymarching.) If you're mapping a texture to a simple rectangle mesh (a.k.a. a "quad"), you need to know what the bottom left and top right of the mesh are so that the corners of your texture line up as expected with the corners of your quad. By default, on a Godot quad, the top left is 0,0, and the bottom right is 1,1. These are almost the same X,Y coordinates from grade school, where X and Y return, but positive Y means down and the origin is tucked in a corner. 
+
+Because it's easier to work from a grid that behaves like the one we learned about it grade school, we often use a few lines of code to move the origin from the top left corner to the center, and to reverse Y as needed to make sure that positive Y means up.
+
+Also, "UV's" are XY coordinates. They are the letters that come before XYZ, and using different letters helped separate the graphics people doing textures from the game design people moving objects in game-space. But while messing with the shadercode, and specifically UV's, the code itself will reference them as X and Y.
+
+It's a lot to take in and it won't be clear at first. I personally found remembering that -Z is the front of an object to be mystifying until suddenly it felt like my day to day default.
+
+The important things to know are that UV is just another XY coordinate system, that the origin doesn't always start in the center, that the letters can change places, that what means up/down reverses a lot, and that the edges of viewable space and other things are often described as running 0 to 1, or -1 to 1. And that you'll be using -Z a lot in Gdscript, since where something faces is regularly important in game design.
+
+BACK TO CREATING THE SIMPLE GODOT UNIVERSE
+
+From the scene tree, CTRL+A to add a Camera3D node, and set its position in the inspector to 0, 0, 3.0. You'll notice that the camera is already pointed toward negative Z, keeping the convention of shaders and cameras looking toward negative Z.
+
+CTRL+A to add a MeshInstance3D node. In the Inspector, there's a line that says "Mesh", and it's currently <empty>. A very common Godot pattern is to make a node that needs you to select some basic shape or object. Click the box that currently says "empty", and select SphereMesh.
+
+In the center of the menu area of the 3D viewport, alongside various buttons like "use snap" and "use local space" (these are icons and not text) there will be a triple dot/hamburger button. On my version of Godot, 4.6.1, it's to the right of the buttons for previewing a sunlight and a global environment. If you want, you can click the buttons "Add Sun to Scene" and "Add Environment to Scene"--if you do this, and click "Run scene" (usually F6 on the keyboard) then you'll see a bland white ball sitting alone in the universe. 
+
+The other way to add a sun to the scene is to CTRL+A to add a node and search for DirectionalLight3D. Whatever floats your boat.
+
+In the inspector, set the DirectionalLight3D's Rotation property to -35.3, 45.0, 0.0. This will set the light to illuminate the top right of the ball, with a shadow on the bottom left. If you'd like to visualize the location of our fictional sun, you can add another MeshInstance3D with a sphere mesh, set its position to 1, 1, 1, and rename it "TheSun".
+
+The purpose of these shapes is just to visualize what you're making in the raymarcher. You have a 3D sketchboard right in front of you, so you might as well take advantage.
+
+NOMENCLATURE FOR OUR VIRTUAL WORLDS
+
+I borrow a naming convention from YouTuber "Visionary3D"'s video titled, "I Made A Blob Shooting Game With Ray Marching". I'll sometimes call what happens in the Godot world the "real world". That ball you just made, the sun you just added, the camera, those are all objects in the real world. The fiction we're about to create is what lives in shadercode; it will be the raymarched world.
+
+If you're just making demo shaders, you have the luxury of not caring about what happens in the real world. But in a game engine, you don't have this luxury: The raymarcher is only handling part of the world. Even if it's handling the entirety of the graphics (unlikely but possible) then the physics are still in the real Godot world. 
+
+In the beginning, creating these objects is a nice stepping stone to understanding what it is you're doing. But eventually, you come to the realization that one of the significant challenges of raymarching is getting your raymarched world and the real world to match. So as you move between the worlds, try and keep track of how object positions, rotations, and so forth are described in the real world, and how it is expressed in the raymarched one.
+
+SET UP YOUR QUAD AND SHADER 
+
+Add another MeshInstance3D. Assign it a quad mesh. 
+
+Below "Mesh" in the Inspector, you should now have the ability to select Surface Material Override. Click the "empty" box and select ShaderMaterial. You'll have another "empty" box to select the shader, and you'll choose "New Shader". Name your shader. Note that shaders have .gdshader endings. As a note for the future, you can see that there's a "0" on the left--this is the 0th shader material on this object. This matters later, when you have scripts passing data to this shader. If you double click your shader, it should pop open in the shader editor at the center of the screen and below the viewport.
+
+Shaders are scripted in a different location of the UI for two reasons: First, you need to actively watch the 3D viewport for changes to the appearance of your shaders in order to write them. Second, you'll need to be able to have your Gdscipt scripts and your shader code next to each other when you start shipping variables from gdscript to GLSL. 
+
+A POSSIBLE DETOUR INTO SHADER FUNDAMENTALS
+
+If you're new to shaders entirely, here's a quick intro, though a far better intro is Freya Holmer's YouTube intro. Although she's writing in Unity, it all applies to Godot, though you might find the below section useful as I discuss a few Godot-specific translations. If you already have a basic understanding of shaders and want to skip ahead to the raymarcher, go for it. 
+
+Still here? Great. Create a new Godot scene and just call it ShaderFundamentals or something. Give it a quad. Do the same surface material override described above, and name your shader something like shadingfundamentals.gdshader.
+
+You might find it a little weird that after learning the syntax of Python for Gdscript, you use the syntax of C to write shader code. A function that looks like this in gdscript:
+
+func celebrate_good_news(news : String):
+    if news == "Found an emotionally available dom top on Tinder" :
+        print("Get in the shower immediately!")
+    else:
+        print("Order delivery and play video games")
+
+...looks more like this in GLSL:
+
+vec3 get_in_shower_now_light(bool dom_t_inc){
+    if (dom_t_inc == true){
+        return vec3(1.0, 1.0, 1.0);
+    }
+    else {
+        return vec3(0.0,0.0,0.0);
+    }
+}
+
+There are both superficial syntax differences as well as core conceptual differences happening here.
+
+Every function leads with the output type. The variable type and name are reversed in the parameters section in parentheses. Curly brackets do the work of indents, so the indents and line endings are for style. And of course, there are semicolons EVERYWHERE, and the error that results often isn't "you're missing a semicolon" but something unique and special from what the compiler perceives as jamming two unrelated lines together. I don't know that I'll ever stop searching for errors that are actually caused by missing semicolons.
+
+There's more foundational shifts as well: There are no strings. The final output is only a color, so there is nothing that can be "printed" to a shader besides what the shader produces. 
+
+On the one hand, you might be annoyed that you have to work in two languages. The main benefit is that you only have to learn it once. If you switch game engines, you'll still know how to write shaders, as the differences are minimal. Let's hit two birds with one stone, and compare a basic shader you'd write on Shadertoy with a shader you'd write in Godot. Here's a shader on Shadertoy that has black at the bottom left origin of 0,0 and gives more red the further along you are on the X axis, and more green the higher you are on the Y axis:
+
+    void mainImage( out vec4 fragColor, in vec2 fragCoord )
+    {
+        // Normalized pixel coordinates (from 0 to 1)
+        vec2 uv = fragCoord/iResolution.xy;
+
+        // Mapping red to the X axis and green to Y
+        vec3 col = vec3(uv.x, uv.y, 0.0);
+
+        // Output to screen
+        fragColor = vec4(col,1.0);
+    }
+
+Now, here's a very similar shader in Godot:
+
+    shader_type spatial;
+
+    void fragment() {
+        vec2 uv = UV;
+        
+        vec3 col = vec3(uv.x, uv.y, 0.0);
+        
+        ALBEDO = col; ALPAHA = 1.0;
+    }
+
+Shadertoy maintains the "Y is up" convention, and Godot has positive Y going down. It also defines the global inputs and outputs with slightly different names. "fragColor" is a four component vector, but Godot splits it into a three component RGB vector for "ALBEDO" and a float for ALPHA (transparency). "fragCoord" replaces "UV" as our means of identifying the starting location in space, though Shadertoy measures in pixels and Godot in the 0 to 1 UV range (there is an actual FRAGCOORD.xy in Godot, though it's not what I'll be using). The Godot built-ins have big capital letters. Shadertoy explicitly describes which parameters are going "in" (as in, they're input you get to run operations on, in this case, the location of the pixel on the screen) and which parameters are going "out" (in this case, color on the screen). 
+
+If you want to reverse the Y is down convention in Godot or Shadertoy, it just means means subtracting the Y value from one, which gives you the distance from zero, as it were. If you're like "why does this work," just ponder what function would turn 0.25, 0.75 into 0.25, 0.25, and also effectively turn 0.25, 0.25 into 0.25, 0.75. If it's melting your brain, don't worry about it and move on.
+
+    ## Reverse the up-down convention for the Y axis...
+	uv = vec2(uv.x,(1.0-uv.y));
+
+Shadertoy also has an added line to normalize the coordinates from 0 to 1, but Godot builds that in. (If you wanted your Godot shader to maintain its aspect ratio if the quad were stretched, you'd need a line similar to that one, but you can't do that easily right now, so I'll save that discussion for later.)
+
+Godot separates color and transparency into a vec3 and a float, for ALBEDO and ALPHA, whereas Unity combines them into a vec4 (which may be called a "float4", among other things). Godot calls time TIME, and Shadertoy calls time iTime. The naming conventions for the global inputs and outputs are somewhat arbitrary, which is why they'll vary. Some events render differently--Shadertoy will portray a strongly negative albedo as black, whereas Godot might produce weird color effects if below-zero colors aren't clamped to zero.
+
+BUT THESE COLORS LOOK DIFFERENT: WELCOME TO COLOR SPACE HELL
+
+If you did go to the trouble to compare the Shadertoy and Godot versions of the "same shader", you'll notice that they're not actually the same. Godot's version looks like a little tiny dot of black at the origin, whereas Shadertoy has what reads as a wider mix before the color turns to red or green. 
+
+That's because Godot operates in linear color space, and Shadertoy outputs in sRGB color space. To immediately correct that, you can add a line that reads something like this to your Godot shader:
+
+    col = pow(col, vec3(2.2));
+
+
+So your "similar to Shadertoy" Godot shader will ultimately look like this:
+
+    shader_type spatial;
+    render_mode unshaded;
+
+    void fragment() {
+        vec2 uv = UV;
+
+        uv = vec2(uv.x,(1.0-uv.y));
+
+        vec3 col = vec3(uv.x, uv.y, 0.0);
+        
+        col = pow(col, vec3(2.2));
+        
+        ALBEDO = col; ALPHA = 1.0;
+    }
+
+Human beings don't see color as existing between 0 and 1. If we did, we wouldn't need that conversion. But we evolved, like most animals I assume, to see differences in the dark. We perceive colors in the same way that we have a logarithmic perception of sound. Similar to how a doubling in perceived volume requires ten times as much auditory power, we see HUGE differences in shades of black but we're incapable of the reverse. You know how you have to cover every square inch of your bedroom windows in blackout curtains for the room to feel dark, but if the curtains are 90% open, you can't tell the difference if you pulled them all the way open? Or that a chainsaw seems louder than a lawnmower, but not 200 times louder? That's logarithms (and also why things that only seem kind of loud can be deceptively harmful to your hearing).
+
+You also have to undo that effect in Godot, which is measuring light on a 0 to 1 scale. Shadertoy interprets the color output as already existing in sRGB, the color scale for humans.
+
+ON THE TOPIC OF CONVENIENCE AND SIMPLICITY
+
+Godot's shader language is sometimes described as a simplified version of GLSL, but: It's not actually that much simpler. It lets go of some useless words but otherwise you're writing a shader that looks like a shader anywhere else.
+
+On the bright side, it means you can write your shaders anywhere. If you want to pop open a browser and experiment on Shadertoy, you can, with some pretty minor translations.
+
+WHAT ABOUT VERTEX() AND LIGHT()
+
+There's two additional core functions in a Godot spatial-type shader: Vertex() and Light(). 
+
+These allow you to change every vertex in the mesh at once, via the shader. It's how you do things like create big waves or bobbing objects that are handled entirely by the GPU. It allows funky effects like creating a zillion blades of grass without actually instantiating a zillion blades of real grass. Many great wonders are possible in the vertex() shader, but they're entirely omitted when raymarching, because you're using a total of four vertices on a quad to depict an entire fictional raymarched universe. Changing vertex locations would just cause the corners of your raymarched screen to move.
+
+Lighting(), meanwhile, is also useless for raymarching--you handle lighting within the raymarcher as well. That's why you turn lighting off via that "render_mode unshaded;" line up top. This is why your shader will appear, bright as day, without any lights in your Godot scene. Try commenting out that "unshaded" line to see what it does.
+
+UV COORDINATES ON OTHER MESHES 
+
+You can pop the same shader on other meshes--spheres, cubes, and so forth--to see where they assign the 0 to 1 by default in UV space.
+
+The texturing process, when using the conventional rasterization pipeline, is rather obsessed with correcting those UV coordinates to be something useful and not-insane. For raymarching, we have to know enough about UV's to know our way around a flat quad. The details of UV's are better left to a tutorial about textures.
+
+Before we depart basic shader 101 territory and dive into raymarching, let's center the quad's origin. Take a stab at how you might do it before reading the solution.
+
+    	uv = uv*2.0 - 1.0 ;
+
+This produces an origin at the middle.
+
+WHAT'S WITH THAT WEIRD GLOW EFFECT 
+
+You might end up with a bizarre neon glow, because Godot allows, in its alternate physics reality, negative colors. So an RGB value of (-1,-1, 0.0) actually does something different than (0, 0, 0). That's usually not what you want, and shader tutorials may assume your engine is clamping colors to stay above zero. To keep them clamped between 0 and 1 in Godot, you do this:
+
+    col = clamp(col, 0.0, 1.0);
+
+BABY'S FIRST DISTANCE FUNCTION
+
+Finally, try substituting out the color function with your first stab at a distance function, in particular, let the color be reflected in the distance from the origin. The built-in function to measure the length of any vector is length().
+
+col = vec3(length(uv));
+
+If you want to continue down the path of shader tomfoolery, this actually sets you up to start the tutorial created by Kishimisu on YouTube called "An Introduction to Shader Art Coding". Just remember to look out for the color space correction, and clamp your ALBEDO to stay within the 0.0 and 1.0 range, otherwise, weird things happen.
+
+HOW TO HANDLE THE MISSING PRINT() FUNCTION
+
+It's completely normal to get out a paper and pencil and start writing out the mathematical outcomes for a pixel yourself, and it will prevent you from going insane when trying to understand what the code is doing. A pencil and paper is how a lot of very famous people create their shader functions. The YouTube revolution, where every tutorial has a magic step where a line of code causes something new and bright and magical to happen, leaves you with the impression that your brain is broken if you're not thinking of your shader code in this way. Your brain is not broken. Your work surface will become increasingly move to the computer screen, but whenever I forget something, I just break out a pen and paper to sketch it out so I don't get mad.
+
+
+CREATING THE RAYMARCHED WORLD
+
+Return to your raymarched scene, hopefully now with a better sense of how UV coordinates work, and if you played with that YouTube tutorial, knowledge of a few built in shader functions.
+
+I don't know what kind of person you are--perhaps you're the kind of person who likes to just copy and paste a big blob of code in, read it before bed, and think through what it does. Some like a step by step explanation of each line. If you want to print out the code, there's an HTML page on my github where you can just paste in shader code and it'll format with pretty colors. 
+
+Begin the shader with the below lines:
+
+    shader_type spatial;
+    render_mode unshaded;
+
+The shader is spatial because it's in 3D space on your quad. You can raymarch in other ways, like how Shadertoy does it, but we're using a quad for various utility and educational reasons. The "unshaded" part I addressed above, but this line makes the quad an unfiltered portal into a separate universe. Without the "unshaded" line, it'll behave more like a glass window--lights in the real/Godot world could affect it, as could shadows from other nodes.
+
+Now add these constants:
+
+    const int MAX_MARCH_STEPS = 64;
+    const float MAX_MARCH_DISTANCE = 20.0;
+    const float SURFACE_EPSILON = 0.001;
+
+Max march steps is how many steps your ray can take. The performance effect is obvious: The higher the number, the longer to render. Max march distance is similar--providing a cutoff for the ray's horizon saves the raymarcher from calculating areas you know to be empty. Surface epsilon addresses just how close a ray needs to get to an object to register that it's hit something. In other words, your rays don't actually strike objects--they just get really, really, really close, and render accordingly.
+
+Here's some more variables to introduce, which for sanity purposes, I declared as constants via "const" instead of uniforms, which would be written as "uniform":
+
+    const vec3 light_direction = vec3(1.0, 1.0, 1.0);
+    const float camera_focal_length = 1.3;
+    const vec3 camera_position = vec3(0.0, 0.0, 3.0);
+
+I could have declared these as uniforms, but I didn't. If you write "uniform" instead of "const", then the Inspector will give you the opportunity to change the value of the variable under the "Shader parameters" area when you've selected an object. Later in life, this is exactly what you want, so you can give level designers and other people on your team the ability to change the colors of things without touching the shader code. But for now, I'm avoiding exposing anything to the Inspector, because the problem with the Inspector is you introduce dueling competitors setting that variable, and you can quickly go crazy trying to figure out why your shader isn't working, only to discover that the Inspector was just overriding something the entire time.
+
+Because seemingly everything in shader code is a vector, it can feel very unclear as to which vectors reflect positions, and which vectors reflect directions. The light_direction is a direction. Specifically, the direction that faces the sun. If it was 5,5,5 instead of 1,1,1, it would have the same direction, and the same result.
+
+The camera_position, however, is an actual position. Using 5,5,5 instead of 1,1,1 for a camera_position would move the camera and change the output.
+
+For teaching purposes, you might have noticed that I use extremely long variable names for everything. I'll give an example of the code at the end that has the naming equivalents of what you're more likely to find online. Shorter variable names do not affect the speed of your shader, so use whatever you like.
+
+    float get_distance_to_sphere(vec3 point_minus_origin, float r) {
+	return length(point_minus_origin) - r;
+    }
+
+This is the first signed distance function. An even wordier version would be this:
+
+    float get_distance_to_sphere(vec3 point_minus_spheres_position, float sphere_radius) {
+	return length(point_minus_spheres_position) - sphere_radius;
+    }
+
+Your signed distance to a sphere is wherever you are now, minus the sphere's position, minus the radius of the sphere. Many of the signed distance functions work in 2D space, so go ahead and draw a few circles on pen and paper to test why this formula works. This particular function has a "so simple it's obvious!" vibe, but the SDFs for other shapes are much less obvious and if you're in the mood for a mind-blow you can go watch some Inigo Quilez videos of him sketching proofs. 
+
+You'll more commonly see this formula written as:
+
+    float sdSphere(vec3 p, r){
+        return length(p) - r
+    }
+
+In my version, there's an inherent reminder that you have to subtract the sphere's location from the point at which you're measuring. People who do this all the time don't need that reminder, and they find the math easier to work with when it's written with single letter variable names, and they take the brevity-is-the-soul-of-wit approach. I come from the school of "extremely descriptive variable names". It's your choice based on personal preference and monitor size.
+
+Next, add your list of objects. I'm not sure what to call this function. Sometimes I call it my "list of objects" function. Other times I call it the main SDF, or the world SDF, or the scene-wide SDF. Perhaps you'll call it THE BIG SDF. 
+
+    float get_scene_distance(vec3 point) {
+        float d = get_distance_to_sphere(point-vec3(0.0,0.0,0.0), 0.5);
+        return d;
+    }
+
+Right now it's short, because there's only one object.
+
+This function takes your point, which is wherever you're measuring from in space, and gets a distance for all of the objects in the scene. Right now, the only object is a sphere, at 0,0,0, and a radius of half a meter. Although we can't actually see the scene in the shader yet, the code is now starting to reflect the objects in the Godot reality.
+
+There's no need to add more objects yet, but a longer object list would look like the below, and return the smallest distance among the various objects, by repeatedly using the min() method:
+
+    float get_scene_distance(vec3 point) {
+        float d = get_distance_to_sphere(point-vec3(0.0,0.0,0.0), 0.5);
+        d = min(d, (get_distance_to_box(point-vec3(0.0,1.0,1.0),vec3(0.5))));
+        d = min(d, get_distance_to_sphere(point-vec3(2.0,0.0,-3.0), 0.5));
+        return d;
+    }
+
+Next up is the normal function. This function calculates what direction any part of a surface faces, which is how you calculate lighting. If you look at the moon, which is a giant ball, the center of the moon is pointed directly at you, the other side is pointed directly away, and everything in between is a mix. what parts of the moon are illuminated depend on what portions of its normals face the sun. The moon is not a solid ball--it has craters, which have their own normals, which may or may not face the sun. We care about normals because light that hits a surface is the brightest the vector of their normal points directly toward a light source. This is referred to as "Lambertian" lighting, and it's the only lighting we'll initially build in.
+
+There's another lighting phenomenon, specular highlighting, which is the spot on the car driving ahead of you that's blinding you with a reflection of the sun. That particular normal is a menace unique to you (for another person, that mirroring effect appears elsewhere on the car) and behaves like a mirror, such that the normal with similar, opposing angles between your eyeball and the light source creates a highlight. We'll be leaving specular highlights out for now, but notice that your normal function gives you the data you need to calculate them.
+
+That function for arriving at a normal is actually the least efficient way of calculating a normal, but it's the easiest to understand if you decide to draw out a 2D example for yourself. Whenever you get further along into raymarching, you can start looking into efficiency tricks, like using a tetrahedron normal function instead. Rather than risk a broken URL, you can search "Quilez tetrahedron normal function" when you're ready for faster normals.
+
+Now, the fragment shader. This is where the real party starts.
+
+Within fragment(), add the following, which is similar verbiage from before:
+
+	vec2 screen_uv = UV * 2.0 - vec2(1.0);
+    screen_uv = screen_uv*vec2(1.0,-1.0);
+
+The first line moves the UV origin to the center of the quad, and the second line flips the Y so that positive Y is up. We want the far left edge of our quad to be at -1, 0, the far right to be 1,0, the top to be 0, 1, the bottom to be 0,-1, the top right to be 1,1, and so on. These lines are often combined into one, but I split them for explanation.
+
+This pattern is sometimes called "universal device coordinates" in case you see that phrase elsewhere. Your rasterization pipeline rendering meshes also uses them.
+
+Now define where the rays originate:
+
+    vec3 ray_origin = camera_position;
+
+This seems somewhat self-evident--your rays are coming from your camera. We want this to be abstracted as a named variable, so we can start fiddling with camera_position later as something tied to in-game events.
+
+The ray direction line is heavier:
+
+    vec3 ray_direction = normalize(vec3(screen_uv, -camera_focal_length));
+
+This is where we first see GPU parallelism really in action. Every pixel needs to have a different ray direction, determined by the UV input. It's not really feasible to describe how this function works in text. It might be helpful to draw a quick sketch in which rays shoot out from the camera and toward a quad. For example, for a pixel on the top right of the quad, the UVs will be 1,1. So the ray would fire with a (normalized) vector of 1, 1, -1. Up, to the right, and toward the negative Z axis. 
+
+How far the ray travels on that negative Z axis determines the camera's field of view. I discuss the proof for field of view in a later chapter, but for now, just know that 1.3 as the camera focal length is very close to a 75 degree Godot camera field of view.
+
+AND NOW THE RAYMARCHER 
+
+    float distance_to_surface = 0.0;
+	float total_distance = 0.0;
+	
+
+	for (int step = 0; step < MAX_MARCH_STEPS; step++) {
+		vec3 current_position = ray_origin + ray_direction * total_distance;
+		distance_to_surface = get_scene_distance(current_position);
+		if (distance_to_surface < SURFACE_EPSILON || total_distance > MAX_MARCH_DISTANCE) {
+			break;
+		}
+		total_distance += distance_to_surface;
+	}
+
+Up top is a for loop. It starts at 0. The steps are measured in integers, going up one by one, which is what "step++" means. It stops stepping when the step count reaches the maximum number of steps, which is the logic contained in "step<MAX_MARCH_STEPS".
+
+"current_position" is something of a misnomer, as the vector expresses both a direction and a position. We care about the direction, because it continues that direction with every step, but we also care about the position, because that's the data we care about when the ray actually hits an object.
+
+INCOMPLETE, FINISH LATER
+
+
+"
+
+
+    if (distance_to_surface < SURFACE_EPSILON) {	
+            
+            vec3 surface_position = ray_origin + ray_direction * total_distance;
+            vec3 surface_normal = get_surface_normal(surface_position);
+            float diffuse = clamp(dot(normalize(surface_normal), normalize(light_direction)), 0.0, 1.0);
+            ALBEDO = vec3(diffuse); // Basic Lambert shading
+            ALPHA = 1.0;
+            
+        } else {
+            ALBEDO = vec3(0.0); // Missed the scene — render background
+            ALPHA = 0.0;
+        }
+
+
+
+
+
+
+
+
+
