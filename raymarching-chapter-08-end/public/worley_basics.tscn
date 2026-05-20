@@ -10,6 +10,12 @@ shader = ExtResource("1_xxhe6")
 
 [node name="WorleyBasics" type="Node3D" unique_id=1915151246]
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=718683864]
+[node name="WorleyQuad" type="MeshInstance3D" parent="." unique_id=718683864]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.61251974, 0, 0)
+mesh = SubResource("QuadMesh_iec37")
+surface_material_override/0 = SubResource("ShaderMaterial_tqi6c")
+
+[node name="VoronoiQuad" type="MeshInstance3D" parent="." unique_id=503732889]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5234096, 0, 0)
 mesh = SubResource("QuadMesh_iec37")
 surface_material_override/0 = SubResource("ShaderMaterial_tqi6c")
