@@ -2,13 +2,21 @@ EDIT/TOGGLE WORD WRAP, or ALT+Z to Word Wrap this document in Godot.
 
 As a reminder, here's where I left off in the last chapter:
 
-PREPARING FOR THE NEXT CHAPTER
+	PREPARING FOR THE NEXT CHAPTER
 
-If you're feeling spicy, go ahead and apply these changes to the GLSL shader without a walkthrough, and if you're feeling spicier, look up a few noise functions and apply them to the floor. See how both quantizing your input and the noise function itself affects the problem at hand, and what benefits (or costs) come from using one, the other, or both. Try to avoid assuming that any superficially ugly artifact is bad--literally every shader begins as an ugly duckling, a potential miracle that you pull from the mud. "One man's banding is another man's cel-shading", as they say.
+	If you're feeling spicy, go ahead and apply these changes to the GLSL shader without a walkthrough, and if you're feeling spicier, look up a few noise functions and apply them to the floor. See how both quantizing your input and the noise function itself affects the problem at hand, and what benefits (or costs) come from using one, the other, or both. Try to avoid assuming that any superficially ugly artifact is bad--literally every shader begins as an ugly duckling, a potential miracle that you pull from the mud. "One man's banding is another man's cel-shading", as they say.
 
-Besides these topics, future directions include rotating objects and their noise, and applying noise in domains besides albedo.
+	Besides these topics, future directions include rotating objects and their noise, and applying noise in domains besides albedo.
+
+"GENERALLY", "CONVENTIONALLY", "USUALLY", AND SO ON
+
+Rather than cloud this and the coming sections up with repeated use of the word "conventionally" and its synonyms, I cut the word entirely.
+
+Shader code, if it's good, doesn't follow conventions; it elaborates on them or blows them up entirely. So, for example, when I say that "Worley noise samples 9 points", I only mean that this is a conventional beginning for how it's implemented. When noise researchers write about noise, they write about a basic implementation of a new idea, kind of like a basic recipe for scrambled eggs.
+
+TRANSITIONING FROM GDSCRIPT TO SHADER CODE FOR QUANTIZING INPUTS
 	
-Before we embark on bigger journeys like clouds and procedural terrain generation, let's get to work on making the floor not look like some version of buggy orange TV static.
+Before we embark on bigger journeys like clouds and procedural terrain generation, we need to figure out how to stop the floor from looking like some version of buggy orange TV static.
 
 The last chapter introduced a quantizing function, which in gdscript, looked like this:
 
@@ -18,10 +26,10 @@ The last chapter introduced a quantizing function, which in gdscript, looked lik
 		var z = floor(vector.z*100)/100
 		return Vector3(x,y,z)
 
-I also tried simplifying the hash function to replace the big number at the end with a little one (literally one):
+I also tried simplifying the hash function to replace the big number at the end with a little one (literally the number one):
 
 	func smoother_hash_noise(p: Vector3, t:float):
-	return fractional_part(sin(  (p+Vector3(t,t,t)).dot(some_vector)  )*1)
+		return fractional_part(sin(  (p+Vector3(t,t,t)).dot(some_vector)  )*1)
 
 QUANTIZING IN SHADER CODE
 
@@ -37,7 +45,7 @@ Let's add a quantizing formula to the top of the shader, for quantizing vec3's:
 		return floor(p*100.0)/100.0;
 	}
 
-As you can see, it's a lot easier to write the function in shader code--it was built around these kinds of shenanigans.
+As you can see, it's easier to write the quantizing function in shader code as opposed to gdscript--it was built around these kinds of shenanigans.
 
 Now, instead of just calling for the surface position in the floor section of the switch logic, call for the quantized surface position instead:
 
@@ -52,13 +60,13 @@ You'll notice that two problems get solved. Our original artifact, the chaotic a
 
 An additional problem gets nuked as well: The floor's pattern remains fixed even as the camera moves around the scene. Before, the camera's own movement was introducing small changes into the hash noise function that were getting picked up.
 
-The pattern still seems to shift too much when more than a few meters away. Try tweaking the quantization function to be in tenths instead:
+The pattern still seems to shift too much when more than a few meters away, because at that distance, the outcome of the raymarch still has enough breadth that quantizing to the nearest hundredth isn't enough. Try tweaking the quantization function to be in tenths instead:
 
 	return floor(p*10.0)/10.0;
 
-This causes a pixellated result. But it also causes the result at the far end of the platform to be steadier. 
+This causes a pixelated result. But it also causes the result at the far end of the platform to be steadier. 
 
-Switch back to hundreths.
+Switch back to hundredths.
 
 SMOOTHING THE NOISE FUNCTION ITSELF 
 
@@ -66,10 +74,11 @@ As of now, the hash function is this:
 
 	float simple_hash_noise(vec3 p, float t) {
 	return fract(sin(dot(p+t,vec3(13.74,71.89,31.92)))*10000.01);
+	}
 
 Replace the big number at the end with just 1.0, and see what happens.
 
-You'll notice that you end up with a rather boring sin curve. Increasing the number just takes you closer to TV static, with no intersting in-between. This hash function is well known because it's simple, and it's effective if you need static, but it's time to move on to better noise functions.
+You'll notice that you end up with a rather boring sin curve shader. Increasing the number just takes you closer to TV static, with no interesting in-between. This hash function is well known because it's simple, and it's effective if you need static, but it's time to move on to better noise functions.
 
 I'M SKIPPING AN EXPLANATION OF NOISE
 
@@ -79,19 +88,21 @@ I AM, IN FACT, HERE ON YOUR RETURN
 
 Learned about noise? Great!
 
-We're going to keep the hash noise function in case we need it later. Even when using complicated and beautiful noise functions, you might call on simpler, crazier noise functions to spice up your main noise function somehow. 
+We're going to keep the hash noise function in case we need it later. Even when using complicated and beautiful noise functions, you can call on simpler, more erratic noise functions to spice up your main noise function somehow. 
 
-I'm partial to Worley noise, partly because I'm a fan of the look, and also because it relies on distance functions. Since raymarching is all about the distance function, this is probably the smallest leap.
+I'm partial to Worley noise, partly because I'm a fan of the look, and also because it, too, relies on distance functions. Since raymarching is all about the distance function, this is probably the smallest pedagogical leap.
 
-In the very beginning of this work, there was a shader of "Hello, World" level complexity. It looked like this:
+In the very beginning of this work, there was a shader of "Hello, World" level complexity. It had a distance function for a circle that looked like this:
 
 	col = vec3(length(uv));
 
-When the UV origin was mapped to zero, it produced a black blob in the middle (where the length of the vector was zero) that greyed out to white the further you were from the center. Each pixel color was its measurement of distance to the origin. Worley noise works similarly, except instead of measuring distance to one point, it measures the distance to 9 surrounding points in 2D space, and 27 points in 3D space (essentially turning a Sudoku puzzle into a Rubik's cube).
+When the UV origin was mapped to zero, it produced a black blob in the middle (where the length of the vector was zero) that greyed out to white the further you were from the center. Each pixel color was its measurement of distance to the origin. (If you want to experiment with this function before going further, try turning it into a circle with a step function.)
 
-You might choose to follow the tutorial in the Book of Shaders, but since there's some Godot-specific challenges, I'm going to translate some elements of their work into a Godot package.
+Worley noise works similarly, except instead of measuring distance to one point, it measures the distance to 9 surrounding points in 2D space, and 27 points in 3D space (essentially turning a Sudoku puzzle into a Rubik's cube).
 
-Create a new scene, create a 3D node called WorleyBasics, create a MeshInstance3D with a quad mesh, override the surface material in the Inspector, and give it a new shader called worley_basics.gdshader. Start with this foundation:
+You might choose to follow the tutorial in the Book of Shaders, but since there's some Godot-specific challenges, I'm going to translate some elements of their work into a Godot package. I also want to break down the concept into an even simpler version.
+
+Create a new scene, create a 3D node as the scene's root node called WorleyBasics, create a MeshInstance3D with a quad mesh, override its surface material in the Inspector, and give it a new shader called worley_basics.gdshader. Start with this foundation:
 
 shader_type spatial;
 render_mode unshaded;
@@ -112,13 +123,13 @@ void fragment() {
 
 As of now, making the color equal the length of the UV effectively measures the length to the center, since the UV origin is at the middle of the quad, and what we're treating as 0,0.
 
-If you wanted to make a point at 0.25, -0.5, how would you make the pixel effectively measure the distance to that point? The "uv" vec2 is a vec2, and that new point is also a vec2. Start by declaring that new vec2. Call it "point1".
+If you wanted to make a point at 0.25, -0.5, how would you make the pixel effectively measure the distance to that point? (Don't do it by moving the uv origin to a different location, since that method will soon break when we add multiple points. But if that's where your brain went, I salute you, as moving the origin is totally a thing.) The "uv" vec2 is a vec2, and that new point is also a vec2. Start by declaring that new vec2. Call it "point1".
 
 void fragment() {
 	//Add point 1, an arbitrary point in the bottom rightish.
 	vec2 point1 = vec2(0.25, -0.5);
 
-Now, you need to know the distance between wherever you are in uv space and the point. There's an appropriately named built in for that, distance(). Distance accepts two floats, two vec2s, or two vec3s. We're in 2d space at the moment.
+Now, you need to know the distance between wherever you are in uv space and the point. There's an appropriately named built-in for that, distance(). Distance accepts two floats, two vec2s, or two vec3s. We're in 2d space at the moment, so we'll be putting vec2's in as arguments, but I wanted to call attention to the fact that you can plug vec3's into this later when raymarching 3d scenes.
 
 Update "col" to use this instead:
 
@@ -126,9 +137,13 @@ Update "col" to use this instead:
 
 Your shader is now measuring the distance to point1.
 
-Worley noise creates patterns by finding the distance to the nearest point among several. So add a point, and try to think of a function that will deliver the nearest point, and return that distance. We've already done something similar with the big object list SDF. The function needs to ask, "for any given UV, and with two defined points, I need to examine the distance from the UV to each point and return the smallest distance".
+THE CLOSEST DISTANCE AMONG MULTIPLE POINTS: WORLEY NOISE
 
-I came up with this, which is, unsurprisingly, basically the same series of min() functions that we saw with the object list SDF:
+Worley noise creates patterns by finding the distance to the nearest point among several, and rendering a color based on the closest distance. 
+
+Add a second point, and try to think of a function that will deliver the nearest point for any given UV location, and return that distance. We've already done something similar with the big object list SDF. The function needs to ask, "for any given UV, and with two defined points, I need to examine the distance from the UV to each point and return the smallest distance".
+
+I went with the below code, which is, unsurprisingly, basically the same series of min() functions that we saw with the object list SDF:
 
 float nearest_point_distance(vec2 uv, vec2 p1, vec2 p2){
 	float d = distance(uv, p1);
@@ -148,8 +163,9 @@ The color line can get updated to instead return the results of the distance fun
 
 	col = vec3(nearest_point_distance(uv,point1,point2));	
 
+Hopefully, you now have a shader with two competing blobs.
 
-Try adding a third point. Note that your function will need to update to accomodate it.
+Try adding a third point, and update the distance function to accomodate it.
 
 	float nearest_point_distance(vec2 uv, vec2 p1, vec2 p2, vec2 p3){
 		float d = distance(uv, p1);
@@ -158,15 +174,17 @@ Try adding a third point. Note that your function will need to update to accomod
 		return d;
 	}
 
-And your color line will need an update:
+Remember your color line will need an update:
 
 	col = vec3(nearest_point_distance(uv,point1,point2,point3));	
 
 Boom: We now have three points.
 
-There's a lot of different directions we could go from here, and if you're already thinking of your own, you should experiment with that and see what happens.
+There's a lot of different directions we could go from here, and if you're already thinking of your own, you should experiment with that and see what happens. There's an adage somewhere that you should spend about six times as much time practicing as you do learning new material, so it's definitely worth the effort to build this up a bit and be creative with how it goes. What could clamp(), step(), and other functions do? How much you fiddle with the colors?
 
 VORONOI PATTERNS 
+
+If you thought for a bit about the color, you might have come to the odd realization that you could assign each point a different color, using the method from the earlier chapter where you assigned different raymarched objects a material ID by packing it into the distance function.
 
 The nearest_point_distance function was just a rehash of your object list SDF, which at the beginning, looked like this:
 
@@ -177,7 +195,7 @@ The nearest_point_distance function was just a rehash of your object list SDF, w
 		return d;
 	}
 
-But as you know, we expanded that function later on, to keep track of not just the distance, but a number to keep track of a material. You can just click over to your existing camera_gel.gdshader file to see it, but to save you the trouble, we added a min_n_mat function to replace min() and then updated the SDF list:
+We expanded that function later on, to keep track of not just the distance, but a number to keep track of a material. You can just click over to your existing camera_gel.gdshader file to see it, but to save you the trouble, we added a min_n_mat function to replace min() and then updated the SDF list:
 
 	vec2 min_n_mat(vec2 first_object_d_and_m, vec2 second_object_d_and_m){
 		return
@@ -199,13 +217,231 @@ SAVING YOUR WORK
 
 You probably feel like you put a lot of effort into the worley_basics.gdshader file so go ahead and save it, and then duplicate it with a new name: voronoi_basics.gdshader.
 
-Also, Voronoi is just a quick side tangent; we'll be returning to give Worley a different kind of upgrade shortly.
+Also, Voronoi is just a quick side tangent; we'll be returning to give Worley some upgrades later.
 
 Create a new quad mesh in your scene and assign it the voronoi_basics shader.
 
 BRING BACK THE HELPER FUNCTION 
 
+We can reuse the min_n_mat function. Go ahead and retype it instead of copying and pasting if you're not used to writing ternaries.
+
+I thought this was descriptive and fit the bill:
+
+	vec2 min_n_mat(vec2 first_dist_n_mat_id, vec2 second_dist_n_mat_id){
+		return
+		(first_dist_n_mat_id.x < second_dist_n_mat_id.x)
+		?
+		first_dist_n_mat_id : second_dist_n_mat_id;
+	}
+
 
 
 UPDATE THE nearest_point_distance FUNCTION 
+
+Now, we have to revise the nearest_point_distance so it's passing in a material ID for each point as the y component of a vec2. Since you've already done this before, take a stab at trying it without looking at the solution.
+
+	vec2 nearest_point_distance(vec2 uv, vec2 p1, vec2 p2, vec2 p3){
+		vec2 d = vec2(distance(uv, p1),1.0);
+		d = min_n_mat(d, vec2(distance(uv,p2),2.0));
+		d = min_n_mat(d, vec2(distance(uv,p3),3.0));
+		return d;
+	}
+
+This will in turn break the color function, which was expecting a float but got a vec2 instead. You could implement the material ID here in any number of ways, but I'll preserve the gist of the current shader.
+
+First, I'll un-break the shader by having the color line draw from the X component of nearest_point_distance, which brings back the original greyscale version:
+
+	col = vec3(  nearest_point_distance(uv,point1,point2,point3).x  );	
+
+Now, see if you can remember how to write a switch statement that does different things depending on the material ID. One potential solution is below:
+
+	switch (int(nearest_point_distance(uv,point1,point2,point3).y)){
+		case 1 : col = col * vec3(1.0,0.0,0.0); break;
+		case 2 : col = col * vec3(0.0,1.0,0.0); break;
+		case 3 : col = col * vec3(0.0,0.0,1.0); break;
+		default : col = col; break;
+	}
+
+PACKING ALL THIS INFORMATION INTO DIFFERENT COMPONENTS OF A VECTOR IS MELTING MY BRAIN AND I WOULD LIKE TO USE SOMETHING ELSE AND ALSO I'D LIKE TO PRACTICE HAVING BORDERS BETWEEN THE VORONOI CELLS KTHX
+
+There's a certain level of "omg I can't believe we're doing this" vibe to piling more and more and more information into the various components of a vector. If you're a minimalist, then part of the minimalism is giving every variable a one-letter name and packing information into vectors and basically operating like you've got the memory of a 1980's NASA computer and every letter counts.
+
+If that's not you, and you want something easier to follow, then you should know about structures, a.k.a. structs. If you've defined your own class in Python or created your own node/class in Godot then you're familiar with the idea already.
+
+Saldina Nurak has a nice video about structures on on "CodeBeauty" channel on YouTube, which is titled "C++ Structures for beginners (explained in 30 minutes)". You can ignore the code at the very top (a C++ intro line, kind of like how we have a "shader_type spatial;" intro line) as well as the "cout" code at the bottom (which functions like print() in gdscript or like ALBEDO=vec3(1.0) in a shader).
+
+THE PROBLEM WE'LL USE A STRUCT TO SOLVE: STORING THE DISTANCE OF BOTH THE CLOSEST AND THE SECOND CLOSEST POINT 
+
+Duplicate the worley_basics.gdshader file, and create another quad in the scene to display it. Name this new shader worley_struct_borders.gdshader. 
+
+If you want an additional challenge, you can instead duplicate your voronoi_basics.gdshader file, and design your own changes to fit the needs of that shader, but I won't explain or offer a solution to the try-hard version of this. I'll be working off of worley_basics.
+
+In case you lost it, here's the entire worley_basics code which you can paste in to start your worley_struct_borders shader:
+
+	shader_type spatial;
+	render_mode unshaded;
+
+	float nearest_point_distance(vec2 uv, vec2 p1, vec2 p2, vec2 p3){
+		float d = distance(uv, p1);
+		d = min(d, distance(uv,p2));
+		d = min(d, distance(uv,p3));
+		return d;
+	}
+
+	void fragment() {
+		//Add point 1, an arbitrary point in the bottom rightish.
+		vec2 point1 = vec2(0.25, -0.5);
+		vec2 point2 = vec2(-0.5,0.1);
+		vec2 point3 = vec2(0.8,0.6);
+		
+		vec2 uv = UV;
+		uv = vec2(uv.x,(1.0-uv.y));
+		uv = uv*2.0 - 1.0 ;
+		
+		vec3 col = vec3(length(uv));
+		
+		col = vec3(distance(uv,point1));
+
+		col = vec3(nearest_point_distance(uv,point1,point2,point3));	
+		
+		col = clamp(col, 0.0, 1.0);
+		col = pow(col, vec3(2.2));
+		
+		ALBEDO = col; ALPHA = 1.0;
+	}
+
+
+For the voronoi basics shader, we upgraded worley basics from storing just the distance of the closest point to also packing that same point's arbitrarily named material id.
+
+Instead, what if we stored both the distance to the closest point and the distance to the second closest point? If we followed the same pattern as before, we'd convert the distance float to a vec2, store the closest distance in the X component, and store the second closest distance in the Y component. And if that was all that you were doing, then it's likely how you'd solve this. 
+
+But: Maybe we just like descriptive names. Or, more importantly, we want to be ready for situations where we might store five or six or seven components and we don't want to go crazy. 
+
+If in some alternate universe vec3 didn't exist, and you could create your own data type with the keyword "magicvariablecreationword", then creating the vec3 would look something like this:
+
+	magicvariablecreationword vec3 {
+		float x;
+		float y;
+		float z;
+	}
+
+That magic variable creation word doesn't create an instance of that vec3 yet, it just describes the form that it takes, in particular, the name of each component and what variable type it is. 
+
+That's essentially what "struct" does. So say we want to have a variable type that packs both the first and second closest distances, and we wanted a "double distance" variable type that stored two floats, we can declare it like this:
+
+	struct dd {
+		float first_closest_distance;
+		float second_closest_distance;
+	};
+
+Just as we can create a vec3 with the name "camera_location" by writing this:
+
+vec3 camera_location = vec3(0.0, 0.0, 3.0);
+
+We are now empowered to create a variable that tracks both our distances. Pretend for just this moment that we wanted to declare a variable with this new "dd" type and store 100 as the first closest distance, and 50 as the second:
+
+	dd distance_tracker = dd(100.0,50.0);
+
+You still have to use what's called the "constructor" which is repeating "dd" before the parentheses.
+
+Later on, if we wanted to change that 50.0 to a 75.0, we could do it with this verbiage:
+
+	distance_tracker.second_closest_distance = 75.0;
+
+TURTLES ALL THE WAY DOWN 
+
+You might have noticed that that chaining with periods is looking like how you call properties of properties of properties of nodes in gdscript and maybe you're wondering if you can do the same thing here, and in fact, if you define the children before their parents (shader code is read top to bottom, so you want to reference only things that already exist) then you make nested structures and have variables that look more like this:
+
+	raymarch_hit.material.glass.albedo
+	object.transform.basis.z 
+	camera.third_person_view.field_of_view
+
+And so on. If you wanted to have more than one camera expressed in the shader, with more than one possible field of view and resolution and so on, and not go insane, you might choose to structure your shader with... structs.
+
+Anyway, let's go ahead and upgrade worley_basics. First, declare the struct up top:
+
+struct dd {
+	float first_closest_distance;
+	float second_closest_distance;
+};
+
+
+
+Now, you need a new minimum function. It needs to say "hi, i'm keeping track of the smallest and second smallest distance, and if you give me a fresh distance, then I need to do one of three things:
+	1. Do nothing, because the distance is greater than my currently stored distances
+	2. Replace the second closest distance, if the new distance is closer than only the second closest distance 
+	3. Replace the first closest distance and and move it to second place, in case the new distance is closer than both of my current distances 
+	
+Claude the chatbot's description of this process was to imagine an Olympics podium that only has room for first and second place, which I think is a good analogy. 
+
+We'll call it "double_distance_keeper", and it'll return a dd type variable. Take a stab at coding it yourself. Here's my attempt, though the logical ordering might be problematic. We'll find out!
+
+	dd double_distance_keeper(float fresh_distance, dd current_pair){
+		if (fresh_distance > current_pair.first_closest_distance && 
+		fresh_distance > current_pair.second_closest_distance){
+			return current_pair;	
+			}
+		else if (fresh_distance < current_pair.second_closest_distance &&
+		fresh_distance > current_pair.first_closest_distance){
+			return dd(current_pair.first_closest_distance, fresh_distance);
+		}
+		else {
+			return dd(fresh_distance, current_pair.first_closest_distance);
+		}
+	}
+
+You might have noticed that my logic fails to properly deal with the possibility that the fresh_distance would exactly equal the distances in the current_pair. I'll pretend that correcting that was just a challenge I intentionally left in as a teaching exercise. Or as testament to how little control I'm willing to cede to Claude the chatbot. (Third possibility: I'm concerned that Claude will become self-aware, and I don't want Claude to remember that I bored him with such boring corrections.)
+
+Now we need to update nearest_point_distance function to use the new language, and go from this:
+
+	float nearest_point_distance(vec2 uv, vec2 p1, vec2 p2, vec2 p3){
+		float d = distance(uv, p1);
+		d = min(d, distance(uv,p2));
+		d = min(d, distance(uv,p3));
+		return d;
+	}
+
+...to this:
+
+	dd nearest_point_distance(vec2 uv, vec2 p1, vec2 p2, vec2 p3){
+		dd tracked_pair = dd(100.0,100.0);
+		tracked_pair = double_distance_keeper( distance(uv, p1), tracked_pair);
+		tracked_pair = double_distance_keeper( distance(uv,p2), tracked_pair);
+		tracked_pair = double_distance_keeper( distance(uv,p3), tracked_pair);
+		return tracked_pair;
+	}
+
+
+At present, the color line is now receiving a two component "dd" type on this line:
+
+	col = vec3(nearest_point_distance(uv,point1,point2,point3));	
+
+That line is a little confusing now that we've got a struct in play, so let's create a new variable to work from just above it:
+
+	dd tracked_distances = nearest_point_distance(uv,point1,point2,point3);
+
+And then restore the shader to its original look by calling the first component of tracked_distances:
+
+	dd tracked_distances = nearest_point_distance(uv,point1,point2,point3);
+	col = vec3(tracked_distances.first_closest_distance) ;
+
+We can tilt it toward a classic voronoi structure by subtracting the first closest distance from the second:
+
+	float standard_voronoi = tracked_distances.second_closest_distance - tracked_distances.first_closest_distance;
+	col = vec3(standard_voronoi) ;
+
+Look at that result, where the black borders are blurry. We can fix blurry by using a step function, so that anything below 0.2  renders as 0.0, and anything above renders at 1.0. The input is the second argument, and the threshold is the first:
+
+	float stepped_voronoi = step(0.2, standard_voronoi);
+	col = vec3(stepped_voronoi);
+
+
+COMING SOON IN THE NEXT CHAPTER 
+
+I considered skipping noise, and just saying, "here's some noise functions, toss 'em in where you need em!" 
+
+But I don't think we'll ultimately have that luxury. If your characters need to be able to walk up and down the terrain that your terrain generating noise function makes, you kinda need to know the gory details of your noise function, like the maximum slope it can produce.
+
+Also, the current pattern isn't even technically noise yet. At present, we're just painting points. We need to have an infinite number of randomly generated points that don't exhibit repetition. That means constructing an arbitrary tic-tac-toe style grid, and sampling any given UV's distance from points placed randomly in each of the nine squares. Contemplate how that's written, and I'll see you in the next chapter.
+
 
