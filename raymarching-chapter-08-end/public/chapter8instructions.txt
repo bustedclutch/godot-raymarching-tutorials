@@ -104,22 +104,21 @@ You might choose to follow the tutorial in the Book of Shaders, but since there'
 
 Create a new scene, create a 3D node as the scene's root node called WorleyBasics, create a MeshInstance3D with a quad mesh, override its surface material in the Inspector, and give it a new shader called worley_basics.gdshader. Start with this foundation:
 
-shader_type spatial;
-render_mode unshaded;
+	shader_type spatial;
+	render_mode unshaded;
 
-void fragment() {
-	vec2 uv = UV;
+	void fragment() {
+		vec2 uv = UV;
 
-	uv = vec2(uv.x,(1.0-uv.y));
-	
-	uv = uv*2.0 - 1.0 ;
-	
-	vec3 col = vec3(length(uv));
-	col = clamp(col, 0.0, 1.0);
-	col = pow(col, vec3(2.2));
-	
-	ALBEDO = col; ALPHA = 1.0;
-}
+		uv = uv * 2.0 - 1.0;
+		uv = uv * vec2(1.0, -1.0);
+
+		vec3 col = vec3(length(uv));
+		col = clamp(col, 0.0, 1.0);
+		col = pow(col, vec3(2.2));
+
+		ALBEDO = col; ALPHA = 1.0;
+	}
 
 As of now, making the color equal the length of the UV effectively measures the length to the center, since the UV origin is at the middle of the quad, and what we're treating as 0,0.
 
@@ -296,8 +295,8 @@ In case you lost it, here's the entire worley_basics code which you can paste in
 		vec2 point3 = vec2(0.8,0.6);
 		
 		vec2 uv = UV;
-		uv = vec2(uv.x,(1.0-uv.y));
-		uv = uv*2.0 - 1.0 ;
+		uv = uv * 2.0 - 1.0;
+		uv = uv * vec2(1.0, -1.0);
 		
 		vec3 col = vec3(length(uv));
 		
@@ -412,6 +411,7 @@ Now we need to update nearest_point_distance function to use the new language, a
 		return tracked_pair;
 	}
 
+Note that once you do this, your shader will break, as everything downstream expects a different variable type. 
 
 At present, the color line is now receiving a two component "dd" type on this line:
 
@@ -451,7 +451,7 @@ Darwyn Peachey, in Chapter 2, had this to say:
 
 	[I]t isn't hard to design a [white noise] function. [...] [W]hite noise isn't quite what is needed in a stochastic texture primitive. The repeatable pseudorandom function has an unlimited amount of detail, which is another way of saying that its values at adjacent points are completely independent of one another (uncorrelated). This sounds like what we want, but it proves to be troublesome because of the prevalence of point sampling in computer graphics. If we view an object from a new camera angle, the positions of the sample points at which the texture function is evaluated will change. A good PRN function will change its value markedly if the inputs change even slightly. Consequently, the texture will change when the camera is moved, and we don't want that to happen.
 
-	Another way to look at this problem is in terms of aliasing. Whise noise has its energy spread equally over all frequencies, including frequencies much higher than the Nyquist frequencey of the shading samples. The sampling rate can never be high enough to capture the details of the white noise.
+	Another way to look at this problem is in terms of aliasing. White noise has its energy spread equally over all frequencies, including frequencies much higher than the Nyquist frequency of the shading samples. The sampling rate can never be high enough to capture the details of the white noise.
 
 	To keep our procedural textures stable and to keep them from aliasing, we need a stochastic function that is smoother than white noise. The solution is to use a low-pass-filtered version of white noise. (Low-pass filtered noise is sometimes called *pink noise*, but that term is more properly applied to a stochastic function with a 1/f power spectrum).
 

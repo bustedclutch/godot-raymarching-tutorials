@@ -40,8 +40,8 @@ void fragment() {
 	vec2 point3 = vec2(0.8,0.6);
 	
 	vec2 uv = UV;
-	uv = vec2(uv.x,(1.0-uv.y));
-	uv = uv*2.0 - 1.0 ;
+	uv = uv * 2.0 - 1.0;
+	uv = uv * vec2(1.0, -1.0);
 	
 	vec3 col = vec3(length(uv));
 	

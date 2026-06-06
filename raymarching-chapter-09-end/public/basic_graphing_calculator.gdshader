@@ -11,7 +11,7 @@ float line (float x, float y) {
 void fragment() {
 	vec2 uv = UV;
 	uv = uv * 2.0 - 1.0;
-	uv.y = -uv.y;
+	uv = uv * vec2(1.0, -1.0);
 
 	vec3 col = vec3(0.);
 	
