@@ -9,8 +9,8 @@ Let's return to our original foundation:
 	void fragment() {
 		vec2 uv = UV;
 
-		uv = uv * 2.0 - 1.0;   // recenter: [0,1] -> [-1,1] on both axes
-		uv.y = -uv.y;          // flip Y so positive Y points up
+		uv = uv * 2.0 - 1.0;             // recenter: [0,1] -> [-1,1] on both axes
+		uv = uv * vec2(1.0, -1.0);       // flip Y so positive Y points up
 
 		vec3 col = vec3(length(uv));
 		col = clamp(col, 0.0, 1.0);
@@ -22,14 +22,23 @@ Let's return to our original foundation:
 As a reminder, this foundation:
 1. Assigns the constant UV to the variable "uv".
 2. Recenters the origin from the top-left of the quad to its middle by multiplying by 2 and subtracting 1, so each axis now runs from -1 to 1 instead of 0 to 1.
-3. Flips the Y axis with uv.y = -uv.y;, so positive Y points up. Godot's QuadMesh UV starts with Y=0 at the top, which is the game-engine "Y is down" convention; this single line corrects it for math purposes. (An equivalent older form was uv = vec2(uv.x, 1.0 - uv.y); placed *before* the recenter line--same end result, just folds the flip and the [0,1]->[1,0] remap into one expression.)
+3. Flips the Y axis with uv = uv * vec2(1.0, -1.0);, so positive Y points up. 
 4. Tosses in a distance function as something to show that it's operational, and assigns it to the "col" variable.
 5. Fiddles with the colors to account for the human logarithmic perception of color, with the col=pow(col,vec3(2.2)); line. (Warning: This might be done automatically depending on render settings, so keep an eye on the actual look.)
 6. Finally, assigns that value to the Godot built-in ALBEDO, which you might recognize from another program as some kind of "out" variable going by another name.
 
+WARNING: The UV centering here is the same as the UV centering in the raymarcher. In the example from many moons ago, I used different math to move the origin from the top left to the bottom left, so that it would look like Shadertoy.
+
 It's worth pointing out that I kept the origin centered to keep things like middle school math, and that's been useful so far, but there will be plenty of times where that gets in the way. I can't say whether you'll always go to the trouble to flip Y, but I don't really do anything in the 2D game space (where that remains the convention), so... I'll always be flipping Y to be up.
 
-Although we haven't introduced scale yet, imagine, for a second, you've got a point on your graphing calculator at (3,6). And another point at (1,2), and another point at (4,4). And say we are graphing the straightforward function, y=2x. We need the first two points to light up, and the third point not to light up. Whatever shader function that succeeds in doing that for those two points will probably work for all the others. (This, personally, is how I think through a lot of these problems.) How do?
+GRAPHING A BASIC LINE 
+
+Consider this basic function:
+	f(x) = 2x
+or, in equation form:
+	y = 2x
+
+Although we haven't introduced scale yet, imagine, for a second, you've got a point on your graphing calculator at (3,6). And another point at (1,2), and another point at (4,4). And say we are graphing the straightforward function, y=2x. We need the first two points to light up, and the third point not to light up. Whatever shader function that succeeds in doing that for those two points will probably work for all the others. (This, personally, is how I think through a lot of these problems, though it carries its own hazards, particularly if you don't consider numbers that are negative or otherwise weird.) How do?
 
 One way, and this is where my gut goes, is an if function:
 
@@ -76,7 +85,7 @@ Claude the chatbot describes the step() function thus:
 
 Claude is correct, but in terms of how step actually gets used, you'll notice that not everyone thinks of the function this way.
 
-Rather than thinking of it as "edge" and "the number you're testing", you can also think of the step function as testing whether the second number is greather than or equal to the first number. You could also describe step() this way:
+Rather than thinking of it as "edge" and "the number you're testing", you can also think of the step function as testing whether the second number is greater than or equal to the first number. You could also describe step() this way:
 
 	step(a, b) == 0.0 if b is less than a 
 	step(a, b) == 1.0 if b is greater than or equal to a 
@@ -111,7 +120,7 @@ Here's what the shader foundation looks like before the math for the line is add
 	void fragment() {
 		vec2 uv = UV;
 		uv = uv * 2.0 - 1.0;
-		uv.y = -uv.y;
+		uv = uv * vec2(1.0, -1.0);
 		vec3 col = vec3(0.);
 		ALBEDO = col; ALPHA = 1.0;
 	}
@@ -130,7 +139,7 @@ And here it is with the math for the line:
 	void fragment() {
 		vec2 uv = UV;
 		uv = uv * 2.0 - 1.0;
-		uv.y = -uv.y;
+		uv = uv * vec2(1.0, -1.0);
 
 		vec3 col = vec3(0.);
 
@@ -156,9 +165,31 @@ WHAT ABOUT A GRID? AND SCALE?
 
 Right now, our calculator sees everything in -1 to 1 space, which is fine if we're wanting to stay in normalized device coordinates, but will frustrate us when we want to use our graphing calculator to visualize parts of our noise function. 
 
-I said previously that one method I use to solve a problem is to take two points on my surface and ask what I would do to those two points to create the result I want, and that often leads me to a formula.
+I said previously that one method I use to solve a problem is to take a few points on my surface and ask what I would do to those points to create the result I want, and that often leads me to a formula.
 
-So, if we had a point at (0.5,0.5), and a point at (1,1), and we wanted to zoom out to see twice as much so that our visible range went from -2 to +2, what would happen to those two points? And how should we think about zoom anyway, should higher numbers be zooming in, or zooming out?
+So, if we had a point at (0.5,0.5), and a point at (1,1), and we wanted to zoom out to see twice as much so that our visible range went from -2 to +2, what would happen to those two points? And how should we think about zoom anyway, should higher numbers be zooming in, or zooming out? Is zoom even the right word?
+
+Most shaders use "scale" or "frequency", and it's opposite of a day to day zoom lens, so we'll stick with convention and go with scale. So, a -1 to 1 grid that's expanded up to -3,3 would have a scale of 3.
+
+WARNING: I use a centered origin and a -1 to 1 range in my explanations, partly for educational purposes and partly because this is the same coordinate space you'll encounter with normalized device coordinates. But a unit square would either run 0 to 1 or, alternatively, -0.5 to 0.5. This is important, as you'll be pulling noise functions from various people, who typically write their noise functions with a unit square. As you've noticed by now, everything is arbitrary, which means nothing is technically wrong until it fails to match up. "Normalized" seems to have different meanings in different places where I encounter the term, but note that it usually means taking some range of numbers and collapsing it into the range that everything else in your shader uses. Maybe it's a unit square. Maybe it's normalized device coordinates. Maybe it's something else. The normalize() built in function, for example, will take a vector of any length and spit out a vector with a length of 1 that points in the same direction. But the biggest warning I want you to take away is that this will both disturb the scale and cause potentially nonsensical evaluations for your noise function if you use the pattern where the origin is centered. It might work fine. It also might not. I'll try to monitor that situation as we go.
+
+SCALE FIRST 
+
+If I want to show three times as much area in my UV space, instinct tells me it's to either multiply or divide the UV by the scale. (It's multiply.) 
+
+Think again about the y = 2x function. Right now, the UV point at 0,0 measures it at x=0, and the point at 1,0 measures it at x=1. We need to shove more space into this plane, so that the far right edge instead shows us x=3. That allows us to see more, by a factor of 3. So, you just multiply UV by however much the scale is.
+
+The code is thus unexciting:
+
+float scale = 3.0;
+uv = uv * scale;
+
+You will only see the difference with the sin curve (more squiggles!) so make sure you've switched your function to show that.
+
+NOW FOR A GRID 
+
+Return to the Texas Chainsaw Massacre step function. If either uv.x or uv.y is close to whatever multiple we want our grid lines to sit at, then it needs to be illuminated, just like the line was illuminated in the illuminated_pixel_test. Take a stab at your options for writing that up. What if it's grid lines on the integers? What if it's grid lines every 0.25 units, or every 5 units? What if you want to abstract that out so you can type any given number of units? 
+
 
 
 
