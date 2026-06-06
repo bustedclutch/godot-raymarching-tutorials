@@ -128,6 +128,7 @@ If you wanted to make a point at 0.25, -0.5, how would you make the pixel effect
 void fragment() {
 	//Add point 1, an arbitrary point in the bottom rightish.
 	vec2 point1 = vec2(0.25, -0.5);
+}
 
 Now, you need to know the distance between wherever you are in uv space and the point. There's an appropriately named built-in for that, distance(). Distance accepts two floats, two vec2s, or two vec3s. We're in 2d space at the moment, so we'll be putting vec2's in as arguments, but I wanted to call attention to the fact that you can plug vec3's into this later when raymarching 3d scenes.
 
@@ -443,5 +444,30 @@ I considered skipping noise, and just saying, "here's some noise functions, toss
 But I don't think we'll ultimately have that luxury. If your characters need to be able to walk up and down the terrain that your terrain generating noise function makes, you kinda need to know the gory details of your noise function, like the maximum slope it can produce.
 
 Also, the current pattern isn't even technically noise yet. At present, we're just painting points. We need to have an infinite number of randomly generated points that don't exhibit repetition. That means constructing an arbitrary tic-tac-toe style grid, and sampling any given UV's distance from points placed randomly in each of the nine squares. Contemplate how that's written, and I'll see you in the next chapter.
+
+CLOSING QUOTE FROM TEXTURING AND MODELING, A PROCEDURAL APPROACH, 3rd EDITION
+
+Darwyn Peachey, in Chapter 2, had this to say:
+
+	[I]t isn't hard to design a [white noise] function. [...] [W]hite noise isn't quite what is needed in a stochastic texture primitive. The repeatable pseudorandom function has an unlimited amount of detail, which is another way of saying that its values at adjacent points are completely independent of one another (uncorrelated). This sounds like what we want, but it proves to be troublesome because of the prevalence of point sampling in computer graphics. If we view an object from a new camera angle, the positions of the sample points at which the texture function is evaluated will change. A good PRN function will change its value markedly if the inputs change even slightly. Consequently, the texture will change when the camera is moved, and we don't want that to happen.
+
+	Another way to look at this problem is in terms of aliasing. Whise noise has its energy spread equally over all frequencies, including frequencies much higher than the Nyquist frequencey of the shading samples. The sampling rate can never be high enough to capture the details of the white noise.
+
+	To keep our procedural textures stable and to keep them from aliasing, we need a stochastic function that is smoother than white noise. The solution is to use a low-pass-filtered version of white noise. (Low-pass filtered noise is sometimes called *pink noise*, but that term is more properly applied to a stochastic function with a 1/f power spectrum).
+
+	The properties of an ideal noise function are as follows:
+	-noise is a repeatable pseudorandom function of its inputs.
+	-noise has a known range, namely, from -1 to 1.
+	-noise is band-limited, with a maximum frequency of about 1.
+	-noise doesn't exhibit obvious periodicities or regular patterns. Such pseudorandom functions are always periodic, but the period can be made very long and therefore the periodicity is not conspicuous.
+	-noise is stationary--that is, its statistical character should be translationally invariant.
+	-noise is isotropic--that is, its staticial character should be rotationally invariant.
+
+I like this quote because it's a good review of both what we've experienced and where we still need to go. We already experienced the misery of the camera and object movement causing slight deviations in the noise, and the resulting chaos that introduced.
+
+And even at the very small scale of our Godot scene, aliasing is already a serious problem--the closer parts of the scene have a Minecraft-pixel vibe whereas the edge of the platform reads as static. 
+
+He then talks about a "low pass filter". As far as the GPU is concerned, it's unable to reach into the adjacent pixel to perceive what's happening there. But the noise function itself can still look different directions into its own reality.
+
 
 
