@@ -190,6 +190,35 @@ NOW FOR A GRID
 
 Return to the Texas Chainsaw Massacre step function. If either uv.x or uv.y is close to whatever multiple we want our grid lines to sit at, then it needs to be illuminated, just like the line was illuminated in the illuminated_pixel_test. Take a stab at your options for writing that up. What if it's grid lines on the integers? What if it's grid lines every 0.25 units, or every 5 units? What if you want to abstract that out so you can type any given number of units? 
 
+As a hint, here's what it would look like if I wrote the code inline and not as a separate function, and turned the X grid lines into something:
 
+	//Find the x fractional portion
+		float x_fract = fract(uv.x);
+	//Test to see if a part is less that 0.02 or greater than 0.98
+		float x_tests = step(x_fract, 0.02) + step(0.98, x_fract);
+	//If so, light it up! Make sure it can't go over 1 using a min.
+		float x_lit = min(1.0, x_tests);
+	//Color the light.
+		vec3 x_colored_light = x_lit * vec3(1.0, 0.5, 0.0);
+		col = col + x_colored_light;
 
+Take a stab at writing it as a function that addresses both X and Y if you haven't already, such that it returns 1.0 as a vec3 when a grid line should appear.
 
+Finally, here's the function in case you want to look at how I did it:
+
+	vec3 grid_line (float uv_x, float uv_y) {
+		//Take fractional parts of X and Y
+		float x_fract = fract(uv_x);
+		float y_fract = fract(uv_y);
+		//Test each part to see if the fractional part is close to zero or almost one.
+		float grid_test = step(x_fract, 0.02) + step(0.98, x_fract) + step(y_fract, 0.02) + step(0.98, y_fract) ;
+		float lit = min(1.0, grid_test);
+		vec3 grid_light = lit * vec3(0.0, 0.5, 0.2);
+		return grid_light;
+	}
+
+Actually calling this function means adding this line to tweak the col variable:
+
+	col = col + grid_line(uv.x, uv.y);
+
+NEXT UP: BREAKING THE GRAPHING CALCULATOR IN TWO WITH INCLUDES

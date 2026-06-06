@@ -18,5 +18,7 @@ void fragment() {
 	float illuminated_pixel_test = step(line(uv.x, uv.y), 0.02);
 	col = col + illuminated_pixel_test;
 	
+
+	
 	ALBEDO = col; ALPHA = 1.0;
 }
