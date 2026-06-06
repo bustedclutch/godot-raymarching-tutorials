@@ -1,0 +1,15 @@
+[gd_scene format=3 uid="uid://dpsbuieb1l54t"]
+
+[ext_resource type="Shader" uid="uid://dlibk3woxt5ks" path="res://public/basic_graphing_calculator.gdshader" id="1_0covg"]
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_4o5mg"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_0covg"]
+render_priority = 0
+shader = ExtResource("1_0covg")
+
+[node name="GraphingCalculator" type="Node3D" unique_id=941888503]
+
+[node name="BasicGraphingCalculator" type="MeshInstance3D" parent="." unique_id=1498224724]
+mesh = SubResource("PlaneMesh_4o5mg")
+surface_material_override/0 = SubResource("ShaderMaterial_0covg")

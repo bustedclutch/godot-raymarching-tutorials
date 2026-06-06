@@ -1,0 +1,164 @@
+EDIT/TOGGLE WORD WRAP, or ALT+Z to Word Wrap this document in Godot.
+
+Remember when I said that it would be a fun learning exercise to create a graphing calculator but that we wouldn't actually do it? Fun fact I lied.
+
+LET'S MAKE A GRAPHING CALCULATOR 
+
+Let's return to our original foundation:
+
+	void fragment() {
+		vec2 uv = UV;
+
+		uv = uv * 2.0 - 1.0;   // recenter: [0,1] -> [-1,1] on both axes
+		uv.y = -uv.y;          // flip Y so positive Y points up
+
+		vec3 col = vec3(length(uv));
+		col = clamp(col, 0.0, 1.0);
+		col = pow(col, vec3(2.2));
+
+		ALBEDO = col; ALPHA = 1.0;
+	}
+
+As a reminder, this foundation:
+1. Assigns the constant UV to the variable "uv".
+2. Recenters the origin from the top-left of the quad to its middle by multiplying by 2 and subtracting 1, so each axis now runs from -1 to 1 instead of 0 to 1.
+3. Flips the Y axis with uv.y = -uv.y;, so positive Y points up. Godot's QuadMesh UV starts with Y=0 at the top, which is the game-engine "Y is down" convention; this single line corrects it for math purposes. (An equivalent older form was uv = vec2(uv.x, 1.0 - uv.y); placed *before* the recenter line--same end result, just folds the flip and the [0,1]->[1,0] remap into one expression.)
+4. Tosses in a distance function as something to show that it's operational, and assigns it to the "col" variable.
+5. Fiddles with the colors to account for the human logarithmic perception of color, with the col=pow(col,vec3(2.2)); line. (Warning: This might be done automatically depending on render settings, so keep an eye on the actual look.)
+6. Finally, assigns that value to the Godot built-in ALBEDO, which you might recognize from another program as some kind of "out" variable going by another name.
+
+It's worth pointing out that I kept the origin centered to keep things like middle school math, and that's been useful so far, but there will be plenty of times where that gets in the way. I can't say whether you'll always go to the trouble to flip Y, but I don't really do anything in the 2D game space (where that remains the convention), so... I'll always be flipping Y to be up.
+
+Although we haven't introduced scale yet, imagine, for a second, you've got a point on your graphing calculator at (3,6). And another point at (1,2), and another point at (4,4). And say we are graphing the straightforward function, y=2x. We need the first two points to light up, and the third point not to light up. Whatever shader function that succeeds in doing that for those two points will probably work for all the others. (This, personally, is how I think through a lot of these problems.) How do?
+
+One way, and this is where my gut goes, is an if function:
+
+if (2*uv.x == y){
+	light_this_pixel = true;
+}
+
+But that doesn't really solve our problem, because lines are really small, and pixels are really big. What we really need to know is if we're close to uv.y. How close? Well, "how close" is another way of saying "subtraction", because if I'm ten miles from uv.y, and you're nine miles from uv.y, how close we are is subtracting nine from ten. If you're an axe-murderer and one mile is a comfortable distance, then maybe I don't light the pixel. But if you're the villain from the Texas Chainsaw Massacre, who, per his source material, is able to travel for miles at a very high speed while carrying a chainsaw, then maybe I do want to light the pixel. In any event, here's the revised "proximity" function, which we'll just call "line" for short:
+
+	float line (float x, float y) {
+		float f_of_x = 2.0 * x;
+		return y - f_of_x;
+	}
+
+One more problem to point out--I don't usually care whether the Texas Chainsaw Massacre-er is positive or negative miles away (though I suppose this matters in choosing which direction to run in). In terms of whether the pixel lights up, we just care about the distance. So we can take the absolute value in these functions, in whichever form we choose to write them in:
+
+	float line (float x, float y) {
+		float f_of_x = 2.0 * x;
+		float raw_distance = y - f_of_x;
+		return abs(raw_distance);
+	}
+
+Before I move on, I'll point out that you could just as easily shove the abs() method later on in the process. I just want to point out that it will sit somewhere along the chain, and we don't care too much where.
+
+I'll also point out that it's not necessary to abstract this out as a function at all--you could instead do something like this line, though it isn't the path I ultimately took:
+
+	float line = abs(uv.y - 2.*uv.x);
+
+DECIDING WHETHER TO LIGHT THE PIXEL 
+
+Ponder, for a moment, how close is "close" in our current UV space. Our entire graph runs from -1 to 1, so "close enough to light the pixel" is going to be rather small. I just so happen to know that 0.02 will qualify as "close", but you can play with this. 
+
+In the classic "ask the rubber ducky on your desk a question" prose, your shader code needs to ask:
+-"am I within 0.02 units of the pixel?" And, 
+-"If so, return either 'true' or 1.0," along with 
+-"and if I do return 'true' or 1.0, then color the pixel something easy to see."
+
+In case you've forgotten, the step() built-in function is what does this for us.
+
+Claude the chatbot describes the step() function thus:
+
+	step(edge, x) == 0.0   if x < edge
+	step(edge, x) == 1.0   if x >= edge
+
+Claude is correct, but in terms of how step actually gets used, you'll notice that not everyone thinks of the function this way.
+
+Rather than thinking of it as "edge" and "the number you're testing", you can also think of the step function as testing whether the second number is greather than or equal to the first number. You could also describe step() this way:
+
+	step(a, b) == 0.0 if b is less than a 
+	step(a, b) == 1.0 if b is greater than or equal to a 
+
+Now, I hate this function. Mainly because I constantly mix up the comparison. So, I have mnemonic for it, and since the step function references stairs, and we naturally think of stairs as taking us up, and you're reading this document left to right, then you can think of it as, "if these two variables are stairs, are my stairs going up? If they're taking you up, then 1.0, if they're failing to take you up, then 0.0."
+
+NOW THAT WE ARE THOROUGHLY EMPOWERED WITH MASTERY OF THE STEP() FUNCTION 
+
+...we can actually use it to decide whether to light the pixel. We need to know if our line function is delivering less than 0.02.
+
+	float illuminated_pixel_test = step(line(uv.x, uv.y), 0.02);
+
+In case you're asking, "why aren't we using a boolean?" I suppose the short answer is that booleans are binary and we are artists and artists are virtually always on some kind of spectrum, sexual or otherwise. Some would argue it's just because floats are more useful when doing color math for shaders.
+
+Once we have that illuminated_pixel_test float showing up as 1.0 when our pixel is within 0.02 units from our line, we can color it. We can add, subtract, multiply, divide, and mix vectors (mix is a linear blend). Start with a black background:
+
+vec3 col = vec3(0.0,0.0,0.0);
+ALBEDO = col; ALPHA = 1.0;
+
+As a sidebar, since we're preparing to dive deeper into noise functions, we can prepare ourselves to read them by being a bit more brief with our language:
+
+	vec3 col = vec3(0.);
+	ALBEDO = col; ALPHA = 1.0;
+
+If you haven't prepared it yet, create a new 3D scene with a plane in Godot. I'm doing it within a new scene with a root Node3D called GraphingCalculator, and a child plane called "BasicGraphingCalculator". That plane's shader is called basic_graphing_calculator.gdshader and the conventions for the rest of this chapter will flow similarly. These are all sandbox objects like the previous sandboxes with noise, so don't obsess about making your names match mine. Just get a plane into the scene and do the surface material override like usual.
+
+Here's what the shader foundation looks like before the math for the line is added:
+
+	shader_type spatial;
+	render_mode unshaded;
+
+	void fragment() {
+		vec2 uv = UV;
+		uv = uv * 2.0 - 1.0;
+		uv.y = -uv.y;
+		vec3 col = vec3(0.);
+		ALBEDO = col; ALPHA = 1.0;
+	}
+
+And here it is with the math for the line:
+
+	shader_type spatial;
+	render_mode unshaded;
+
+	float line (float x, float y) {
+		float f_of_x = 2.0 * x;
+		float raw_distance = y - f_of_x;
+		return abs(raw_distance);
+	}
+
+	void fragment() {
+		vec2 uv = UV;
+		uv = uv * 2.0 - 1.0;
+		uv.y = -uv.y;
+
+		vec3 col = vec3(0.);
+
+		float illuminated_pixel_test = step(line(uv.x, uv.y), 0.02);
+		col = col + illuminated_pixel_test;
+
+		ALBEDO = col; ALPHA = 1.0;
+	}
+
+A WARNING I SHOULD HAVE TOLD YOU MUCH SOONER
+
+Note that if I had used that cute one-liner above, then I could have placed the one-liner inside of the fragment function. But nested functions are not allowed, so I have to keep that helper function up-top.
+
+The error that Godot gives, when you do that, is just "expected a comma" or something else entirely unhelpful, it absolutely will not tell you that you put a function in the wrong place.
+
+OTHER OPTIONS
+
+Try replacing your f_of_x with sin(x) or warp its domain by changing it to sin(x+TIME) which will animate it with a sin curve.
+
+Leave it as sin(x) for the next section, because it'll make the next section a lot easier to see and understand.
+
+WHAT ABOUT A GRID? AND SCALE?
+
+Right now, our calculator sees everything in -1 to 1 space, which is fine if we're wanting to stay in normalized device coordinates, but will frustrate us when we want to use our graphing calculator to visualize parts of our noise function. 
+
+I said previously that one method I use to solve a problem is to take two points on my surface and ask what I would do to those two points to create the result I want, and that often leads me to a formula.
+
+So, if we had a point at (0.5,0.5), and a point at (1,1), and we wanted to zoom out to see twice as much so that our visible range went from -2 to +2, what would happen to those two points? And how should we think about zoom anyway, should higher numbers be zooming in, or zooming out?
+
+
+
