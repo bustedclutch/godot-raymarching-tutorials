@@ -38,7 +38,7 @@ Consider this basic function:
 or, in equation form:
 	y = 2x
 
-Although we haven't introduced scale yet, imagine, for a second, you've got a point on your graphing calculator at (3,6). And another point at (1,2), and another point at (4,4). And say we are graphing the straightforward function, y=2x. We need the first two points to light up, and the third point not to light up. Whatever shader function that succeeds in doing that for those two points will probably work for all the others. (This, personally, is how I think through a lot of these problems, though it carries its own hazards, particularly if you don't consider numbers that are negative or otherwise weird.) How do?
+Although we haven't introduced scale yet, imagine, for a second, you've got a point on your graphing calculator at (3,6). And another point at (1,2), and another point at (4,4). And say we are graphing the straightforward function, y=2x. We need the first two points to light up, and the third point not to light up. Whatever shader function that succeeds in doing that for those three points will probably work for all the others. (This, personally, is how I think through a lot of these problems, though it carries its own hazards, particularly if you don't consider numbers that are negative or otherwise weird.) How do?
 
 One way, and this is where my gut goes, is an if function:
 
@@ -194,7 +194,7 @@ As a hint, here's what it would look like if I wrote the code inline and not as 
 
 	//Find the x fractional portion
 		float x_fract = fract(uv.x);
-	//Test to see if a part is less that 0.02 or greater than 0.98
+	//Test to see if a part is less than 0.02 or greater than 0.98
 		float x_tests = step(x_fract, 0.02) + step(0.98, x_fract);
 	//If so, light it up! Make sure it can't go over 1 using a min.
 		float x_lit = min(1.0, x_tests);
@@ -221,4 +221,224 @@ Actually calling this function means adding this line to tweak the col variable:
 
 	col = col + grid_line(uv.x, uv.y);
 
-NEXT UP: BREAKING THE GRAPHING CALCULATOR IN TWO WITH INCLUDES
+NEXT UP: BREAKING THE GRAPHING CALCULATOR WITH INCLUDES
+
+So, what if you want the graphing calculator to be broken up into separate files?
+
+Maybe you are working in a team, and one team is working on one of the noise functions, and another team is working on another function, and a third team is working on blending them all together. Or maybe you're doing all three things, and just think that separate files would keep them organized.
+
+Or, maybe you have different noise patterns blending together to make a single layer, and you want to inspect the different layers to understand how they're being combined. One of the things that makes shaders deeply confusing is that it's often unclear how much each layer is contributing to the final image. 
+
+PREPARING THE FILES AND FOLDERS
+
+The file and folder organization is already out of control. Let's start putting these sandbox projects into their own folders. Create a subfolder within the "public" folder called "divided_calculator". Create a new 3D scene, name the node DividedCalculator, save it in that new folder you just made. Add a plane, and copy in the latest version of the graphing calculator, and save that shader as abstracted_calculator.gdshader.
+
+ABSTRACT EVERYTHING
+
+Includes are a glorified copy and paste system, which means if we want to make use of them, we want to abstract as much we can out of the fragment() function. Feel free to refactor this yourself, or follow along as I do it.
+
+One piece will have the line, one piece will have the grid, one piece will have the UV math. The final shader will have the fragment() function and call for all of these pieces.
+
+ABSTRACT THE LINE
+
+Ultimately, you want to just be able to have the col variable add the result of each outsourced function when given the uv coordinate as an input. Our current graphing calculator is most of the way there, though the math for the line light needs to be abstracted out slightly. As of now, it's this:
+
+	float illuminated_pixel_test = step(line(uv.x, uv.y), 0.02);
+	col = col + illuminated_pixel_test;
+
+Whereas the function it calls is this:
+
+	float line (float x, float y) {
+		//float f_of_x = 2.0 * x;
+		float f_of_x = sin(x);
+		float raw_distance = y - f_of_x;
+		return abs(raw_distance);
+	}
+
+We don't want the step() math living in the fragment() function anymore. And instead of a float, it would be more useful to get a vector--that way if the line team decides they want to send a colored line to us, they can.
+
+Here's how I re-did the function:
+
+	vec3 line (vec2 xy, float local_scale) {
+		float f_of_x = sin(xy.x+TIME/2.);
+		float abs_raw_distance = abs( xy.y - f_of_x );
+		float illuminated_pixel_test = step(abs_raw_distance, 0.02);
+		return vec3(illuminated_pixel_test);
+	}
+
+With the function refactored, we can then revise the color line that updates the color to this:
+
+	col = col + line(uv, scale);
+
+WARNING: I'm exporting the scale only because the scale might be useful for deciding line thickness, and NOT because the scale is somehow used to determine where the line exists. We're feeding raw XY coordinates into this thing all the time. As you can see, I'm not even using the local_scale parameter anywhere. But maybe, down the road, if the scale is really really big, then maybe you want the line to get thicker so it doesn't become invisible, and having that information helps you accomplish that goal.
+
+ABSTRACTING OUT THE GRID
+
+The grid function is already quite abstract, but we can make it consistent with the improved line function by passing in uv as a vector and scale as a float.
+
+	col = col + grid_line(uv.x, uv.y);
+
+Changes to...
+
+	col = col + grid_line(uv, scale);
+
+And the grid function, which is now this:
+
+	vec3 grid_line (float uv_x, float uv_y) {
+		//Take fractional parts of X and Y
+		float x_fract = fract(uv_x);
+		float y_fract = fract(uv_y);
+		//Test each part to see if the fractional part is close to zero or almost one.
+		float grid_test = step(x_fract, 0.02) + step(0.98, x_fract) + step(y_fract, 0.02) + step(0.98, y_fract) ;
+		float lit = min(1.0, grid_test);
+		vec3 grid_light = lit * vec3(0.0, 0.5, 0.2);
+		return grid_light;
+	}
+
+Becomes this:
+
+	vec3 grid_line (vec2 xy, float local_scale) {
+		//Take fractional parts of X and Y
+		float x_fract = fract(xy.x);
+		float y_fract = fract(xy.y);
+		//Test each part to see if the fractional part is close to zero or almost one.
+		float grid_test = step(x_fract, 0.02) + step(0.98, x_fract) + step(y_fract, 0.02) + step(0.98, y_fract) ;
+		float lit = min(1.0, grid_test);
+		vec3 grid_light = lit * vec3(0.0, 0.5, 0.2);
+		return grid_light;
+	}
+
+ABSTRACTING OUT THE UV MATH 
+
+We're almost there. Here's our current UV math:
+
+	vec2 uv = UV;
+	uv = uv * 2.0 - 1.0;
+	uv = uv * vec2(1.0, -1.0);
+	uv = uv * scale;
+
+To give ourselves a destination, add this line to the top of fragment():
+
+vec2 uv = uv_math(UV, scale);
+
+Then cut and paste that uv math to make a uv_math() function that will take the uv and the scale as arguments:
+
+	vec2 uv_math(vec2 xy, float local_scale){
+		vec2 uv = xy;
+		uv = uv * 2.0 - 1.0;
+		uv = uv * vec2(1.0, -1.0);
+		uv = uv * local_scale;
+		return uv;
+	}
+
+And now, the entire fragment() function is an extremely short read:
+
+	void fragment() {
+
+		vec2 uv = uv_math(UV, scale);
+		vec3 col = vec3(0.);
+		col = col + line(uv, scale);
+		col = col + grid_line(uv, scale);
+		ALBEDO = col; ALPHA = 1.0;
+	}
+
+YOU CAN SEE WHERE I'M GOING HERE 
+
+You're kinda building your own node tree. Except, instead of a node tree, it's more of a legible story. "Add the line." "Add the grid." 
+
+And then later on, maybe you want to be like, "Add this layer of noise, now add that layer of noise."
+
+DIVORCE THE LINE 
+
+The line team wants exclusive access to the line file.
+
+In the File System panel (usually bottom left) right click your divided_calculator folder and create a new resource. Select ShaderInclude. Name it line.gdshaderinc.
+
+For clarity in my own files I created a new plane and shader for this next section called "DividedCalculator" but that's optional. 
+
+You'll cut and paste the line function into the line.gdshaderinc file.
+
+Then where the line function once lived, write this:
+
+	#include "res://public/divided_calculator/line.gdshaderinc"
+
+Note that you can right click the file in your FileSystem panel to copy its path. Also that there's no semicolon. If you accidentally put in a semicolon, it will say "not a valid path" instead of "we want semicolons everywhere. but not there."
+
+
+
+THE REAL GRAPHING CALCULATOR WAS INSIDE US ALL ALONG 
+
+As you can see, the line between shader and graphing calculator is very, very thin. All we've really done is taken a graphing calculator and make it behave more like one we're used to. 
+
+AN INSIGHT INTO COMING PROBLEMS 
+
+We can already see that we have two related problems already showing in the cracks of our graphing calculator: Scale, and aliasing. At a high scale, the grid implodes. At any scale, there is visible, ugly aliasing of both the grid and the line. How do you solve the aliasing?
+
+Do not say "run a 4x antialiasing super sample on the whole thing." If you say that, you get sent to some kind of shader programmer hell when you die, and it's just like heaven, except it's at one fifth the framerate. We don't want that for you.
+
+Stop the movement of time on the sin curve so you can look at its aliasing.
+
+The existing step() function gives either a 0 or 1, which is a hard fall off. 
+
+	vec3 line (vec2 xy, float local_scale) {
+		//float f_of_x = sin(xy.x+TIME/2.);
+		float f_of_x = sin(xy.x);
+		float abs_raw_distance = abs( xy.y - f_of_x );
+		float illuminated_pixel_test = step(abs_raw_distance, 0.02);
+		//Anti-aliasing
+		illuminated_pixel_test = 1.0 - smoothstep(0.015, 0.025, abs_raw_distance);
+		////A wider band gives puffy or neon, depending on execution
+		illuminated_pixel_test = 1.0 - smoothstep(0.005, 0.05, abs_raw_distance);
+		vec3 color = vec3(0.2, 0.4, 0.8);
+		return vec3(illuminated_pixel_test) * color;
+	}
+
+HOW DOES SMOOTHSTEP WORK?
+
+I said earlier that for the step function, you could think of it as, "is the second argument higher than the first." Maybe it would be helpful to visualize the smoothstep function. Maybe it would be helpful if we had a graphing calculator that could show us what it does.
+
+Copy and paste the line function as line2 and add its result in the fragment shader.
+
+	col = col + line2(uv, scale);
+
+And then have the line2 function show you what a smoothstep applied to sin would look like:
+
+
+vec3 line2 (vec2 xy, float local_scale) {
+	//float f_of_x = sin(xy.x+TIME/2.);
+	float f_of_x = smoothstep(0.2, 0.8, sin(xy.x+TIME/2.));
+	float abs_raw_distance = abs( xy.y - f_of_x );
+	float illuminated_pixel_test = step(abs_raw_distance, 0.02);
+	//Anti-aliasing
+	illuminated_pixel_test = 1.0 - smoothstep(0.015, 0.025, abs_raw_distance);
+	////A wider band gives puffy or neon, depending on execution
+	illuminated_pixel_test = 1.0 - smoothstep(0.005, 0.05, abs_raw_distance);
+	vec3 color = vec3(0.8, 0.4, 0.8);
+	return vec3(illuminated_pixel_test) * color;
+}
+
+I've added time back in and altered the color of the second line.
+
+WHY THE ONE MINUS BIT 
+
+The inclusion of the one minus in this clause:
+
+illuminated_pixel_test = 1.0 - smoothstep(0.015, 0.025, abs_raw_distance);
+
+...feels a little weird. But that's because in the before times, our step function was testing whether 0.025 was greater than x, the distance. In the new smoothstep function, if the distance is greater than the second edge, we get a one. If it's less than the first edge, we get a zero. That's literally the opposite of what we want. "One minus the expression" fixes the problem, for when we want to test for a low number. 
+
+THE ALIASING METHOD I DIDN'T MENTION 
+
+There's something called "fwidth" that allows you to measure distances in pixel space which can be used for anti-aliasing. Maybe I'll add that in later.
+
+CONGRATULATIONS ON YOUR PURPOSE BUILT GRAPHING CALCULATOR 
+
+Congratulations on building a calculator! The ones online are great and in many ways better than this one, but this one will always do it however Godot is doing it. 
+
+OTHER DIRECTIONS 
+
+If you want to get crazy, you can try splitting your plane up into many quads and turning this into a 3D graphing calculator by applying a line's third dimension as a z-transform in the vertex portion of the shader.
+
+PREPARING FOR THE NEXT CHAPTER 
+
+Think about how you would randomly stick a point in every cell of the graphing calculator. Placing it, and visualizing it, are as before two distinct operations. Finding the distance to the nearest points is the means via which Worley noise's scale can become gigantic, big enough to cover a planet.

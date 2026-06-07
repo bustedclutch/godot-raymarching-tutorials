@@ -19,7 +19,7 @@ vec3 grid_line (float uv_x, float uv_y) {
 
 float line (float x, float y) {
 	//float f_of_x = 2.0 * x;
-	float f_of_x = sin(x+TIME/2.);
+	float f_of_x = sin(x);
 	float raw_distance = y - f_of_x;
 	return abs(raw_distance);
 }
@@ -39,9 +39,13 @@ void fragment() {
 
 	vec3 col = vec3(0.);
 	
-	float illuminated_pixel_test = step(line(uv.x, uv.y), 0.02);
-	col = col + illuminated_pixel_test;
 	
+	////moving this up to the function...
+	//float illuminated_pixel_test = step(line(uv.x, uv.y), 0.02);
+	
+	
+float illuminated_pixel_test = step(line(uv.x, uv.y), 0.02);
+col = col + illuminated_pixel_test;
 //Creating a grid; a grid line at the integers would mean evaluating whether
 //any given point, uv.x, or uv.y, is within 0.02 units of an integer. Which
 //requires an operation on its fractional part. Fractional p_existsarts under 0.02 
