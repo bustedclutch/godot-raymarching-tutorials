@@ -1,0 +1,73 @@
+EDIT/TOGGLE WORD WRAP, or ALT+Z to Word Wrap this document in Godot.
+
+INTRODUCTION 
+
+This chapter is kind of exciting because it's the first time we get to deal with something approaching infinity, and infinity is fun. 
+
+I suppose the sin curve and y = 2x also go to infinity, but not in a sense that really feels useful.
+
+So, we already have a graphing calculator, and we've given it a grid that chops it up in increments of 1. These 1 by 1 blocks are going to be the cells that ultimately form cellular noise. We need a single, random point in all of them. 
+
+GIVE THE CELLS NAMES 
+
+Consider the four cells that surround the origin. I'll do my best ASCII image below:
+
++------------------+------------------+
+|                  |                  |
+|                  |                  |
+|                  |                  |
+|                  |                  |
+|                  | (0,0)            |
++------------------+------------------+
+|                  |                  |
+|                  |                  |
+|                  |                  |
+|                  |                  |
+|                  |                  |
++------------------+------------------+
+
+It would be helpful to name these cells first. You could use any convention you want, but for the sake of sticking to a common one, we'll name the cell that's immediately above and to the right of the origin the "0,0" cell. What name does that give to the other cells? Another pic:
+
++------------------+------------------+
+|                  |                  |
+|                  |                  |
+|                  |                  |
+|                  |                  |
+| (-1,0)           | (0,0)            |
++------------------+------------------+
+|                  |                  |
+|                  |                  |
+|                  |                  |
+|                  |                  |
+| (-1,-1)          | (0,-1)           |
++------------------+------------------+
+
+ILLUMINATING A CELL BLOCK 
+
+For the next trick, pop open your graphing calculator. In the fragment() section, you still have these lines; you can comment them out:
+
+	//col = col + line(uv, scale);
+	//col = col + line2(uv, scale);
+
+Go ahead and add in a line that calls for a lit_block:
+
+	col = col + lit_block(uv, scale);
+
+And then add a stub function at the top so that your shader stops being broken:
+
+	vec3 lit_block(vec2 xy, float local_scale){
+		return vec3(0.);
+	}
+
+That stub just returns a vec3 with zero for all components, so when it's *added* to your existing black color, nothing changes, which is what we want for a stub. (Though note that often your layers are multiplied and not added, so stubs in other situations that are intended to do nothing at first would instead return a vec3 of 1.0)
+
+I don't know why, but my gut always wants to write things as an if statement, even though in a shader we often want a vector output. But I'll start from "if" and try to work my way out. What function returns 1.0 or TRUE if you are in cell block (1,2)?
+
+In pseudocode, we start with...
+
+	If the condition is met that the cell block is 1, 2, then return a vec3 of 1.0. Else, return a vec3 of 0.0.
+
+
+	INSERT CODE VERSION OF IF STATEMENT HERE
+
+CONVERTING AN IF STATEMENT TO CODE VIA ADDING STEP FUNCTIONS TOGETHER 
