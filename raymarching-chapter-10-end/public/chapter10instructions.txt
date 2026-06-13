@@ -59,15 +59,518 @@ And then add a stub function at the top so that your shader stops being broken:
 		return vec3(0.);
 	}
 
-That stub just returns a vec3 with zero for all components, so when it's *added* to your existing black color, nothing changes, which is what we want for a stub. (Though note that often your layers are multiplied and not added, so stubs in other situations that are intended to do nothing at first would instead return a vec3 of 1.0)
+That stub just returns a vec3 with zero for all components, so when it's *added* to your existing black color, nothing changes, which is what we want for this stub. (Though note that often your layers are multiplied and not added, so stubs in other situations that are intended to do nothing should instead return a vec3(1.0))
 
-I don't know why, but my gut always wants to write things as an if statement, even though in a shader we often want a vector output. But I'll start from "if" and try to work my way out. What function returns 1.0 or TRUE if you are in cell block (1,2)?
+What function returns 1.0 or TRUE if you are in cell block (1,2)? For example, a point in UV space at (1.3,2.5) needs to illuminated, but not a point at (0.3,1.8), which is in a different cell on the grid.
 
 In pseudocode, we start with...
 
+	If the condition is met that the currently evaluated point is inside of cell block (1, 2), then return a vec3 of 1.0. Else, return a vec3 of 0.0.
+
+We've already met, in another chapter, the function fract() which identifies the fractional part of a number. If we used that on (1.3, 2.5), we could get the 0.3 and the 0.5 pieces. We want the integer parts instead, and for that, we look to fract()'s complementary counterpart, floor(). Both floor() and fract() can be used directly on many types of variables, including float, vec2, vec3, or vec4, and will return the same variable type you put in. So floor(vec2(1.3, 2.5)) will return a vec2 of (1.0,2.0). A function of floor(1.5) will return a float of 1.0. 
+
+Other functions in shader land work similarly, including ceil(), fract(), round(), abs(), sign(), mod(), min(), max(), and others. 
+
+A REMINDER ABOUT GDSCRIPT NOT WORKING THE SAME WAY
+
+As a reminder from another chapter, this isn't how gdscript works--these same functions used in gdscript will expect floats. When working with vectors, the alternative in gdscript is to call a method on the vector itself, so if you had some gdscript that read like so:
+
+	var happy_vector := Vector2(1.3, 2.5)
+
+...then you can't do floor(happy_vector). That will cause an error. Instead, you'd write:
+
+	happy_vector.floor()
+
+If you're about to go on a "Blergh! Why is Godot bad!" rant, this wouldn't be a good place, as I think the other engines behave similarly. As mentioned before, Godot tries to stick to convention in its two languages (Python-ish for gdscript and traditional C-style shader language for its shaders).
+
+BACK TO THAT IF STATEMENT 
+
+The pseudocode was:
+
 	If the condition is met that the cell block is 1, 2, then return a vec3 of 1.0. Else, return a vec3 of 0.0.
 
+Try writing it yourself, but I translated it to:
 
-	INSERT CODE VERSION OF IF STATEMENT HERE
+	vec3 lit_block (vec2 xy, float local_scale) {
+		float floor_x = floor(xy.x);
+		float floor_y = floor(xy.y);
+		if (floor_x == 1.0 && floor_y ==2.0){
+			return vec3(1.0);}
+		else{
+				return vec3(0.0);
+		}
+	}
 
-CONVERTING AN IF STATEMENT TO CODE VIA ADDING STEP FUNCTIONS TOGETHER 
+ALTERNATIVES TO THE IF BLOCK
+
+Now, you could translate this block away from being an if statement if you wanted, by using a step() function. I don't think it's necessary here, but if you're curious about how it could work, you could do something like:
+
+	float between_x = step(0.9, floor_x) * step(floor_x, 1.1)
+
+or alternatively...
+
+	float between_x = step(0.9, floor_x) - step(1.1, floor_x);
+
+and then code to display it, like:
+
+	return vec3(between_x);
+
+The below code block, for example, would light all the cells where the X part of the cell is 1, creating an illuminated strip:
+
+	vec3 lit_block (vec2 xy, float local_scale) {
+		float floor_x = floor(xy.x);
+		float floor_y = floor(xy.y);
+		//if (floor_x == 1.0 && floor_y ==2.0){
+			//return vec3(1.0);}
+		//else{
+				//return vec3(0.0);
+		//}
+		float between_x = step(0.9, floor_x) - step(1.1, floor_x);
+		return vec3(between_x);
+	}
+
+IF STATEMENTS: SOMETIMES THEY'RE THE BEST FOR THE JOB
+
+If you wanted to add Y in, you'd be doing even more step() functions and it would get even messier. The moral of this story: Don't get obsessed about trying to get a vector out of the function where an if statement will do.
+
+REMEMBERING THE LINE FUNCTION, AND ITS COMBINATION OF THE LIGHTING TEST AND THE LINE EVALUATION MATH
+
+Our line function had both its shading (the math deciding whether it was illuminated) as well as it's UV distance math all in one function. As a reminder, here's what the line function looked like:
+
+	vec3 line (vec2 xy, float local_scale) {
+		//float f_of_x = sin(xy.x+TIME/2.);
+		float f_of_x = sin(xy.x+TIME/2.);
+		float abs_raw_distance = abs( xy.y - f_of_x );
+		float illuminated_pixel_test = step(abs_raw_distance, 0.02);
+		vec3 color = vec3(0.2, 0.4, 0.8);
+		return vec3(illuminated_pixel_test) * color;
+	}
+
+From the "illuminated_pixel_test" onward, everything in that function is about shading: How close the point needs to be to color it, what color to give it, and finally, a return of that color.
+
+For our random point placement function, we'll be invested in the first half of the problem: Placing the random point in space. The second half of the problem, deciding whether it's close enough to light up, is a problem we've already solved and can use the same one or two line of codes for ("close enough? great! light it up!").
+
+Placing a point in a random spot based on the cell's ID, on the other hand, is a bigger lift.
+
+HASH FUNCTIONS: WELCOME TO THE WORMHOLE 
+
+I've written about many wormholes, and I'll be straight with you: At the risk of getting hate mail from mathematicians who've spent their lives on this, you might want to skim this section and come back to it later. 
+
+If you decide to stick around, you'd be best served if you watch a video or two about binary numbers and what are called "bitwise operators". Bitwise operators do things to the binary expression of a number. 
+
+That said, some programmers feel strongly that you don't get to call yourself a programmer unless you understand them--because if you can't understand them, you can't program a simple thermometer. 
+
+Can you ignore them? Well, maybe. If your shader doesn't need to match the world created by your CPU, then you can get away with not caring. But if your shader and your CPU need to create the exact same procedurally generated world, then you need to know how they work. I fall into the latter camp, and I find them confusing, so, I'm writing about them.
+
+We'll be slowly constructing a hash function developed by Chris Wellons.
+
+AN INTRO TO BINARY: I RAN OUT OF DIGITS, AND I'VE ONLY GOT TWO DIGITS
+
+This is how I, Alex, personally think of binary numbers, but I've got a second section below this one that describes how apparently everyone else thinks of them.
+
+Here's a table of binary numbers from 1-20:
+
+ Decimal | Binary
+  --------|--------
+     0    | 00000
+     1    | 00001
+     2    | 00010
+     3    | 00011
+     4    | 00100
+     5    | 00101
+     6    | 00110
+     7    | 00111
+     8    | 01000
+     9    | 01001
+    10    | 01010
+    11    | 01011
+    12    | 01100
+    13    | 01101
+    14    | 01110
+    15    | 01111
+    16    | 10000
+    17    | 10001
+    18    | 10010
+    19    | 10011
+    20    | 10100
+
+We start with 0 being 0. Straightforward enough! And if we want to count to 1, and use as few digits/bits as possible, we can replace that 0 with a 1.
+
+1 = 1
+
+Not much of a range so far. So, in order to count to 2, we need another bit/digit. We can reset the bit on the right, and add a bit on the left:
+
+2 = 10
+
+Now we want to count up to three. We don't want to add any more bits than necessary, so we work from the right, and flip that right bit to 1:
+
+3 = 11
+
+We want to count to four, but we're out of digits. We need to add yet another bit on the left, and reset all the bits on the right to zero:
+
+4 = 100 
+
+We want to count five. Fortunately, we have bits to spare! So we just toggle the bit on the far right:
+
+5 = 101
+
+We want to count to six. What happens now? Well, we reset that bit on the right to zero, and toggle the bit to its left to one:
+
+6 = 110
+
+Now we want to count to seven, and we have one more bit possibility with our three bits, so the right most pops up to one:
+
+7 = 111
+
+We're out of bits if we want to keep going up. We need a new bit. So we reset all the bits to zero, and add another bit on the left:
+
+8 = 1000
+
+Aaaaaaand so on. 
+
+Even though it seems crazy, these numbers are behaving exactly like regular numbers. When you are counting upward 0-9 in regular numbers, you keep going up-up-up with the right-most digit.  When you run out of digits, that right-most digit flips all the way back down to 0, so that you can count to 10. The numbers on the right do the moving (and resetting to zero), until the left number gets dragged into the party. The leftmost number is always the number that gets dragged in last. Binary numbers count up exactly the same way, except, instead of going 0-9, they go... 0 to 1.
+
+ANOTHER WAY OF THINKING ABOUT THEM 
+
+Because of the properties of binary numbers, you can also construct a table like this:
+
+128-64-32-16-8-4-2-1
+
+You can then use that table to assign each digit in a binary number a value, and add them up. That can make the math quite fast, because if your binary number is:
+
+1-1-1-1-0-0-0-0
+
+Then your binary number is the sum of 128+64+32+16+0+0+0+0. Which is 240. 
+
+BINARY NUMBERS IN GAME DESIGN, HISTORICALLY 
+
+Binary numbers have an important history in game design, because they allowed you to pack a lot of information into a small space. A byte is eight bits, and you could pack eight true/false flags into a byte this way. If fireballs shot by your character are supposed to be able to collide with yourself and your enemies, but not your teammates or friendly NPCs, then you could use the bits 1100 to express that the fireballs collide with the first two types of entities (the first two 1's, meaning "true") and the fireballs wouldn't collide with teammates and NPCs because their bits, the latter 0's, evaluate as false. Such a fireball might thus be a "12" fireball because 1100 in binary corresponds to the regular number 12, even though the regular number 12 has no other meaningful relationship to the fireball. This method of using bitflags is covered in the GDQuest tutorial in which your character is coded to launch fireballs. Godot, as it happens, has native support for bitflags, as in, they will show up as usable toggles in the Inspector panel if you decide to use them. 
+
+I'm not sure how often bit flags are still used, but the fact that even modern day gaming devices can choke on "bullet-hell" style games suggests they haven't lost their utility.
+
+WE'RE USING THEM BOTH BECAUSE THEY'RE FAST AND BECAUSE THEY CAN DO WEIRD THINGS 
+
+Aside from speed, we'll be using them for hashing, which is where you take one number and use it to generate a different number. It's often used for security purposes, because hashes can be reversed, allowing an encoded message to be decoded. We use it because it's a fast way of spitting a bunch of really random garbage out, and our noise functions actually need a source of really random garbage.
+
+A QUICK ASIDE ABOUT WHY OUR PREVIOUS HASH FUNCTION IS DOOMED
+
+Our previous TV-static hash, if implemented here, would look something like this:
+
+	vec2 doomed_hash2(vec2 p) {
+		return vec2(
+			fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453),
+			fract(sin(dot(p, vec2(269.5, 183.3))) * 43758.5453)
+		);
+	}
+
+It relies on a sin curve to give us randomness. But there's a problem with that. Sin curves are an inexact science. They rely on using tables and/or math to approximate the value to whatever level of accuracy your GPU or CPU is comfortable with, and those numbers won't always be the same. In games, it matters a lot that your noise matches my noise matches everyone else's noise. Your procedurally generated map needs to match mine, and if the CPU and GPU share in the responsibility, then they need to be able to work together.
+
+In other words, your very long seemingly random number for cell number (1,2) needs to exactly match my very long seemingly random number. Unlike the previous noise function where I said you'd get some random number different mine, your number needs to come out the same. It needs to be: Deterministic.
+
+AN ALTERNATIVE I SHOULD MENTION TO ACHIEVE DETERMINISM
+
+In Worley's chapter in Texturing & Modeling, A Procedural Approach, 3rd Edition, Worley uses a pre-defined table of "random" values to achieve a portion of what makes it random (if you're digging into it, he uses a table for the Poisson distribution). 
+
+This matters because a table can be faster for computing noise. Your noise function might be running dozens of times per pixel per frame when you're raymarching, so a slow hash is a bad hash.
+
+That's an optimization layer you'd think about later when your framerate tanks. For now, let's burn through the hot, hot atmosphere of integer hashes!
+
+INTEGER HASHES 
+
+We should return to gdscript for this, for two reasons: First, it's the only way to follow what happens at each step of the noise process, and second, we want to be sure we're getting the same result on our GPU as we are from our CPU. 
+
+The Chris Wellons hash looks like this:
+
+	uint hash(uint x) {
+		x ^= x >> 16;
+		x *= 0x7feb352dU;
+		x ^= x >> 15;
+		x *= 0x846ca68bU;
+		x ^= x >> 16;
+		return x;
+	}
+
+OH MY GOD I DON'T UNDERSTAND WHAT ANY OF THOSE SYMBOLS MEAN 
+
+If you already understand that code block, great--skip ahead. If not, and you want to learn about or refresh your memory about bitwise operators, take my hand and let's descend into hell.
+
+BITWISE OPERATOR: BITSHIFTING 
+
+The first operator we need to learn is the bit shift. It's often signified by two less-than or more-than signs put together to form a pointing arrow of sorts. A bit shift to the right: >>
+
+And a bitshift to the left: <<
+
+If the number "1" is expressed in binary in 32 bits, it's going to have a lot of zeros in front of it. Here's the number "1" in binary in 32 bits, along with a little table above it showing the index of each bit so counting them doesn't drive you insane:
+
+31..28  27..24  23..20  19..16  15..12  11..8   7..4   3..0
+0000    0000    0000    0000    0000    0000    0000   0001
+
+Let's say that "1" in binary is y. Bit shifting is when you move all the digits to the left by some arbitrary number. Say we're not happy with y just being 1, and we want to bitshift it to the left:
+
+y = y << 16
+
+...That has the effect of moving all the bits to the left. So that 1 gets moved from position the 0th position to position 16:
+
+31..28  27..24  23..20  19..16  15..12  11..8   7..4   3..0  INDEX 
+
+0000    0000    0000    0000    0000    0000    0000   0001  Before the bitshift to the left
+
+0000    0000    0000    0001    0000    0000    0000   0000  After the bitshift to the left
+
+After bitshifting that 1 to the left 16 places, its new value is 65,536. When bitshifting, you might ask: "What happens to all of the numbers on the left side? Do they really just die?" Yes. They just die. "And what about the newly manufactured numbers on the right? Are they all just zeros?" Yes. They're all just zeros. 
+
+It's kind of weird that an operation that literally deletes a bunch of data would be useful, but welcome to bitshifting.
+
+THE XOR OPERATION 
+
+The XOR operation is often signified by a carat sign, which is this: ^
+
+The XOR operation requires two binary numbers for comparison. It lines them up, digit by digit, and spits out a third binary number. It produces a 1 for every column where the values don't match. If the values do match, it creates a zero. This is easier to see in practice:
+
+0001 1001 1010 1001 First number
+0010 0111 0101 0101 Second number
+---- ---- ---- ---- XOR operator happens
+0011 1110 1111 1100 Resulting number
+
+UNDERSTANDING THE FIRST STEP OF OUR HASH 
+
+We now know what's happening in the first line of the hash function:
+
+	x ^= x >> 16;
+
+X gets bitshifted 16 positions to the right. Then, an XOR operation is run between the two values. Let's say that X in binary just a few ones in the middle, which in this case is 245,760:
+
+31..28  27..24  23..20  19..16  15..12  11..8   7..4   3..0
+0000    0000    0000    0011    1100    0000    0000   0000
+
+If you were to bitshift that number 16 positions to the right, you'd lose the digits on the right half, leaving you with this:
+
+31..28  27..24  23..20  19..16  15..12  11..8   7..4   3..0
+0000    0000    0000    0000    0000    0000    0000   0011
+
+After the bitshift, it's now three. Then XOR operator runs on both numbers:
+
+31..28  27..24  23..20  19..16  15..12  11..8   7..4   3..0 INDEX
+0000    0000    0000    0011    1100    0000    0000   0000	x before bitshift
+0000    0000    0000    0000    0000    0000    0000   0011 x after bitshift
+----    ----    ----    ----    ----    ----    ----   ----  XOR operation
+0000    0000    0000    0011    1100    0000    0000   0011 Result from shift and XOR
+
+NOT ACTUALLY A BITWISE OPERATOR BUT RATHER MULTIPLICATION INTENDED TO BLOW UP 
+
+The next line of code seems... familiar:
+
+	x *= 2146500909
+
+That's just multiplying X by a big number. But binary weirdness strikes again. As you might have noticed, binary numbers eventually run out of digits. They can only count so high before they literally reset. 
+
+It's actually waaaaay easier to explain what happens with normal numbers. Say, for example, I have a scoreboard that only has three digits, and currently, the scoreboard shows 250. I then multiply that number by 6, which results in 1,500. The scoreboard only has three digits. So the scoreboard just discards the leftmost digit, and displays 500. 
+
+This might be a little backwards than what you'd expect--maybe you'd want it to show "999" to reflect that it maxed out its counting capacity. Or maybe you'd prefer it to read "150", if you felt like the left-most numbers were the most important. 
+
+Anyway, binary multiplication works the same way--the left most digits get the axe.
+
+BITWISE "AND OPERATORS", AND MASKING
+
+A bit of translation: 
+
+0x indicates that a number is hexadecimal, and F in a hex digit stands for 1111 in binary. So this hexadecimal number:
+
+0xFFFFFFFF
+
+Means a 32 bit binary number where every digit is 1:
+
+31..28  27..24  23..20  19..16  15..12  11..8   7..4   3..0 INDEX
+1111    1111    1111    1111    1111    1111    1111   1111    
+
+The "bitwise and" operator has the same column-comparison workings of the XOR operator. The AND operator returns a 1 if both bits are 1. Otherwise, it comes back as zero. Here's an arbitrary comparison:
+
+0001 1001 1010 1001 First number
+0010 0111 0101 0101 Second number
+---- ---- ---- ---- bitwise AND operator happens
+0000 0001 0000 0001 Resulting number
+
+
+WHERE MASKING COMES IN 
+
+Fun fact: Although your GPU uses 32 bit numbers, your CPU often uses 64 bit numbers. Or higher. Which means: Running the same function on your GPU and your CPU without a little finagling can produce different results.
+
+Returning to the scoreboard example, where I said your scoreboard was confined to three digits, it would be like if your CPU's scoreboard got six digits. So while 250*6 got cutoff to 500 on the GPU scoreboard, the CPU scoreboard will display the full number: 001500. It has the room! This means when hashing, on the multiplication steps, we have to literally go and nuke those digits on purpose. 
+
+This is done with the bitwise AND function. Returning to our scoreboard, and just imagining for a moment that "1" in the bitwise mask means the number gets preserved:
+
+001500 initial value 
+000111 mask 
+------ bitwise AND operator happens
+000500 result: the make deletes the left side 
+
+IS IT HARD TO LEARN HEXADECIMAL NUMBERS?
+
+No. It's a hilariously small table. Here it is:
+
+  hex │ binary    hex │ binary
+  ────┼───────   ────┼───────
+   0  │ 0000      8  │ 1000
+   1  │ 0001      9  │ 1001
+   2  │ 0010      A  │ 1010
+   3  │ 0011      B  │ 1011
+   4  │ 0100      C  │ 1100
+   5  │ 0101      D  │ 1101
+   6  │ 0110      E  │ 1110
+   7  │ 0111      F  │ 1111
+
+As you might have noticed, numbers 1-9 literally correspond to their same values in binary. ABCDEF corresponds to 10, 11, 12, 13, 14, and 15. It's the fifteen values that can be represented over four binary digits. That's it. So now, when you see 0x7feb352dU you won't be confused anymore. The 0x means it's hexadecimal. The U at the end means it's unsigned. (Not every script will use the U).
+
+WHAT ABOUT UNSIGNED?
+
+I left out one last complication, which is that in order to have a binary number store negative values, the trick was to have the left-most number mean the negative of whatever it was previously.
+
+So, in an eight bit binary table, where an unsigned binary had these values:
+
+128-64-32-16--8-4-2-1
+
+In a signed binary table, that 128 on the left means *negative* 128. This lets you shove in a bunch of negative values at the cost of a bunch of positive values. 
+
+I'm not going to get into signed math right now, because you use a built in function, uint(), to convert your signed, negative values into unsigned, positive binary numbers. If you're wondering, "shouldn't this cause mirroring around the origin?" then watch a video about how negative binary numbers are counted. They're weird! But negative 1 would be this:
+
+1111 1111
+
+And negative 2 is this:
+
+1111 1110
+
+So the unsigned and signed versions of the numbers around the origin don't look anything like each other.
+
+HASH, BABY, HASH!
+
+Let's get to hashing.
+
+First, create a new scene with a root Node3D named "Hash" in a folder named "hash" and attach a script to it named "hash.gd". My script initially looks like this:
+
+	extends Node3D
+
+	# Called when the node enters the scene tree for the first time.
+	func _ready() -> void:
+		print("Are you ready to hash? I AM READY TO HASH.")
+
+	# Called every frame. 'delta' is the elapsed time since the previous frame.
+	func _process(delta: float) -> void:
+		pass
+
+Run the scene and make sure it prints your string as expected.
+
+If you want to have a function that returns numbers in binary, here's one from Claude. I chose to include it because it makes following what happens waaaaaay easier.
+
+  func to_bin(x: int, width: int = 32) -> String:
+      var s := String.num_int64(x, 2).lpad(width, "0")
+      var out := ""
+      for i in s.length():
+          if i > 0 and i % 8 == 0:
+              out += " "
+          out += s[i]
+      return out
+
+Normally, I frame everything in my writing as though you're typing it in. But bitwise hashing will numb your brain *extremely* fast, so consider beginning by just copying and pasting this in, reading the code, reading the output, and then comparing the printed output to the understanding you've formed about bitwise operators.
+
+THE CODE TO JUST PASTE IN EN MASSE 
+
+	##Remember: Shift-tab lets you unindent blocks if this block pastes in overly-indented.
+
+	extends Node3D
+
+	func to_binary(x: int, width: int = 32) -> String:
+		var s := String.num_int64(x, 2).lpad(width, "0")
+		var out := ""
+		for i in s.length():
+			if i > 0 and i % 8 == 0:
+				out += " "
+			out += s[i]
+		return out
+
+	# Called when the node enters the scene tree for the first time.
+	func _ready() -> void:
+		var x : int = 65536
+		print(str(x) + " is the input integer.")
+		print(to_binary(x) + " is the initial input in binary.")
+		print(to_binary(x>>16) + " is X bitshifted.")
+		x ^= x >> 16
+		print(to_binary(x) + " the XOR result of the input and bitshifted input")
+		x *= 0x7feb352d # 	2146500909 in hex form,
+		#					0111 1111 1110 1011 0011 0101 0010 1101 is binary
+		print(to_binary(x) + " after getting multiplied by magic constant number one")
+		x &= 0xFFFFFFFF # A chain of 32 ones in binary
+		print(to_binary(x) + " after masking out the numbers on the left half, if any exist")
+		print(to_binary(x>>15) + " after a bit shift 15 spaces right")
+		x ^= x >> 15
+		print(to_binary(x) + " the XOR result of the previous two values.")
+		x *= 0x846ca68b # 	2221713035 in hex form, and in binary...
+		#					1000   0100   0110   1100   1010   0110   1000   1011
+		print(to_binary(x) + " after multiplying by the second magic constant")
+		x &= 0xFFFFFFFF
+		print(to_binary(x) + " after masking out the numbers on the left half, if any exist")
+		print(to_binary(x>>16) + " the third and final bitshift, sixteen places to the right")
+		x ^= x >> 16
+		print(to_binary(x) + " XOR on the previous two values")
+		var random : float = x / 4294967296.0
+		print("Dividing the resulting number between the total number of all possible values to get a result between 0 and 1")
+		print("Random number between 0 and 1 is: " + str(random))
+
+
+	# Called every frame. 'delta' is the elapsed time since the previous frame.
+	func _process(delta: float) -> void:
+		pass
+
+
+NOTES ABOUT CHRIS WELLONS' HASH 
+
+Wellons' research was about finding constants that gave as randomly distributed output as possible. That makes them handy for graphics. The hash is also *bijective*, meaning that for every input, there's exactly one, and only one, output. This can also be called "invertible". Another fancy math word for the fact that every point in 32 bit space corresponds to exactly one other point in 32 bit space is "permutation", so you might use the phrase, "this is a permutation of the uint32 integer space". 
+
+Whether or not you think these properties are a good thing depends on the game. If you're trying to answer the question, "OMG why the hell is this point here and not there," then you want this finite set of possibilities.
+
+You can revert the hashed number all the way back to the original input using the below code:
+
+	##Inverting it
+	x ^= x >> 16                                  # step 5 undone
+	x = (x * 0x43021123) & 0xFFFFFFFF             # step 4 undone — INV of 0x846ca68b
+	x ^= (x >> 15) ^ (x >> 30)                    # step 3 undone
+	x = (x * 0x1d69e2a5) & 0xFFFFFFFF             # step 2 undone — INV of 0x7feb352d
+	x ^= x >> 16                                  # step 1 undone
+	print(str(x) + " testing if inversion successful")
+
+This is great if you're debugging visuals and obviously terrible if you actually need repetition or if you want the original input to be difficult or impossible to guess.
+
+ALTERNATIVE CONSTANTS 
+
+If for whatever reason you use different constants, they need to be odd numbers.
+
+ALTERNATIVES TO WELLONS' HASH
+
+If you check out pcg-random.org you can read mathematician Melissa O'Neil's hot take on how most existing random number generators are losers. She's entitled to have a hot take, given that she invented a better one. Hers, in equivalent gdscript form, would read like this:
+
+	func _ready() -> void:
+		var x : int = 65536  
+		var state : int = (x * 747796405 + 2891336453) & 4294967295
+		var word : int = ((state >> ((state >> 28) + 4)) ^ state) * 277803737
+		word &= 4294967295
+		x = (word >> 22) ^ word
+		var random : float = x / 4294967296.0
+		print(random)
+
+WHICH ONE IS BETTER? 
+
+If you were in a bomb throwing mood, I'm sure you could flip a coin to decide which hash would be the winner for the sake of argument, and then go on a rage-baiting troll spree on Reddit and lambaste the other hash as terrible and best left to the dustbin of history. It would cause a bunch of mathematicians to spend days fighting with and alienating each other, perhaps destroying long-build academic relationships on a global scale. You might ultimately get some more useful information out of the conflict, at the cost of your own morality, though it does seem to be this century's method of failing to resolve conflict. Arguably it's better than knives or bombs, and certainly, none of these, including the knives, are as harsh as British medievalists. I've heard if your book is bad they choke you to death with crumpets. A very dangerous academic scene!
+
+ONE LAST PROBLEM TO CONSIDER: INTEGERS ARE NOT VECTORS
+
+Each input X and Y will have to:
+
+	Individually get multiplied by a different odd, large constant, and
+	Combined with each other via an XOR operation (the carat! ^), and
+	Fed into the hash now that they are one binary number, and
+	Split in two at the end, giving you two 16 bit numbers as output X and Y.
+
+I asked Claude what it would consider as an elementary school metaphor for this process, and it suggested putting X and Y in different costumes, then placing them in the same blender that only runs once, then cutting the result in half. In other words: Claude literally and unironically mixes metaphors about mixing. 
+
+This means (gasp) expanding on the GDSCRIPT version of the hash, so that we can check the CPU outputs against the GPU outputs.
+
+Take a stab at it and I'll see you in the next chapter.

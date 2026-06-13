@@ -8,9 +8,17 @@ render_mode unshaded;
 //Adding scale as a uniform, exposing it to the Inspector
 uniform float scale = 3.0;
 
-vec3 lit_block(vec2 xy, float local_scale){
-	return vec3(0.);
-}
+	vec3 lit_block (vec2 xy, float local_scale) {
+		float floor_x = floor(xy.x);
+		float floor_y = floor(xy.y);
+		//if (floor_x == 1.0 && floor_y ==2.0){
+			//return vec3(1.0);}
+		//else{
+				//return vec3(0.0);
+		//}
+		float between_x = step(0.9, floor_x) - step(1.1, floor_x);
+		return vec3(between_x);
+	}
 
 vec3 grid_line (vec2 xy, float local_scale) {
 	//Take fractional parts of X and Y
