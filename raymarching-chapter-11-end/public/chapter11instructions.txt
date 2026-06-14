@@ -130,14 +130,189 @@ If you want to reason that out in your head in the future, "11" in binary is 2^2
 
 How do we take a binary number that the CPU is storing in 64 bits and extract the first set of 16 bits, and the second set of 16 bits? Although you can think of this as a single function, for now, let's think of it as two functions.
 
+A FUNCTION FOR THE SECOND/RIGHT SET OF SIXTEEN BITS 
+
+This is probably the easiest one; we've routinely been obliterating the left side of the 32 bit binary numbers via an AND mask:
+
+x &= 0xFFFFFFFF
+
+We can accomplish the same feat with a shorter AND mask:
+
+x &= 0xFFFF
+
+Pretend, for example, you had this 32 bit binary number:
+
+0101 1001 1001 1011 1010 0001 1101 0001
+
+An AND mask with 16 bits of 1's has the effect of chopping the bits off the left side:
+
+0101 1001 1001 1011 1010 0001 1101 0001 input
+0000 0000 0000 0000 1111 1111 1111 1111 mask 
+---- ---- ---- ---- ---- ---- ---- ---- bitwise AND operator
+0000 0000 0000 0000 1010 0001 1101 0001 result 
+
+Thus, we're just doing again something we've done already.
+
+A FUNCTION FOR EXTRACTING THE FIRST/LEFT SIXTEEN BITS 
+
+We're still doing things we've done already for the next challenge, which is to extract the first/left half of the 32 bits. Lets consider that same input number:
+
+0101 1001 1001 1011 1010 0001 1101 0001
+
+If we only care about the left sixteen bits, then a bitshift operator 16 bits to the right will move the left bits right, and the right bits will just fall off the cliff:
+
+0101 1001 1001 1011 1010 0001 1101 0001 input
+---- ---- ---- ---- ---- ---- ---- ---- bitshift 16 places: >>16 operator
+0000 0000 0000 0000 0101 1001 1001 1011 
+
+WHICH BITS ARE THE "FIRST" BITS?
+
+I've been writing left/first and right/second because I don't think "first" is intuitively obvious. For a lot of people, the "first" digits are the ones on the right that change first when a number ticks upward. Also, a very large portion of the world reads right to left, and we're all using Arabic numerals; modern Arabic itself reads right to left. That said, when people are talking about the "first" or "last" digits of a binary number, they usually seem to be talking about the left digits being the first digits, and the right digits being the last digits.
+
+RETURNING A RESULT FROM EACH FUNCTION 
+
+The hash we started with drew a number between 0 and 1 by dividing the resulting 32 bit binary number by the total number of possibilities that exist for 32 bit binary numbers, which is roughly 4.29 billion, or specifically:
+
+	var random : float = x / 4294967296.0
+
+Because the binary number is getting split into two numbers with 16 binary digits, that math doesn't work. We need to divide by the total number of numbers that can be expressed with 16 bits. 
+
+If you want to reason out the math, we know that two bits, 00 through 11, can express four possibilities, or 2^2. 000 through 111 is 0 through 7, which is eight possibilities. Thus, 16 bits can express 2^16 possibilities. So in order to get our random number between 0 and 1, we divide our 16 bit number by that number of possibilities:
+
+	var result : float = x / pow(2,16)
+
+...or...
+
+	var result : float = x / 65536.0
+
+TAKE A STAB AT WRITING OUT THE FUNCTIONS FOR A RESULTING X VALUE AND A RESULTING Y VALUE 
+
+Or just copy me, I can't stop you.
+
+I have a binary integer that's been spit out of the hash. For my normalized x hash result, I'll use the left/first digits.
+
+	func normalized_x_hash_half(input: int) -> float:
+		input = input >> 16
+		var result : float = input / 65536.0
+		print("The x half is " + str(result))
+		return result
+
+And here's a function for the y portion, which I'm drawing from the right half of the binary number: 
+
+	func normalized_y_hash_half(input: int) -> float:
+		input &= 0xFFFF
+		var result : float = input / 65536.0
+		print("The y half is " + str(result))
+		return result
+
+A WARNING ABOUT THAT DIVISION LINE 
+
+If you happen to only write out 65536 instead of 65536.0, then the math won't work out, and will return either a 0 or 1. That's because when you do division with integers, the fractional part gets discarded. It actually doesn't matter that we've pre-arranged a float on the left to accept the result--the fractional part will get destroyed before it gets there, and obtaining the fractional part is literally the reason we're here. So: Write it out as a float to force it to work as float math. Fortunately, Godot actually will warn you about this with a yellow flag--just not a red one. But it will break your shader, so treat it as a red flag.
+
+ABSTRACTING OUT THE WELLONS HASH 
+
+I've forgotten, yet again, to keep my functions abstract, which means I need to pull the Wellons hash out into its own functions. Let's correct that now. Fortunately, we really just have to write the top and the bottom first:
+
+	func wellons_integer_hash(input: int) -> int:
+		# slightly refactored code will go here
+		return hashed_integer_result
 
 
-TO DO ITEMS:
-The first function needs to return...
-BIT SHIFT FUNCTION 
+And then copy and paste almost everything verbatim into it. I'll tweak the top and the bottom lines, however, so look at the second and the second to last lines of this block:
 
-& 0XFFFF FUNCTION 
+	func wellons_integer_hash(input: int) -> int:
+		var x = input
+		print(str(x) + " is the input integer.")
+		print(to_binary(x) + " is the initial input in binary.")
+		print(to_binary(x>>16) + " is X bitshifted.")
+		x ^= x >> 16
+		print(to_binary(x) + " the XOR result of the input and bitshifted input")
+		x *= 0x7feb352d # 	2,146,121,005 in hex form,
+		#					0111 1111 1110 1011 0011 0101 0010 1101 is binary
+		print(to_binary(x) + " after getting multiplied by magic constant number one")
+		x &= 0xFFFFFFFF # A chain of 32 ones in binary
+		print(to_binary(x) + " after masking out the numbers on the left half, if any exist")
+		print(to_binary(x>>15) + " after a bit shift 15 spaces right")
+		x ^= x >> 15
+		print(to_binary(x) + " the XOR result of the previous two values.")
+		x *= 0x846ca68b # 	2221713035 in hex form, and in binary...
+		#					1000   0100   0110   1100   1010   0110   1000   1011
+		print(to_binary(x) + " after multiplying by the second magic constant")
+		x &= 0xFFFFFFFF
+		print(to_binary(x) + " after masking out the numbers on the left half, if any exist")
+		print(to_binary(x>>16) + " the third and final bitshift, sixteen places to the right")
+		x ^= x >> 16
+		print(to_binary(x) + " XOR on the previous two values")
+		var hashed_integer_result = x
+		return hashed_integer_result
 
-DUPLICATE THE COMBINE FUNCTION WITH PRINTS TO SHOW WHAT HAPPENS AT EACH STEP 
-DUPLICATE THE SPLITTER FUNCTION WITH PRINTS AS WELL 
+There's probably someone out there feeling scandalized that I didn't just write "return x" but I don't care.
+
+EFFICIENTLY CHAINING IT ALL TOGETHER
+
+Now, my initial plan was to do the following:
+
+	Take an X and Y input, and
+	Shove that result into the "combine_x_and_y_to_uint" function, and
+	Shove that result into the wellons_integer_hash function, and
+	Shove that result into the normalized_x_hash_half function, and finally...
+	...do the entire spiel over again for the y half? What?!
+
+But that presents a problem. That means running the hash twice. You know what everyone hates about procedural terrain generation? Waiting. Time is money. Life is short. Much too short to wait on two hash functions. How do we handle this?
+
+CREATE A FUNCTION THAT RETURNS TWO RESULTS?
+
+Well... yes? I mean, it's not technically allowed to "return" two results, but it's certainly allowed to *do* something with two results. All we care about here is that gdscript prints the finished randomized x and y result to the terminal. We're doing the exact same thing on the GPU. That means whatever function on the GPU is called to do the visual equivalent of print() will have to bundle the work together in one function.
+
+So let's comment out our original x and y functions, and take a stab at something that prints the results of both in one pass:
+
+	func print_x_and_y_halves(input: int) -> void:
+		var x : int = input >> 16 #	bitshift 16 places to the right, capturing 
+		#						the left 16 bits of the binary number
+		var y : int = input & 0xFFFF #eliminate the left 16 bits of the binary number, preserving
+		#								capturing the right sixteen bits only.
+		var x_float : float = x / 65536.0
+		var y_float : float = y / 65536.0
+		print("The random x coordinate is " + str(x_float) + " and the random y coordinate is " + str(y_float))
+	
+NOW WE CAN STRING THEM TOGETHER 
+
+Our pseudocode now only requires one pass: 
+
+	Take an X and Y input, and
+	Shove that result into the "combine_x_and_y_to_uint" function, and
+	Shove that result into the wellons_integer_hash function, and
+	Shove that result into the print_x_and_y_halves function. Party!
+
+Return to the ready() function. I'll be writing it with a lot of extra variables, but if you like being succinct, go for it.
+
+	func _ready() -> void:
+		var x : int = 1
+		var y : int = 3
+		var combined_x_and_y = combine_x_and_y_to_uint(x, y)
+		var combo_hashed = wellons_integer_hash(combined_x_and_y)
+		print_x_and_y_halves(combo_hashed)
+
+
+PARTY 
+
+Try plopping different numbers into X and Y and see what happens. You should be getting random numbers between 0 and 1 for each. But they're not truly random; your numbers will match my numbers will match everyone else's numbers. 
+
+How you choose to display those numbers is up to you, but you've now succeeded in creating a deterministic, normalized number generator that will allow anyone in the world to get the same result for any point in space, in a grid that's 4.3 billion units across. Break out the champagne!
+
+OTHER DIRECTIONS 
+
+You should know enough about bitwise operators to take this into the Z direction as well, if you wanted to generate three dimensional noise. This is sometimes called a "hypertexture". But note that just because noise is two dimensional doesn't mean that it can't be used in three dimensions--that's extremely common, and how most water shaders and terrain generators operate. Truly three dimensional noise is more for things like clouds, where we actually care about particle density in all three dimensions. For procedural terrain, you'd more likely see it where the terrain itself was actually three dimensional--caves, floating islands, and so forth.
+
+DEBUGGING
+
+I considered, but opted against for now, layering a ton of print()'s into this chapter's functions, so that you could follow the bitwise operators. But I think it's more educational to pick a section you feel queasy about, and write in the print() functions for that section. I recommend doing so for any bitwise operators you still want to see, using the Wellons print()'s as a model.
+
+That said, I'm not sure if the code in my next chapter will work, so I might have to do it myself anyway for debugging. And so might you.
+
+BRINGING IT TOGETHER IN THE NEXT CHAPTER 
+
+In the next chapter, we'll rewrite the three functions--the combiner, the Wellons hash, and the splitter/displayer--in shader code. 
+
+Then, and only then, will we know whether we've succeeded in making our CPU, our GPU, and every other device in the world see things in exactly the same way. As I write this, I don't know either, so I'm just as frightened and/or excited as you are! 
 
