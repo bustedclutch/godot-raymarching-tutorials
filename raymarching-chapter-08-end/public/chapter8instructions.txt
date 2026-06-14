@@ -372,7 +372,7 @@ Now, you need a new minimum function. It needs to say "hi, i'm keeping track of 
 	2. Replace the second closest distance, if the new distance is closer than only the second closest distance 
 	3. Replace the first closest distance and and move it to second place, in case the new distance is closer than both of my current distances 
 	
-Claude the chatbot's description of this process was to imagine an Olympics podium that only has room for first and second place, which I think is a good analogy. 
+Claude the chatbot's description of this process was to imagine an Olympics podium that only has room for first and second place, which I think is a good analogy (and because he's a chatbot, likely an analogy he snagged from someone else).
 
 We'll call it "double_distance_keeper", and it'll return a dd type variable. Take a stab at coding it yourself. Here's my attempt, though the logical ordering might be problematic. We'll find out!
 
