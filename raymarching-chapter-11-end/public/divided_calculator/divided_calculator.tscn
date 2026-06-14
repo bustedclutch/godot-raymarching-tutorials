@@ -1,0 +1,29 @@
+[gd_scene format=3 uid="uid://ci2eoukv1pf31"]
+
+[ext_resource type="Shader" uid="uid://n3lijorpdmm3" path="res://public/divided_calculator/abstracted_calculator.gdshader" id="1_npegn"]
+[ext_resource type="Shader" uid="uid://csykujm0bmndl" path="res://public/divided_calculator/divided_calculator.gdshader" id="2_uwky4"]
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_uwky4"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_lt2sk"]
+render_priority = 0
+shader = ExtResource("1_npegn")
+shader_parameter/scale = 3.0
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_lt2sk"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_iw45m"]
+render_priority = 0
+shader = ExtResource("2_uwky4")
+shader_parameter/scale = 3.0
+
+[node name="DividedCalculator" type="Node3D" unique_id=1554736038]
+
+[node name="AbstractedCalculator" type="MeshInstance3D" parent="." unique_id=378110191]
+mesh = SubResource("PlaneMesh_uwky4")
+surface_material_override/0 = SubResource("ShaderMaterial_lt2sk")
+
+[node name="DividedCalculator" type="MeshInstance3D" parent="." unique_id=1021415716]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.097444, 0, 0)
+mesh = SubResource("PlaneMesh_lt2sk")
+surface_material_override/0 = SubResource("ShaderMaterial_iw45m")
