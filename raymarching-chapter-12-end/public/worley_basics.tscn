@@ -1,0 +1,40 @@
+[gd_scene format=3 uid="uid://jtb6h62xfudh"]
+
+[ext_resource type="Shader" uid="uid://cbmsqt0nkbdc5" path="res://public/worley_basics.gdshader" id="1_xxhe6"]
+[ext_resource type="Shader" uid="uid://bcj5bsou4pwrv" path="res://public/voronoi_basics.gdshader" id="2_iec37"]
+[ext_resource type="Shader" uid="uid://caynr0g8jenve" path="res://public/worley_struct_borders.gdshader" id="3_tqi6c"]
+
+[sub_resource type="QuadMesh" id="QuadMesh_iec37"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_tqi6c"]
+render_priority = 0
+shader = ExtResource("1_xxhe6")
+
+[sub_resource type="QuadMesh" id="QuadMesh_tqi6c"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_s58oy"]
+render_priority = 0
+shader = ExtResource("2_iec37")
+
+[sub_resource type="QuadMesh" id="QuadMesh_s58oy"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_5im3c"]
+render_priority = 0
+shader = ExtResource("3_tqi6c")
+
+[node name="WorleyBasics" type="Node3D" unique_id=1915151246]
+
+[node name="WorleyQuad" type="MeshInstance3D" parent="." unique_id=718683864]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.6328597, 0, 0)
+mesh = SubResource("QuadMesh_iec37")
+surface_material_override/0 = SubResource("ShaderMaterial_tqi6c")
+
+[node name="VoronoiBasics" type="MeshInstance3D" parent="." unique_id=1170993486]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.49358237, 0, 0)
+mesh = SubResource("QuadMesh_tqi6c")
+surface_material_override/0 = SubResource("ShaderMaterial_s58oy")
+
+[node name="WorleyStruct" type="MeshInstance3D" parent="." unique_id=1499206143]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.6083195, 0, 0)
+mesh = SubResource("QuadMesh_s58oy")
+surface_material_override/0 = SubResource("ShaderMaterial_5im3c")

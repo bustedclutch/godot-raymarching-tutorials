@@ -1,0 +1,410 @@
+EDIT/TOGGLE WORD WRAP, or ALT+Z to Word Wrap this document in Godot.
+
+PREPARING THE SCENE 
+
+I'm not yet ready to give up on the divided calculator scene or its shader, but it would be helpful to duplicate the shader so that I can dive into Worley noise. The grid cells of our calculator will be helpful later in the chapter, so I want to keep what we've built so far.
+
+Remaining within the divided_calculator folder, I'm duplicating the divided_calculator.gdshader file and naming it worley_points.gdshader .
+
+The full code block is pasted below. The "include" for the line.gdshaderinc file as well as the commented-out lines in the fragment() portion of the shader are vestigial leftovers from a previous chapter, and so you don't really need them, but I'm leaving them in just in case I need them for something. Here's the code block: 
+
+	shader_type spatial;
+	render_mode unshaded;
+
+	#include "res://public/divided_calculator/line.gdshaderinc"
+
+	//Adding scale as a uniform, exposing it to the Inspector
+	uniform float scale = 3.0;
+
+		vec3 lit_block (vec2 xy, float local_scale) {
+			float floor_x = floor(xy.x);
+			float floor_y = floor(xy.y);
+			//if (floor_x == 1.0 && floor_y ==2.0){
+				//return vec3(1.0);}
+			//else{
+					//return vec3(0.0);
+			//}
+			float between_x = step(0.9, floor_x) - step(1.1, floor_x);
+			return vec3(between_x);
+		}
+
+	vec3 grid_line (vec2 xy, float local_scale) {
+		//Take fractional parts of X and Y
+		float x_fract = fract(xy.x);
+		float y_fract = fract(xy.y);
+		//Test each part to see if the fractional part is close to zero or almost one.
+		float grid_test = step(x_fract, 0.02) + step(0.98, x_fract) + step(y_fract, 0.02) + step(0.98, y_fract) ;
+		float lit = min(1.0, grid_test);
+		vec3 grid_light = lit * vec3(0.0, 0.5, 0.2);
+		return grid_light;
+	}
+
+
+	vec2 uv_math(vec2 xy, float local_scale){
+		vec2 uv = xy;
+		uv = uv * 2.0 - 1.0;
+		uv = uv * vec2(1.0, -1.0);
+		uv = uv * local_scale;
+		return uv;
+	}
+
+	void fragment() {
+
+		vec2 uv = uv_math(UV, scale);
+		vec3 col = vec3(0.);
+		//col = col + line(uv, scale);
+		//col = col + line2(uv, scale);
+		col = col + lit_block(uv, scale);
+		col = col + grid_line(uv, scale);
+		ALBEDO = col; ALPHA = 1.0;
+	}
+
+
+And just in case you need the full text of the line.gdshaderinc for reference, here's where it currently stands:
+
+	vec3 line (vec2 xy, float local_scale) {
+		//float f_of_x = sin(xy.x+TIME/2.);
+		float f_of_x = sin(xy.x+TIME/2.);
+		float abs_raw_distance = abs( xy.y - f_of_x );
+		float illuminated_pixel_test = step(abs_raw_distance, 0.02);
+		//Anti-aliasing
+		illuminated_pixel_test = 1.0 - smoothstep(0.015, 0.025, abs_raw_distance);
+		////A wider band gives puffy or neon, depending on execution
+		illuminated_pixel_test = 1.0 - smoothstep(0.005, 0.05, abs_raw_distance);
+		vec3 color = vec3(0.2, 0.4, 0.8);
+		return vec3(illuminated_pixel_test) * color;
+	}
+
+	vec3 line2 (vec2 xy, float local_scale) {
+		//float f_of_x = sin(xy.x+TIME/2.);
+		float f_of_x = smoothstep(0.2, 0.8, sin(xy.x+TIME/2.));
+		float abs_raw_distance = abs( xy.y - f_of_x );
+		float illuminated_pixel_test = step(abs_raw_distance, 0.02);
+		//Anti-aliasing
+		illuminated_pixel_test = 1.0 - smoothstep(0.015, 0.025, abs_raw_distance);
+		////A wider band gives puffy or neon, depending on execution
+		illuminated_pixel_test = 1.0 - smoothstep(0.005, 0.05, abs_raw_distance);
+		vec3 color = vec3(0.8, 0.4, 0.8);
+		return vec3(illuminated_pixel_test) * color;
+	}
+
+ADD A QUAD TO THE CALCULATOR SCENE AND USE SURFACE OVERRIDE TO ASSIGN THE WORLEY POINTS SHADER 
+
+As usual, add a MeshInstance3D node, assign a plane mesh in the drop down of the Inspector, and then within the Inspector, click through the Surface Material Override drop downs to choose ShaderMaterial, keep on clicking the same dropdown so you see the usual grey ball, then in the Shader drop down, load worley_points.gdshader .
+
+SOMETHING TO PRESERVE YOUR SANITY 
+
+When you have a lot of shaders open, it can become very easy to accidentally edit the wrong shader, especially when you're copying other shaders as templates, which we do a lot of. So: Close the other shaders! Don't just have a huge list of them open in the scripting window in the center-bottom panel.
+
+GET TO TRANSLATING 
+
+We've got quite a bit of translating to do. 
+
+I'm just copying and pasting in the gdscript functions we need in their entirety, which are these: 
+
+	##A simple vec2 to integer converter for hashing purposes
+	func combine_x_and_y_to_uint(x: int, y: int) -> int:
+		x *= 0x27d4eb2d #multiply by a big random odd constant
+		y *= 0x165667b1 #multiply by some other big random odd constant
+		x &= 0xFFFFFFFF #AND mask to prevent 64 bit CPU from diverging from 32 bit GPU
+		y &= 0xFFFFFFFF #AND mask to prevent 64 bit CPU from diverging from 32 bit GPU
+		return x ^ y #return x combined with y using XOR
+		
+	func wellons_integer_hash(input: int) -> int:
+		var x = input
+		print(str(x) + " is the input integer.")
+		print(to_binary(x) + " is the initial input in binary.")
+		print(to_binary(x>>16) + " is X bitshifted.")
+		x ^= x >> 16
+		print(to_binary(x) + " the XOR result of the input and bitshifted input")
+		x *= 0x7feb352d # 	2,146,121,005 in hex form,
+		#					0111 1111 1110 1011 0011 0101 0010 1101 is binary
+		print(to_binary(x) + " after getting multiplied by magic constant number one")
+		x &= 0xFFFFFFFF # A chain of 32 ones in binary
+		print(to_binary(x) + " after masking out the numbers on the left half, if any exist")
+		print(to_binary(x>>15) + " after a bit shift 15 spaces right")
+		x ^= x >> 15
+		print(to_binary(x) + " the XOR result of the previous two values.")
+		x *= 0x846ca68b # 	2221713035 in hex form, and in binary...
+		#					1000   0100   0110   1100   1010   0110   1000   1011
+		print(to_binary(x) + " after multiplying by the second magic constant")
+		x &= 0xFFFFFFFF
+		print(to_binary(x) + " after masking out the numbers on the left half, if any exist")
+		print(to_binary(x>>16) + " the third and final bitshift, sixteen places to the right")
+		x ^= x >> 16
+		print(to_binary(x) + " XOR on the previous two values")
+		var hashed_integer_result = x
+		return hashed_integer_result
+
+	func print_x_and_y_halves(input: int) -> void:
+		var x : int = input >> 16 #	bitshift 16 places to the right, capturing 
+		#						the left 16 bits of the binary number
+		var y : int = input & 0xFFFF #eliminate the left 16 bits of the binary number,
+		#								capturing the right sixteen bits only.
+		var x_float : float = x / 65536.0
+		var y_float : float = y / 65536.0
+		print("The random x coordinate is " + str(x_float) + " and the random y coordinate is " + str(y_float))
+
+	func _ready() -> void:
+		var x : int = 1
+		var y : int = 3
+		var combined_x_and_y = combine_x_and_y_to_uint(x, y)
+		var combo_hashed = wellons_integer_hash(combined_x_and_y)
+		print_x_and_y_halves(combo_hashed)
+
+
+REMEMBER TO USE DISTRACTION-FREE MODE, and/or FLOATING WINDOWS AND FULL-SCREEN OPTIONS FOR THIS 
+
+There's a "arrows pointing in four directions" button near the top right of the gdscript code editor that lets you toggle distraction free mode, which gets rid of the Inspector and Node Tree panels that take up all the monitor real estate. This is nice for when you want to see just the gdscript above and just the shader code below.
+
+Alternatively, there's a triple-dot button near the bottom of the shader coding panel, as well as a left/right arrow-ish button on the bottom left of that same coding panel, that gives you options to float the shader editor and hide the file list. 
+
+Go to the trouble to make your work space fun and easy to work in, particularly when you're doing something that can run a little tedious.
+
+TRANSLATING THE combine_x_and_y_to_uint FUNCTION 
+
+
+	func combine_x_and_y_to_uint(x: int, y: int) -> int:
+		x *= 0x27d4eb2d #multiply by a big random odd constant
+		y *= 0x165667b1 #multiply by some other big random odd constant
+		x &= 0xFFFFFFFF #AND mask to prevent 64 bit CPU from diverging from 32 bit GPU
+		y &= 0xFFFFFFFF #AND mask to prevent 64 bit CPU from diverging from 32 bit GPU
+		return x ^ y #return x combined with y using XOR
+
+Here's my translation:
+
+	uint combined_x_and_y_uint(uint x, uint y){
+	x *= 0x27d4eb2du ; //multiply by a big random odd constant
+	y *= 0x165667b1u ; //multiply by some other big random odd constant
+	x &= 0xFFFFFFFFu ; //AND mask to prevent 64 bit CPU from diverging from 32 bit GPU
+	y &= 0xFFFFFFFFu ; //AND mask to prevent 64 bit CPU from diverging from 32 bit GPU
+	return x ^ y ; //return x combined with y using XOR
+	}
+
+Several things have happened:
+
+	We've switched to using uint as the variable type, meaning "unsigned integer". 
+	The variable type comes before the name, instead of after 
+	There's been some other tweaks to the function declaration, like getting rid of the colon and adding the curly braces 
+	Every line of the function has a semicolon at the end 
+	All of the hexadecimal numbers end with a "u", so that they are also treated as unsigned integers
+	I've named the function in the past tense, because that's what makes sense in my head
+
+WHY THE UINT? 
+
+I don't actually want to stop the book and do another binary-numbers-math-class chapter or I will burn out, but if you try to do bitwise math on signed integers on a GPU, weird crap will happen that you don't want. 
+
+One of the things you might have picked up on so far is that the GPU world is quite good about maintaining standards--a shader on Godot is a shader on Unity is a shader on Unreal. 
+
+And apparently, among those standards is that UINT math and bitwise operations always behaves the same way. So congratulations, you learn shader code here, you learned shader code everywhere. It's the esperanto of coding, if esperanto hadn't flamed out.
+
+TRANSLATING THE WELLONS HASH 
+
+The only reason my Wellons hash is so long is because I've got a million print() commands; here is the hash without them: 
+
+func wellons_integer_hash(input: int) -> int:
+	var x = input
+	x ^= x >> 16
+	x *= 0x7feb352d
+	x &= 0xFFFFFFFF 
+	x ^= x >> 15
+	x *= 0x846ca68b 
+	x &= 0xFFFFFFFF
+	x ^= x >> 16
+	var hashed_integer_result = x
+	return hashed_integer_result
+
+SHOULD WE LEAVE THOSE MASKS IN? 
+
+In theory, the AND mask with 0xFFFFFFFF is no longer necessary on a GPU with a 32 bit unsigned integer. But I'm leaving it in for now.
+
+Let's translate it. Here's mine:
+
+	uint wellons_integer_hashed(uint input){
+		uint x = input;
+		x ^= x >> 16u;
+		x *= 0x7feb352du;
+		x &= 0xFFFFFFFFu;
+		x ^= x >> 15u;
+		x *= 0x846ca68bu;
+		x &= 0xFFFFFFFFu;
+		x ^= x >> 16u;
+		uint hashed_integer_result = x;
+		return hashed_integer_result;
+	}
+
+Again, not much has changed. The integers all get little u's after them, including the ones that are not written as hexadecimal. Every line except the declaration gets a semicolon. 
+
+We don't declare variables with "var" but just by stating the type they are.
+
+If you had just asked a chatbot to translate this, a chatbot likely would have left the u's off the 15 and 16--even though Godot requires them. As always, watch your chatbots.
+
+DO WE NEED TO TRANSLATE THE PRINT AND READY FUNCTIONS?
+
+This is where we can no longer do a word for word translation.
+
+In gdscript, you pass in a specific x and y by writing it in the code and running the scene, and then it prints the result to the terminal. You could turn it into a charming calculator by wiring the code up to a form and a button label, such that the game window could remain open while you tap in different numbers. 
+
+But as we've seen, that's not how a fragment shader works--it inherits some variable derived from the UV coordinate space, and then runs functions to decide how that affects the color for any given pixel. 
+
+We can return to the philosophy we used to code the lines on the graphing calculator. The function should ask:
+
+	What grid cell am I in?
+		What is its x label?
+		What is its y label?
+	Where is the random point for this cell?
+	How far am I from that random point?
+	Am I close enough to the point to light up the pixel?
+	What color should the light be?
+
+WHAT GRID CELL AM I IN?
+
+We've answered similar questions already when we lit up the grid cells and when we lit up the lines in prior chapters. Here's how I chose to write the grid ID functions:
+
+	uint grid_id_x(vec2 xy){
+		float x_vec = xy.x;
+		float x_floor = floor(x_vec);
+		return uint(int(x_floor));
+	}
+	uint grid_id_y(vec2 xy){
+		float y_vec = xy.y;
+		float y_floor = floor(y_vec);
+		return uint(int(y_floor));
+	}
+
+Only one real surprise here, which is converting the floor float to an integer and then again to an unsigned integer. I am not positive that the intermediate int() step is necessary, but we can try breaking later to find out!
+
+WHERE IS THE RANDOM POINT FOR THIS CELL?
+
+As I said previously, we don't want the noise function called twice, but we should go ahead and write the code that defines the hashed x and y coordinates of the point so we have code to plug into a larger display function. Here's the display function from gdscript for reference:
+
+	func print_x_and_y_halves(input: int) -> void:
+		var x : int = input >> 16 #	bitshift 16 places to the right, capturing 
+		#						the left 16 bits of the binary number
+		var y : int = input & 0xFFFF #eliminate the left 16 bits of the binary number,
+		#								capturing the right sixteen bits only.
+		var x_float : float = x / 65536.0
+		var y_float : float = y / 65536.0
+
+Create a draft notepad function called draft_notepad that just returns 1 so it doesn't produce errors, and put your code in there for now:
+
+	int draft_notepad_function(uint hashed_uint){
+		uint combined_hash_uint = hashed_uint;
+		uint x_uint = combined_hash_uint >> 16u;
+		uint y_uint = combined_hash_uint &0xFFFFu;
+		float x_normalized_hash = float(x_uint) / float(65536);
+		float y_normalized_hash = float(y_uint) / float(65536);
+		return 1;
+	}
+
+Although it begins as a silly-named "draft_notepad_function", you can see that this is already starting to look like a display function for the points. 
+
+WHY ARE WE ABLE TO USE FLOAT() WITHOUT INTRODUCING A DISCREPANCY WITH WHAT THE CPU IS DOING? 
+
+I don't normally like Claude's prose, which is why I sometimes have to hand it to Claude when his prose is good. Here's his explanation of whether converting the int to a float and then dividing it by another number also converted to a float will still result in the same final number:
+	
+	Yes, and there's a tidy reason why. Three things have to line up for CPU and GPU to agree bitwise:
+
+	1. The integer inputs already match. By the time you reach this line, x_uint and y_uint are 16-bit values (>> 16 or & 0xFFFF), so they're in the range 0–65535. The masking and the hash multiplies above have already been pinned to 32-bit bit patterns on both sides, so the integer feeding into float(...) is identical.
+
+	2. 16-bit integers convert to float losslessly. A 32-bit float has 24 bits of mantissa, so every value 0–65535 has an exact float representation. No rounding happens during float(x_uint). Same on the	GDScript side.
+
+	3. Division by 65536 introduces no rounding either. 65536 is 2^16, so dividing by it just subtracts 16 from the float's exponent — the mantissa bits don't change, no rounding step happens. The result is exactly representable in float32 and float64, and the two will agree to the last bit.
+
+	If you had divided by 65535.0 instead (a common typo — "the highest possible value"), this guarantee would evaporate: it's not a power of two, so the division would round, and float32 (GPU) vs float64 (GDScript double) would round in different places and you'd get tiny mismatches that show up as flickering at cell boundaries.
+
+I'm assuming that this explanation makes sense to someone with a better understanding of the mantissa. I'm committing it to my github even though it could be meaningless slop. But it reads like a plausible sounding and extremely confident explanation, and shouldn't we trust *all* plausible sounding and extremely confident explanations?
+
+ABSOLUTELY NOT, BUT I'VE BEEN WAITING THREE ENTIRE CHAPTERS JUST TO PUT SOME RANDOM DOTS ON A SHADER 
+
+Great, you're in the same mood that I am. In any event, we'll find out soon whether the points line up.
+
+HOW FAR AM I FROM THE RANDOM POINT, AND SHOULD I LIGHT IT UP?
+
+The draft_notepad_function is already looking like it's well on its way to becoming a color display function, and we already know that for efficiency, we don't want to get into the habit of calling the noise hash twice. So I'll copy and paste it, rename it random_point_light , and refactor it to spit out a vec3 color for when a pixel is on top of or almost on top of the hashed point. 
+
+BUT WAIT, WE NEED MORE MATH 
+
+The position of any given random point is a number between 0 and 1, some fraction, that gets added to the bottom left corner of any given grid cell to determine it's final position. 
+
+Thus, if in our function we asked, "how close am I to (0.57,0.38), we'd get a bunch of chaos, which we don't want. If the grid cell has an ID of (2,3) then the final point location for the math needs to be (2.57, 3.38). 
+
+How to deal with this? For now, I'm just going to add two more arguments for the display function, to write in the grid ID numbers.
+
+		vec3 random_point_light(vec2 xy, float local_scale, uint hashed_uint, float x_grid_id, float y_grid_id){
+		uint combined_hash_uint = hashed_uint;
+		uint x_uint = combined_hash_uint >> 16u;
+		uint y_uint = combined_hash_uint &0xFFFFu;
+		float x_normalized_hash = float(x_uint) / float(65536);
+		float y_normalized_hash = float(y_uint) / float(65536);
+		vec2 coordinate_pos_in_global_space = vec2(x_grid_id+x_normalized_hash,y_grid_id+y_normalized_hash);
+		vec2 scaled_current_position = xy * local_scale;
+		float current_distance_to_point = abs(distance(coordinate_pos_in_global_space, scaled_current_position));
+		vec3 light = vec3(step(current_distance_to_point, 0.02));
+		return light;
+	}
+
+A FEW MORE LINES IN THE FRAGMENT FUNCTION TO PULL IT TOGETHER 
+
+So, we need to have a few more variables ready to go to make this light function operable, in particular, the hash. That means a line to convert the UV into the grid coordinate. Then a line to pass those results into the combiner. And then plug the combiner's result into the hash function. That's four lines. Everything else we can write into the light function as an argument when we call it. 
+
+First, pass the UV into the grid functions to get their identities as unsigned integers:
+
+	vec2 uv = uv_math(UV, scale);
+	vec3 col = vec3(0.);
+	uint uv_grid_id_x = grid_id_x(uv);
+	uint uv_grid_id_y = grid_id_y(uv);
+
+Next, pass those results into the combiner:
+
+	vec2 uv = uv_math(UV, scale);
+	vec3 col = vec3(0.);
+	uint uv_grid_id_x = grid_id_x(uv);
+	uint uv_grid_id_y = grid_id_y(uv);
+	uint combined_uv = combined_x_and_y_uint(uv_grid_id_x,uv_grid_id_y);
+
+Next, pass that result into the hash:
+
+	vec2 uv = uv_math(UV, scale);
+	vec3 col = vec3(0.);
+	uint uv_grid_id_x = grid_id_x(uv);
+	uint uv_grid_id_y = grid_id_y(uv);
+	uint combined_uv_for_hashing = combined_x_and_y_uint(uv_grid_id_x,uv_grid_id_y);
+	uint uv_hash = wellons_integer_hashed(combined_uv_for_hashing);
+
+Now, call the light function and add it to the current color:
+
+	vec2 uv = uv_math(UV, scale);
+	vec3 col = vec3(0.);
+	uint uv_grid_id_x = grid_id_x(uv);
+	uint uv_grid_id_y = grid_id_y(uv);
+	uint combined_uv_for_hashing = combined_x_and_y_uint(uv_grid_id_x,uv_grid_id_y);
+	uint uv_hash = wellons_integer_hashed(combined_uv_for_hashing);
+	col = col + random_point_light(uv,scale,uv_hash,floor(uv.x),floor(uv.y));
+
+AND HERE IT BECOMES CLEAR THAT I'VE MADE ANOTHER HORRIBLE MISTAKE
+
+If you've followed my code to the letter, then you'll get a couple points in the center. But that's all you'll get.
+
+I left the error in, as is my pattern, because errors are real and I feel like you should know where I got got.
+
+In this, I applied scale twice in the random_point_light function. Eliminate the multiplication here by commenting out local_scale as a multiplier, and replacing the semicolon:
+
+vec3 random_point_light //rest of the declaration here
+	//lots of code here//
+	vec2 scaled_current_position = xy; // * local_scale;
+
+RANDOM POINTS EVERYWHERE!
+
+But: Do they match the CPU? Well, this is the part we've all been anxiously waiting for. Let's find out! Pick a point on your grid and compare the outcome.
+
+ONE NEGLIGIBLE SIDE EFFECT OF THE WELLONS HASH, AS IS
+
+It maps 0,0 to 0,0. So your "random" point in the 0,0 block will sit right at the origin. Everything else will be scattered.
+
+THEY MATCH THE CPU!
+
+
+
+TO DO ITEMS:
+ADD MORE EXPLANATION OF LIGHT SEQUENCE, ERROR CORRECTION PASS, WRITE IN NEXT CHAPTER/EXTENSION SECTIONS 

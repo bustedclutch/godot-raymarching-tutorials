@@ -294,7 +294,7 @@ How you choose to display those numbers is up to you, but you've now succeeded i
 
 OTHER DIRECTIONS 
 
-You should know enough about bitwise operators to take this into the Z direction as well, if you wanted to generate three dimensional noise. This is sometimes called a "hypertexture". But note that just because noise is two dimensional doesn't mean that it can't be used in three dimensions--that's extremely common, and how most water shaders and terrain generators operate. Truly three dimensional noise is more for things like clouds, where we actually care about particle density in all three dimensions. For procedural terrain, you'd more likely see it where the terrain itself was actually three dimensional--caves, floating islands, and so forth.
+You should know enough about bitwise operators to take this into the Z direction as well, if you wanted to generate three dimensional noise. This is sometimes called a "hypertexture". But note that just because noise is two dimensional doesn't mean that it can't be used in three dimensions--that use is extremely common, and how most water shaders and terrain generators operate. Truly three dimensional noise is more for things like clouds, where we care about particle density in all three dimensions. For procedural terrain, you'd more likely see it where the terrain itself was actually three dimensional--caves, floating islands, and so forth. As you might already know, many terrains are generated using a two-dimensional heightmap.
 
 DEBUGGING
 
