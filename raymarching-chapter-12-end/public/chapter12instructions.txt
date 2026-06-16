@@ -338,15 +338,26 @@ How to deal with this? For now, I'm just going to add two more arguments for the
 		float x_normalized_hash = float(x_uint) / float(65536);
 		float y_normalized_hash = float(y_uint) / float(65536);
 		vec2 coordinate_pos_in_global_space = vec2(x_grid_id+x_normalized_hash,y_grid_id+y_normalized_hash);
-		vec2 scaled_current_position = xy * local_scale;
+		vec2 scaled_current_position = xy * local_scale; //this is a bug, explained below
 		float current_distance_to_point = abs(distance(coordinate_pos_in_global_space, scaled_current_position));
-		vec3 light = vec3(step(current_distance_to_point, 0.02));
+		vec3 light = vec3(step(current_distance_to_point, 0.08));
 		return light;
 	}
 
+By passing in the grid_id_x and grid_id_y, I can add the fractional parts given to us by the hash math to create a final global coordinate for the random point. Then I calculate the distance between the current position (which we know, from passing in the uv coordinates) and that point. Finally, if that distance is below 0.08, the pixel lights up.
+
+I've got a major error here, which is that I multiplied the uv by the scale, but that was never needed--the uv variable had already been multiplied by the scale in a previous operation when the fragment() called the uv_math() function. It felt like the kind of error that would be much harder to catch in a more complicated shader (and boy do they get complicated!) so I left it in so you can see what it does, which is just leave a few points around the origin.
+
 A FEW MORE LINES IN THE FRAGMENT FUNCTION TO PULL IT TOGETHER 
 
-So, we need to have a few more variables ready to go to make this light function operable, in particular, the hash. That means a line to convert the UV into the grid coordinate. Then a line to pass those results into the combiner. And then plug the combiner's result into the hash function. That's four lines. Everything else we can write into the light function as an argument when we call it. 
+So, we need to have a few more variables ready to go to make this light function operable. Mainly, we need the result of the hash. That means:
+
+A line to convert the UV into the x grid ID, and
+A line to convert the UV into the y grid ID, and
+Then a line to pass those results into the combiner, and 
+Then plug the combiner's result into the hash function. 
+
+That's four lines. Everything else we can write into the light function as an argument when we call it. 
 
 First, pass the UV into the grid functions to get their identities as unsigned integers:
 
@@ -384,17 +395,19 @@ Now, call the light function and add it to the current color:
 
 AND HERE IT BECOMES CLEAR THAT I'VE MADE ANOTHER HORRIBLE MISTAKE
 
-If you've followed my code to the letter, then you'll get a couple points in the center. But that's all you'll get.
+As I was writing, I had a feeling the scale line was going to haunt me, and this was the point in time where it did: There were just a few points around the center.
 
 I left the error in, as is my pattern, because errors are real and I feel like you should know where I got got.
 
-In this, I applied scale twice in the random_point_light function. Eliminate the multiplication here by commenting out local_scale as a multiplier, and replacing the semicolon:
+In this, I applied scale twice in the random_point_light function. Eliminate the multiplication here by commenting out local_scale as a multiplier, and confirming the line still ends with a semicolon:
 
-vec3 random_point_light //rest of the declaration here
-	//lots of code here//
-	vec2 scaled_current_position = xy; // * local_scale;
+	vec3 random_point_light //rest of the declaration here
+		//lots of code here//
+		vec2 scaled_current_position = xy; // * local_scale;
 
 RANDOM POINTS EVERYWHERE!
+
+And, congratulations: Random points are everywhere!
 
 But: Do they match the CPU? Well, this is the part we've all been anxiously waiting for. Let's find out! Pick a point on your grid and compare the outcome.
 
@@ -404,7 +417,25 @@ It maps 0,0 to 0,0. So your "random" point in the 0,0 block will sit right at th
 
 THEY MATCH THE CPU!
 
+This is where you really get to break out the champagne. The hash gives you power, because the hash feeds any number of noise functions. You now have the ability to terraform an entire planet with a baked collision mesh, and have your GPU render that same planet moment-to-moment without baking anything, and have that planet be identical for every other player, regardless of what computer or cell phone or tablet they used to render it.
 
+IMMEDIATE THINGS TO PLAY WITH 
+
+You know enough, by now, to change that step() function into a distance function that maps the color to the distance--this has the immediate payoff of transforming your shader to something that immediately looks a lot more like true cellular noise.
+
+If you love the 3D math and want to play with that immediately, you could extend the number of dimensions further--perhaps you want to have four input dimensions and three output dimensions, rather than the current system of two-in/two-out. This would allow you to find a grid in 3D space, altered by the passage of time. To show it off in the 2d shader, you could have that third dimension be reflected in the point's color.
+
+You could also consider how you might use linear interpolation, via the built-in lerp() function, to cause the points to transition slowly. Perhaps you'd like them to randomly float around, or perhaps you'd want them to move with the flow of a sin wave.
+
+These are all possible, and we now have an extension of our graphing calculator to help us visualize it.
+
+THE COMING EXTENSIONS TO COMPLETE WORLEY NOISE 
+
+As far as the next chapter, however, we will need to fix a problem: The closest random point, for any given point in space, often isn't the point inside of your grid cell. It's often a point inside of a neighboring grid cell. How do we loop through to check those?
+
+Additionally, many forms of cellular noise don't just rely on the distance to the closest point. Instead, they play with the distances to the second, third, fourth, and fifth nearest points. That's useful for taking the noise from something that still looks a bit computer generated to something more organic. 
+
+Once that's done, we'll have a side chapter about building a water shader, so that we can experiment with Godot's built in noise baking, and use our knowledge from prior chapters to deliver a water shader that precisely matches your aesthetic, rather than something that looks slightly out of place from being a copy/paste template.
 
 TO DO ITEMS:
-ADD MORE EXPLANATION OF LIGHT SEQUENCE, ERROR CORRECTION PASS, WRITE IN NEXT CHAPTER/EXTENSION SECTIONS 
+ERROR CORRECTION PASS
