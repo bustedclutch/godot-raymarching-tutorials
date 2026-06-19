@@ -1,0 +1,623 @@
+PRESS ALT+Z FOR WORD WRAP 
+
+WARNING: UNLIKE MY OTHER CHAPTERS, MUCH OF THIS CHAPTER IS INFORMATION I GATHERED DIRECTLY FROM CLAUDE THE CHATBOT. THERE WILL BE ERRORS. BUG-PRODUCING, GAME BREAKING ERRORS. MISDEFINITIONS. AND SO FORTH. THANKS
+
+
+
+I've always been afraid of compute shaders, and to be fair, I still am. But I've been afraid of a lot of things, and if reading threads on Twitter and Threads has taught me anything, it's that far dumber people have learned to code. I haven't seen any of these same idiots talk about coding compute shaders, however, so this could really go either way. Let's find out!
+
+CREATE A TEST SCENE WITH SOME RANDOM OBJECTS AND A CAMERA 
+
+I'm just adding some MeshInstance3D nodes, adding the default WorldEnvironment, and the default DirectionalLight3D. And a Camera3D, gotta have one of those. For my meshes, I've got a sphere and a box so I can see two kinds of edges. I'm also adding a plane mesh called Ground to be a floor to see shadows. I'm naming the root node "BasicScene" and saving it in a subfolder of "public" called "basic_scene".
+
+Run it, and make sure it's lit. 
+
+THAT THING I KEEP PUTTING OFF: CanvasLayer AND ColorRect
+
+At present, my node tree looks like this:
+
+    BasicScene
+        DirectionalLight3D
+        WorldEnvironment
+        Box 
+        Ground 
+        Sphere 
+        Camera3D
+
+I'm going to add a CanvasLayer as a node, and then a ColorRect as a subnode of CanvasLayer. The scene tree now looks so:
+
+    BasicScene
+        DirectionalLight3D
+        WorldEnvironment
+        Box 
+        Ground 
+        Sphere 
+        Camera3D
+        CanvasLayer
+            ColorRect
+
+If you run the scene now, you'll just have a little white box on the top left, picking up the ColorRect's default white color property in the Inspector. Fix this first. With ColorRect selected as a node, look in the Inspector panel, then look for the "Layout" section, then "Anchors Preset". Within that, select "Full Rect". Your entire view will be replaced with white.
+
+Why this works: "Full rect" has the ColorRect fully fill the parent, and CanvasLayer fills the screen. Thus, full screen ColorRect.
+
+Still with ColorRect selected, look in the Inspector, under the group "CanvasItem", within which is "Material". From there, click the empty box, click "ShaderMaterial", click the sphere, click the empty box next to "Shader", select "new shader..." and create a new shader called basic_color_rect.gdshader .
+
+If you've read the other chapters, you know how to write a basic shader already, but I'm new to this kind of shader and I want this chapter to stand alone. Skip ahead if you're bored.
+
+Revise the fragment() function of the shader to this:
+
+    void fragment() {
+        COLOR = vec4(0.0, 0.0, 0.0, 1.0);
+    }
+
+OH GOD THE BUILT IN OUTPUT VARIABLE NAME HAS CHANGED
+
+In the spatial shader universe, the fragment() output was ALBEDO as a vec3 and ALPHA as a solitary float. The canvas_item shader_type clearly uses something else: COLOR. And it takes a vec4, with the fourth channel being the alpha. I believe this makes it behave more like Unity in that respect, but I'm not sure.
+
+Anyway, tweak the last channel of that vec4 to 0.5, and run the scene--you'll get a darkening effect, since the black color is being mixed half and half with the 3D scene behind it.
+
+    void fragment() {
+        COLOR = vec4(0.0, 0.0, 0.0, 0.5); // Alpha channel is 50% now
+    }
+
+TESTING THE UV COLOR SPACE 
+
+We can tweak that to the standard UV rainbow by drawing on the UV built in constants:
+
+    void fragment() {
+        //COLOR = vec4(0.0, 0.0, 0.0, 0.5); 
+        COLOR = vec4(UV.x, UV.y, 0.0, 0.5); 
+    }
+
+This verifies a few things are still working the way they do in fragment shader territory: UV is still a constant. You can still pull its components with ".x" and ".y". The origin is still in the top left corner. The Y axis is still in its usual game engine direction, where higher Y means down.
+
+Run the scene and you should see your objects giving off some rainbow vibes, although at present, it's just an ignorant filter, pasted over the camera lens, with no relationship to the scene itself.
+
+You could still certainly *do* stuff with such a shader, like apply TV static, or give your scenes various fade-to-black effects.
+
+But I came here to get my hands dirty. I want my shader to be able to watch what's happening in the scene, and do stuff with it. Maybe I want to step() some colors but not others. Maybe I eventually want the normals to pass through somehow.
+
+DUPLICATING THE SCENE 
+
+I duplicated the entire basic_scene folder, then renamed it "basic_routing". You don't have to do this, but I want the change-by-change progress visible in the GitHub. I renamed the shader to basic_routing.gdshader and the basic_scene.tscn to basic_router.tscn .
+
+Magically, Godot refactored everything on its own without any reassignments from me.
+
+ATTACHING A SCRIPT 
+
+I had no idea how to do this so I asked Claude the chatbot. Between me and Claude and some troubleshooting, I'm confident we'll likely probably be able to get somewhere with this! Here's the script attached to ColorRect:
+
+  func _ready() -> void:
+      var size := 16
+      var image := Image.create(size, size, false, Image.FORMAT_RGBA8)
+      for y in size:
+          for x in size:
+              var u := float(x) / float(size - 1)
+              var v := float(y) / float(size - 1)
+              image.set_pixel(x, y, Color(u, v, 0.0, 1.0))
+      var texture := ImageTexture.create_from_image(image)
+      material.set_shader_parameter("source_texture", texture)
+
+
+DON'T FORGET THAT INDENTS DO TABS FEATURE 
+
+If you just paste this in, click "Edit" at the top of the scripting panel, then under "Indentation", select "Convert Indent to Tabs".
+
+Run the scene again just to confirm the script didn't break anything and your duplicated scene runs.
+
+Image.create() takes the arguments width, size, a boolean about whether to use mipmaps, and the image format. We're making a new one.
+
+The next lines, through a loop, alter the colors of the 16x16 pixel image (this image is tiny!). The colors are identified in the for-loop, and then set through calling the set_pixel() method, which takes the coordinates and then the color as arguments.
+
+The second to last line creates an texture, and ImageTexture.create_from_image() accepts an image as its argument--so the script passes in the 16x16 pixel image that was just created.
+
+Finally, something we've seen before if you were in the weeds of my raymarching chapters, which is material.set_shader_parameter(). This one is very important for a lot of things. "source_texture" was passed in as the named variable that we'll be able to call for by name in the shader. "texture" is the content passed in.
+
+UPDATING THE SHADER 
+
+This line gets added near the top of the shader, just under the "shader_type" line:
+
+    uniform sampler2D source_texture : filter_nearest;
+
+Note that auto-complete won't pick up "source_texture" even though the shader will eventually have access to it by that name when the scene runs. I fixed that in my raymarching tutorial with the "@tool" annotation, but @tool can be dangerous for messy code you're drafting, so I'm leaving it out for now.
+
+UPDATE THE FRAGMENT() PORTION 
+
+Change the color line to this:
+
+    COLOR = vec4(texture(source_texture, UV).rgb, 0.5);
+
+This works for the same reason the spatial shaders worked--the UV on the screen is computed for every given point in screen space, so wherever it's evaluated, the RGB portions are passed on. Meanwhile, the shader itself has blotted out the texture's alpha channel, and instead used the alpha channel defined as 0.5 in the shader.
+
+I haven't covered this yet, but this is the first time I've done a thing where you might imagine how the alpha channel of a texture could be hijacked to do something completely different. Perhaps on your toon shader, you could use one of these channels to identify which parts of the character are always in shadow and which parts are always highlighted--this particular version of packing extra information into the channels was used for the Guilty Gear characters, so that some of their shadows and highlights never slid around their face, even as the character moved into different lighting.
+
+RUN THE SCENE, CHONKY UV FOLLOWS 
+
+Assuming the wires are wired, you'll now get a chonky looking version of the same UV rainbow, this time a 16 x 16 block grid.
+
+We've now established that you can have a CPU pass its own something-something into the canvas_item shader. That particular trick is nothing new coming from my raymarching series, but the plan is to get spicier.
+
+I DUPLICATED THE SCENE AGAIN 
+
+Obviously you don't need to do this, but I've duplicated my scene again, now that I'm creating a compute shader. 
+
+SOMEONE ELSE HAS A POSSIBLY BETTER EXPLANATION OF COMPUTE SHADERS 
+
+https://www.youtube.com/watch?v=ry7bv7BY56c 
+
+DevPoodle's video, "A Guide to Using Computer Shaders in Godot" is a nice video intro to the concept.
+
+BUT I'M DOWN TO CLOWN WITH YOU ANYWAY 
+
+If you're not smart enough to follow the videos or the instructions in the Godot manual, then let's get to coding! Or copying and pasting!
+
+BABY'S FIRST COMPUTE SHADER 
+
+Godot, weirdly, doesn't have a mechanism for opening and editing actual compute shaders themselves. Thus, you need to do your coding in a separate IDE to effectively write them. 
+
+A WHAT?
+
+Experienced programmers use more purpose-built tools for coding than what any game engine ships with, so it's quite common for the programmers to be editing the project in something like VS Code even though the rest of the team is doing their work in the engine.
+
+On the bright side, Godot's compute shaders are in GLSL, the universal shader language, so really this is kind of the final step toward being able to code a shader for anything anywhere, including the other engines.
+
+I do a lot of my writing in VS Code, so I downloaded the extension "Shader languages support" by Slevesque, which highlighted the colors.
+
+WRITING THE ACTUAL GLSL SHADER
+
+Create a file in your IDE called "basic_compute_shader.glsl".
+
+Claude whipped up this basic shader:
+
+    #[compute]
+    #version 450
+
+    layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+
+    layout(rgba8, set = 0, binding = 0) uniform restrict writeonly image2D output_image;
+
+    void main() {
+        ivec2 coord = ivec2(gl_GlobalInvocationID.xy);
+        ivec2 size = imageSize(output_image);
+        if (coord.x >= size.x || coord.y >= size.y) {
+            return;
+        }
+        vec2 uv = vec2(coord) / vec2(size - 1);
+        imageStore(output_image, coord, vec4(uv.x, uv.y, 0.0, 1.0));
+    }
+
+I'll explain each bit, part by part.
+
+    #[compute]
+    #version 450
+
+The first and second lines are annotations, identifying the file to Godot as a compute shader, and then the version of GLSL used in the file. This is similar to the "shader_type" line at the top of the normie Godot shaders.
+
+    layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+
+This line is not intuitive at all and has little to do with what you might expect--XYZ feels tied to vector math or colors. (Though it can, for reasons I'll get to later.)
+
+Instead, the line is defining the size of a "workgroup". The definition of "workgroup", per Claude, is "a bundle of shader invocations that the GPU schedules together as one unit". And they usually come in sizes that are a factor of 64, apparently. The "local" language refers to the fact that we're describing the size of the workgroup.
+
+What's an "invocation"? It's one execution of the code happening in the compute shader's main() function. 
+
+Calling the workgroups to action, and deciding how many workgroups to call, is a decision made by the CPU. That means your gdscript code is going to decide whether to assign 4 workgroups or a zillion. This is done via a "dispatch" from the CPU. Raphlinus's glossary of compute shader terms defines a dispatch as "a unit of computation all sharing the same input and output buffers and code".
+
+If you're like me, your reaction to all of these new words whose meaning you don't know and whose definitions have even more words whose meaning you don't know is a special kind of hell. 
+
+Let's do it in metaphors!
+
+METAPHORS!
+
+Imagine, for a minute, your compute shader is defining a neighborhood of office workers, each with their own cubicle. If you have eight rows of cubicles along the x axis, and eight rows along the y axis, then you have a metaphorical one-floor grid of 64 cubicles with office workers. Each cubicle has a location that can be expressed by its X and Y coordinate, like a row and seat number of an auditorium. Just as a pixel could be at (5,8) on an image, a cubicle might be at (5,8) if it's in column five of the x axis and row 8 of the y axis. Each of those office workers has a nearly identical task, and it's described in the main() function. Enlarging the Z axis would be like adding another floor, so if you had six floors, you'd have a six floor office building, with 64x6 total cubicles. Continuing the coordinate system above, and with the bottom floor being the 0th floor, then a cubicle on the third floor might be located at (5,8,2). 
+
+In this example, the office building is the "workgroup". The individual cubicle and the task it works is the "invocation".
+
+The corporate office, in this example, is the CPU, operating via gdscript. (Unless you use an alternative to gdscript in Godot, like C#.) The corporate office decides how many such office buildings get whipped into existence to work on a big group project, via the "dispatch". The corporate office is the dispatcher. When the corporate office sends the dispatch, it sends the same information and buffers to all of the office buildings/workgroups full of cubicles/invocations. 
+
+This is where the three dimensonal layout of the office buildings starts to make more sense. If you want the job done as fast as possible, then there's math happening at two places: How big the workgroups are, and how many workgroups to create in a dispatch. Figuring out where a cubicle is using rows and columns makes writing scripts easier, for the same reason it's easier to find your seat in an auditorium with an aisle and seat number. The "z" coordinate also starts to make more sense. If you want the number of cubicles to be divisible by the number 64, but you want the freedom to easily adjust the size of the workgroup, then you just add or subtract floors but keep each floor's layout in a 64 cubicle grid. 
+
+Each office building and each cubicle has an address, something that you use to identify who is who, and what they're working on. As mentioned above, it's derived in some way from its XYZ coordinate; there's more specific ways of describing the address, below.
+
+gl_LocalInvocationID is the address of a particular cubicle within its building, and without the building number. It's a reference to "cubicle (3,5,1)". But there's no building/workgroup number. If a dispatch creates three workgroups/offices, and calls for invocation/cubicle "cubicle (3,5,1)" to a thing, then it's really asking for all three cubicles to do that thing, because there's three buildings that have the same ID.
+
+gl_GlobalInvocationID is a reference to a specific cubicle, and because it's global, it references exactly one cubicle/invocation, even if there's multiple buildings/workgroups with the same local cubicle. If the dispatch creates three office buildings, then the gl_GlobalInvocationID will refer to a cubicle in only one of them. 
+
+gl_WorkGroupID is the address of the office building. If you dispatched four workgroups, then you'd have builing 0, building 1, building 2, and building 3. Those are the workgroup ID's. Perhaps you want one building to do their work differently than all the others. If you gave all of the buildings the exact same instructions, they're smart enough to understand the instruction: "Only building 3 does this."
+
+CAN THEY TALK TO EACH OTHER? TO THE CPU? WHERE DOES THE MAIL GO?
+
+If you're used to pixel/fragment shading in shaders, everything must be a sort of beautiful mathematic poetry. The shader runs its math on its pixel, and each pixel has no way to communicate with neighboring pixels. You get different results per-pixel by feeding different information into each pixel's shader run, typically using the UV coordinates of the object. 
+
+In the workgroup context, this is like an office building of cubicles where no one has a telephone and the cubicles are floor to ceiling prisons. They even have the same task--the only thing they know is what cubicle number they're in, and they have to use that assignment to determine what to do. In the shader context, you could write a task that says "if your cubicle number is odd, send out a red pixel. if it's even, send out a blue pixel". With the added fun that their cubicle number isn't an integer, but rather a UV vector float, so instead of being "cubicle (0,3,8)", you're "cubicle 0.4563232".
+
+Do compute shaders have the same restrictions?
+
+RETURNING TO THE OFFICE 
+
+Compute shaders don't have this restriction. The office workers actually can collaborate and communicate with each other as they work.
+
+They have one big office-wide messaging system that they can all write to. Call it a gigantic building-wide whiteboard. In an office building with 64 cubicles, they might choose to divide the whiteboard up into 64 positions, and each office worker writes to one piece of it. Maybe there's 128 parts of the whiteboard, and they're each in charge of two. Maybe the whiteboard isn't divided at all, and they're all just adding numbers to one shared board. 
+
+Let's use that last example because it's fun. Perhaps they're doing a census count of the number of people in the state, and each individual worker is in charge of tallying the number of people in a county. So they each add the number of people in their county to the whiteboard. That way, the workgroup/office building can get the total number of people in the state. Regular shaders can't do this.
+
+This building-wide whiteboard is the "shared" memory. I'm not kidding: That's the technical word for it. "Shared". It's declared using the actual word "shared" near the top of the GLSL shader, such as: 
+
+    shared int census;
+
+    void main() {
+        //code goes here where every office worker has access to the census integer
+    }
+
+Maybe the census workers want to have *two* tasks--first, add up every person in their county, then after the total for the state is found, do something else with the statewide total. Maybe there's a statewide budget, and it's apportioned based on how many people live in the county. At that point, maybe the individual office workers have a second job, like deciding how to allocate the county budget between parks and schools and so forth.
+
+Every office worker needs to know the first task is finished before they move on to the second. Otherwise, the office workers with less to do will finish first, and start work with the wrong total.
+
+This is accomplished via the break() function:
+
+    shared int census;
+
+    void main() {
+        //office workers add their county numbers to the census integer 
+        
+        break()
+
+        //office workers then do something else with the total census number, now that every worker has contributed their individual count
+    }
+
+Sidenote: In order to prevent the office workers from adding to the whiteboard at the exact same time, they'd use a function like "atomicAdd". Atomics are like making sure there's only one whiteboard marker.
+
+TRANSLATING MAIL BETWEEN THE CPU AND THE GPU 
+
+The GPU often sends its mail out in a "packed" format. It's kind of like the GPU shipping out book manuscripts without a cover or table of contents. It's also how it often receives mail.
+
+Thus, you'll see things in gdscript like PackedByteArray and PackedFloat64Array. This is a means via which the CPU can pack information into a format the GPU can process (or unpack mail it receives from the GPU). The CPU often doesn't just send an array of floats to the GPU without converting them to this packed version first.
+
+Likewise, if your CPU has to read a packed variable, it may need to translate it back out to its unpacked version. This is simply called "unpacking".
+
+If you're new to shaders and programming, it's a bit like the GPU doing a lot of its work using ZIP files. I don't think there's a way to reason out a unified rule for when it happens; I think everyone memorizes some of the common cases or just keeps some template code handy after they've done it once. And that's true of compute shaders generally--no matter how smart you are, there's a lot of random stuff you just have to memorize as being a thing.
+
+THIS SOUNDS LIKE JSON 
+
+You might already be familiar with "omg I have to reformat my data" if you've ever coded your game to create a save file, or to work in multiplayer.
+
+Godot converts various variables that you want to be persistent into a JSON format when you save your game. (Or rather, you have to direct gdscript via your code to turn the important things into JSON). 
+
+Similarly, Godot can convert important things to JSON for a multiplayer game, so that you're only sending the essential pieces of information, like another player's current position in the world, or a chat message they've sent.
+
+In the JSON context this is often called serialization/deserialization, for translating certain things into and out of JSON.
+
+In your first-ever programming class, you might have learned to use a str() function to convert a number into a string so that it could be printed to the terminal.
+
+HOW ELSE CAN THE GPU COMMUNICATE WITH THE CPU AND ITSELF?
+
+That shared whiteboard between the cubicles in a single building/workgroup is useful and extremely fast, and solves a big problem that conventional shaders leave unsolved. But the "shared" memory is small, and it doesn't enable sharing between the buildings. What's this metaphor's version of something that enables collaboration between the workgroups? To later workgroups that are formed later on after everyone in the current company has been laid off? Or just the CPU?
+
+That's where buffers and textures come in.
+
+TEXTURES 
+
+The GPU has the ability to write to and read from image files that live on the GPU. Sticking to the metaphor, this is like all of the buildings, and the corporate office, having access to a place for painting a mural. Everyone can paint to it. Everyone can read from it. Even if the corporate office has created multiple dispatches, each with multiple workgroups/buildings.
+
+What if this space for a collective mural has been around for centuries, but the corporate overlords have furthered a fascist takeover and eliminated all of the painters and artists?
+
+Well, they can repurpose the mural space to do... whatever. Maybe a bit of red here and a bit of yellow there is the new language for storing a profit and loss statement, or the accounting ledger for some billionaire's yacht.
+
+Or alternatively, what if the artists survive--maybe the billionaires, driven mad with hubris, cause their own empires and fascist dreams to collapse? And the artists retake the mural place? Do they have to use it for painting?
+
+Actually: Not really! Even the artists might use the mural for data that's stored visually, but instead use it as data to drive the creation of other images. A texture that stores the data for object normals, or stores the depth of objects in an image, isn't pretty to look at by itself, but you can use that for rendering nonetheless. Especially when you have access to a many mural spots and only one final image to produce on the monitor.
+
+Storing data as textures can make it a lot easier to work with--images have x and y coordinates, for example. You can also store different information in the colors of the same image, so that the red channel means one thing, and the blue channel another. A normal map, for example, would be a texture, and it would store the x, y, and z directions of the normal in the rgb colors of the image. If there's a fourth channel in the image, which is common, they might shove some other piece of unrelated data into that fourth channel.
+
+BUFFERS: WHAT THEY ARE, AND MORE IMPORTANTLY, WHAT THEY ARE NOT
+
+Buffers are similar to textures in some ways--everyone has a way to reach and alter them like the murals--but buffers are straight up data. (I know on a deep computer science level, everything is, including the textures, but just roll with me here.)
+
+If you had a really long array of numbers, then a picture probably isn't the ideal storage medium. There would be no need to index that data in the same way you pick out a place on a picture. Perhaps you've tasked your GPU with simulating the decision making of several hundred thousand guests in your theme park game. Those decisions would obviously not map into a single, fixed-size image--they'd need to live as some kind of array with a variable size. 
+
+In terms of my office park example, perhaps a buffer is like a records building for things like accounting paperwork. No pictures in the records, just text, and anyone from any building, even buildings created by different dispatches, are all allowed to go and drop off more accounting records, or read the already filed records.
+
+SOMETHING I'M TELLING YOU NOW ABOUT DEPTH BUFFERS AND WHICH I WISH SOMEONE HAD TOLD ME ON DAY ONE ABOUT DEPTH BUFFERS 
+
+Depth buffers are... not buffers. Neither are color buffers or frame buffers. At some point in time, they used to be, but they're not now. They became textures, because they're stored as images, but they held onto their now vestigial name. You might have encountered this before with "fractal Brownian motion" if you asked why it's not a fractal, or Brownian, or motion.
+
+WHAT'S AN SSBO 
+
+It stands for shader storage buffer object. It's a kind of buffer where you can shove large volumes of data. There's other kinds of buffers but that one comes up a lot.
+
+WHAT ABOUT THE OTHER BUFFERS AND FORMS OF MEMORY ON THE GPU?
+
+There's like, a bunch more. But in terms of understanding what's happening in the code Claude drafted, I think I'll leave it at that.
+
+WHAT ARE BINDINGS, AND SETS OF BINDINGS?
+
+Remember how our office workers' cubicles and the buildings they were in had addresses, referred to as an "ID"?
+
+Well, the buffers and the textures also have an address system, and it's called a "binding". Several bindings can be grouped together as a "set". Sets can be traded out at will, and can be organized by how often they're needed. If your scene has a sun that never moves, or global lighting that never changes, you can put those in a different set from the bindings that change a lot, like your character's clothing materials. 
+
+In the corporate office park space, maybe there's a historic mural and a historic accounting office whose data never changes, and the historic mural is given the address of binding 0, the historic accounting office is given binding 1, and collectively, they're set 0. The accounting office thus has an address of (0,1) for set 0, binding 1. 
+
+And then maybe elsewhere in the office park, you have a mural and an accounting office that's being used for Meta's VR division. And when assigning the sets and bindings, you have doubts about how long it will persist, and put it in set four, so that the mural with a billboard for Horizon Worlds is at (4,0). 
+
+ARE THESE BINDINGS AND SETS SHARED BETWEEN DISPATCHES?
+
+Sort of; your gdscript/CPU has to do the work of collecting a "Resource ID" or RID when it creates the dispatch. It can then give that RID to later dispatches so that later dispatches can access it, even if the workgroup that created it has been obliterated from existence.
+
+DO THESE MURALS/BUFFERS/RESOURCES SLOWLY COLLECT AS YOUR COMPUTER MAKES THEM UNTIL YOUR COMPUTER RUNS OUT OF MEMORY AND CRASHES?
+
+Yes. That is absolutely what happens. I'm not kidding. If you don't actively intervene to stop this, that is what happens. It's what's called a "memory leak", though it's more like a "memory landfill you never made a plan to empty".
+
+If you're used to working in Godot/Python/regular shaders/many other places, you don't actively have to think about this. This is because Godot has what's called a "garbage collector". If you create a variable, and the point in time comes where nothing active depends on it anymore, Godot nukes it from the memory. 
+
+Not so with the resources created in compute shaders!
+
+It's just assumed that you might need them later, and nobody is going to clean your attic for you. If your shader keeps making textures without freeing them, or keeps making new textures every single frame without freeing them, then you're going to crash, and possibly soon.
+
+RETURNING TO THE CODE CLAUDE DRAFTED 
+
+    #[compute]
+    #version 450
+
+As mentioned previously, this identifies it as a compute shader to Godot, and that it's using version 450 of the GLSL shading language.
+
+    layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+
+This layout function specifies the workgroup size. This is an 8 by 8 grid of cubicles, only one floor high. Note that the numbers count up from 0 when they're actually created. This layout specifies a building with exactly 1 z level, and that level is the 0th floor. The x and y rows have ID's running from 0 to 7.
+
+    layout(rgba8, set = 0, binding = 0) uniform restrict writeonly image2D output_image;
+
+There's some arguments I didn't explain here, like the format of the image (rgba8), but the one that should instantly be familiar is that the image this particular shader crafts into being, a mural everyone in the office park can access, lives at (0,0), for set 0, binding 0.
+
+    void main() {
+        ivec2 coord = ivec2(gl_GlobalInvocationID.xy);
+        ivec2 size = imageSize(output_image);
+        if (coord.x >= size.x || coord.y >= size.y) {
+            return;
+        }
+        vec2 uv = vec2(coord) / vec2(size - 1);
+        imageStore(output_image, coord, vec4(uv.x, uv.y, 0.0, 1.0));
+    }
+
+Try to read this like a regular shader function with the office park metaphor. 
+
+The variable "coord", short for "coordinates", gets initialized as an ivec2. The vec2's you're used to are a pair of floats--an ivec2 is a pair of integers. This actually simplifies things, even though it's different from regular shader land.
+
+The two components are the ID for the cubicle working on it, on the x/y axis. This is just like how we start a regular shader by feeding in the UV constant into a mutable/changeable variable spelled in lowercase as "uv". Like with UV coordinates, it's how we give the same set of instructions to every cubicle in the building, but get a different work product from every cubicle--they're all interpreting their job slightly differently, based on their cubicle address. 
+
+    ivec2 size = imageSize(output_image);
+
+The imageSize() function spits out an ivec2 with two components, as width and height for x and y respectively. So now we have a "size" variable that's storing the size of the image resource.
+
+    if (coord.x >= size.x || coord.y >= size.y) {
+        return;
+    }
+
+This is a filtering mechanism. What would happen if you dispatched a workgroup that was 8x8 to process an image that was only 4x4? If you wanted every cubicle to only touch one pixel, you'd end up with a bunch of cubicles assigned to work on pixels that don't exist. I know in corporate America, they'd probably be required to do the work anyway, and this is where my metaphor gets shaken up a bit, but to prevent crashes, this is a test that prevents the extra workers from doing anything. Always imagine the corporate office dispatching too many workers. Ideally, it's not too too many, because that's wasteful, but it's also unavoidable, as your workers come 64 at a time, and sometimes the work you need doing doesn't come in units divisible by 64.
+
+    vec2 uv = vec2(coord) / vec2(size - 1);
+
+Let's just do the math on this one with an example cubicle. The cubicle ID lives in the coord variable. The image size lives in the size variable.
+
+"uv" for the cubicle at (2,3) divided by the image size of 1, where the image in pixels is 16x16, is (2/16, 3/16), or (0.125,0.1875). If you're paying close attention, you'll also notice that "coord" and "size" were ivec2's and not vec2's, and that there's a vec2() constructor converting them to vec2's. Without the vec2() function, you'd be dividing integers by integers, and computers don't convert those to floats, they just spit out more integers, even if they're totally not the number you want.
+
+    imageStore(output_image, coord, vec4(uv.x, uv.y, 0.0, 1.0));   
+
+And finally, this member of the cubicle travels over to the mural, "output_image", which we know from above is at set 0, binding 0, and paints its contribution. In this case, the red channel is painted with 0.125, and the y channel is painted with 0.1875. They ignore the blue channel and paint it as 0, and they paint the alpha channel with a 1. In terms of where exactly on the mural they paint, they paint at the same pixel position of their mural as their cubicle ID. 
+
+Note that it's just happenstance that the cubicle ID and the pixel location are matchy-matchy, and in this instance, it makes the compute shader behave extremely similar to the fragment shader you're more accustomed to. But it doesn't have to be--they could have painted anywhere else on the mural if you instructed them to.
+
+RAINBOW!
+
+Hopefully, by now, if you've read my other chapters, or seen any number of books/tutorials about shader basics, you know this produces just another UV style red/green rainbow.
+
+This time, it's just happening in the context of a compute shader.
+
+ACT 1, PART 2: THE CORPORATE OFFICE 
+
+Claude, in his infite wisdom, has bestowed on us another prospective script, this time for the gdscript half of the equation. Let's hope it works and doesn't crash everything.
+
+But if it does crash everything, at least we can sleep well knowing that no one in charge is using these same systems to decide who in America to imprison for months at a time, deport to dangerous country to be imprisoned or murdered, or make decisions that could result in the deaths of 168 Iranian school children.
+
+    extends ColorRect
+
+    const IMAGE_SIZE := 16
+
+    func _ready() -> void:
+        var rd := RenderingServer.create_local_rendering_device()
+
+        var shader_file := load("res://public/basic_compute/basic_compute_shader.glsl") as RDShaderFile
+        var shader_spirv := shader_file.get_spirv()
+        var shader := rd.shader_create_from_spirv(shader_spirv)
+        var pipeline := rd.compute_pipeline_create(shader)
+
+        var fmt := RDTextureFormat.new()
+        fmt.width = IMAGE_SIZE
+        fmt.height = IMAGE_SIZE
+        fmt.format = RenderingDevice.DATA_FORMAT_R8G8B8A8_UNORM
+        fmt.usage_bits = (
+            RenderingDevice.TEXTURE_USAGE_STORAGE_BIT
+            | RenderingDevice.TEXTURE_USAGE_CAN_COPY_FROM_BIT
+        )
+        var output_texture_rd := rd.texture_create(fmt, RDTextureView.new(), [])
+
+        var uniform := RDUniform.new()
+        uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
+        uniform.binding = 0
+        uniform.add_id(output_texture_rd)
+        var uniform_set := rd.uniform_set_create([uniform], shader, 0)
+
+        var compute_list := rd.compute_list_begin()
+        rd.compute_list_bind_compute_pipeline(compute_list, pipeline)
+        rd.compute_list_bind_uniform_set(compute_list, uniform_set, 0)
+        var groups := IMAGE_SIZE / 8
+        rd.compute_list_dispatch(compute_list, groups, groups, 1)
+        rd.compute_list_end()
+
+        rd.submit()
+        rd.sync()
+
+        var bytes := rd.texture_get_data(output_texture_rd, 0)
+        print("compute returned %d bytes" % bytes.size())
+
+        var image := Image.create_from_data(IMAGE_SIZE, IMAGE_SIZE, false, Image.FORMAT_RGBA8, bytes)
+        var display_texture := ImageTexture.create_from_image(image)
+        material.set_shader_parameter("source_texture", display_texture)
+
+
+If this all looks like a mind blow, worry not: I, like the chatbot, am an endless metaphor fountain, though I tell myself mine are more consistent. Let's do the line-by-line code review:
+
+    extends ColorRect
+
+    const IMAGE_SIZE := 16
+
+No surprises here. The script is attached to a ColorRect node and extends its abilities. Claude declared a constant called "IMAGE_SIZE" with a value of 16. Declaring things as constants in shader land is typical because it's common for a change in a variable to break everything, so you often err on the side of constants. It also constrains the amount of memory the variable is stored in. I think.
+
+    func _ready() -> void:
+
+Everything from here happens in the ready() function, because this particular compute shader only needs to be dispatched once to create the texture. Worth noticing that it doesn't run again; not per frame or per physics tick or repeated in any way at all.
+
+    var rd := RenderingServer.create_local_rendering_device()
+
+In Godot, this is how compute shaders always kick off. Everything is through the RenderingDevice API. RenderingDevice is the messenger that takes messages from the corporate office to the workgroups. RenderingDevice whips up the workgroups and destroys them. RenderingDevice is the only person who understands the language of the corporate office and the language of the cubicle workers. RenderingServer.create_local_rendering_device() creates this magical person, and since you talk to them constantly, their name gets shorthanded to "rd".
+
+    var shader_file := load("res://public/basic_compute/basic_compute_shader.glsl") as RDShaderFile
+    var shader_spirv := shader_file.get_spirv()
+    var shader := rd.shader_create_from_spirv(shader_spirv)
+    var pipeline := rd.compute_pipeline_create(shader)
+
+If you read my chapter about hashing, then you remember a weird part where a unsigned integer became an integer and then became a float. The data didn't change too much, but it ultimately allowed us to do something different. 
+
+To be more specific, you might have learned about compiling from an intro to C class (I recommended CodeBeauty's YouTube channel, by Saldina Nurak). A compiler takes the words you write and turns them into a version the processor can process. It transforms it into a human-readable format called assembly that strips out all the comments and removes all of the cute names I give the variables. That assembly then gets further ground into machine code, which is the actual 1's and 0's the processor runs on. 
+
+SPIR-V is a binary form of the shader you wrote, and is a little bit of a cross between assembly and machine code. When you ask the RenderingDevice to create a shader from the SPIR-V, it triggers the task behind the scenes that finally turns it into machine code. Crucially, this is a moment when you receive an RID. That's the Resource Identifier, and it's your receipt. Without your receipt, you aren't getting your coat back out of the coat check, and you definitely aren't freeing anything from memory. In this case, Claude named his variable "shader", and that's its RID.
+
+The "pipeline" that RenderingDevice creates is a bit of a misnomer. It's better thought of as an envelope that contains all of the necessary pieces to make up a dispatch. That envelope of instructions, once put together and sent to the GPU, where it resides, can then be reused over and over again. Thus, the pipeline behaves a bit more like the other GPU resources I've talked about. It's also got a binding, just as the other resources have bindings. And just as the other resources have to eventually be freed to prevent memory leaks, so must the pipeline. It's RID in this case is "pipeline", as that's the name Claude assigned the variable as an example, but you'd probably name it something specific for when there's more than one kind of dispatch.
+
+DOES THIS CODE CREATE A MEMORY LEAK?
+
+Yes. If you skimmed down, you might have noticed that no line ever freed the resource. If you ran that scene, the pipeline ("pipeline") and the machine code created from the SPIR-V ("shader") are still living on your GPU. They are there to stay, until you power cycle your computer.
+
+WHAT! WHAT!?
+
+Hey, I noticed it, and Claude taught me everything I know about compute shaders. 
+
+As I say in every chapter, don't blindly trust the chatbots! Or me, for that matter. I too, am fallible.
+
+Moving on.
+
+    var fmt := RDTextureFormat.new()
+    fmt.width = IMAGE_SIZE
+    fmt.height = IMAGE_SIZE
+    fmt.format = RenderingDevice.DATA_FORMAT_R8G8B8A8_UNORM
+    fmt.usage_bits = (
+        RenderingDevice.TEXTURE_USAGE_STORAGE_BIT
+        | RenderingDevice.TEXTURE_USAGE_CAN_COPY_FROM_BIT
+    )
+    var output_texture_rd := rd.texture_create(fmt, RDTextureView.new(), [])
+
+For better or worse, Claude loves the same short form variable names that are common online, and in this case, "format" becomes "fmt". To be fair, "fmt" gets reused a bunch.
+
+Perhaps you've worked in a business that has a "spec sheet", but if you haven't, imagine a business that makes custom window screens all day. The kind that blocks bugs. The business would have an ordering form where you'd say what kind of mesh you wanted, what kind of screws the screen uses, the height and width, and so on. The spec sheet is not the screen--it's just the form used to order one. RDTextureFormat is the spec sheet for textures. It's a form you fill out to order a texture. It is not the texture itself.
+
+The first line, RDTextureFormat.new() , just creates a new empty form. The width and height lines are self-explanatory. The fmt.format line:
+
+    fmt.format = RenderingDevice.DATA_FORMAT_R8G8B8A8_UNORM
+
+In this case, the format is RGBA, each in eight bits. "U" stands for "unsigned". "Normalized" means the colors, which are stored in each channel as an integer between 0 and 255, are ultimately interpreted as a 0.0-1.0 float. I'm assuming this is one of those lines where you just have to look up what you need every single time, cause when I was looking at the number of options available with auto-complete, there were many, many options.
+
+    fmt.usage_bits = (RenderingDevice.TEXTURE_USAGE_STORAGE_BIT | RenderingDevice.TEXTURE_USAGE_CAN_COPY_FROM_BIT
+    )
+
+The "usage_bits" method on the spec sheet is where you state how the texture will be used by the shader. Can the shader write to it? Read from it? Both? These are like file permissions you're giving to your cubicle shader office workers. You probably want them to have the minimum permissions needed to do their job, because this is how RenderingDevice ultimately determines how the memory on the GPU gets allocated for the resource. There's a pipe | meaning "or" here--meaning the workers can read OR write to it.
+
+Although there are tons of other examples I could point to, this is a good place to point out that even if you're copying and pasting a lot of your code in, and even if you only have a superficial understanding of what it's doing, it's great, and in some cases necessary, to have some understanding of it even if you don't care about the details.
+
+    var output_texture_rd := rd.texture_create(fmt, RDTextureView.new(), [])
+
+Finally, RenderingDevice uses the spec sheet to create the texture. As you can see, the first argument passed in is the spec sheet itself. The third argument is the initial data that makes up the texture--if you were shoving in a photo of a penguin to start with, that's where the penguin photo would go.
+
+The second argument, RDTextureView.new() is a texture "view". To beat an earlier horse, think about the str() that turns a number into a string. That's what a view can do. It can take that RGBA data and perceive it in some other way. It allows you to plop just one texture into the GPU's memory and have many different functions use it in many different ways. The alpha channel, for example, is often free space, since your character probably doesn't have invisible portions on it. Maybe you want to create a second resource, without the memory cost, that interprets the alpha channel in a format good for roughness/reflectivity. As mentioned previously, Guilty Gear got one of its effects by using a channel to dictate what portions of a character were always highlighted or always in shadow. And if an eight bit channel can store 0-255, and you use the numbers 0/1 to decide "always in shadow" and "always highlighted", you still have 254 more numbers to shove more information into as a texture for one character. Look at you, with all of those GPU memory savings! You're the reason Call of Duty can run on a cell phone! (I suspect this is why the Playstation exclusives look gorgeous and the ports often look like trash.)
+
+Back to the code.
+
+    var uniform := RDUniform.new()
+    uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
+    uniform.binding = 0
+    uniform.add_id(output_texture_rd)
+    var uniform_set := rd.uniform_set_create([uniform], shader, 0)
+
+This section is about binding, which is the process via which you take something with a unique RID and give it its set/binding address. When you send the dispatch to the workgroup(s), this is how they know where to find the resources you've created and allocated to them.
+
+Familiar themes will emerge.
+
+    var uniform := RDUniform.new()
+
+You might remember uniforms from my writing about conventional shaders. Uniforms are information passed to the shader from the CPU. That was true in the conventional shaders, and it's true now.
+
+There's one major difference, however. When we were writing conventional shaders, we just had to write one line of code in gdscript to identify the uniform and what variable it consisted of, and it was off to the races. 
+
+Here, however, the "uniform" isn't just the number/texture/float/whatever, it's also the set and the binding numbers. So you're doing a little bit of extra work to pass the uniform from the CPU to the GPU, and in particular, you're giving it set/binding numbers that need to match up with what you've written in the shader.
+
+This would be another case where you couldn't just copy and paste code from the internet, unless you got extraordinarily lucky and the desired set and binding numbers matched, or you were just copying a pair of gdscript/GLSL that already worked together.     
+
+    uniform.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
+
+No surprises here: You're filling out the uniform's spec sheet, and declaring the uniform's type. 
+
+    uniform.binding = 0
+
+Now you're filling in the binding for the spec sheet. If you had more than one, it would just count upwards from 0.
+
+    uniform.add_id(output_texture_rd)
+
+The RID was created earlier on; it was made the moment you declared "output_texture_rd". You're now adding it to a list of RIDs for the uniform. It might feel a little silly, because you're creating a uniform based on this variable. But some uniforms require multiple RIDs.
+
+Uniforms that require multiple RIDs include textures, which are composed of both a sampler and the pixel by pixel color data. They're even supposed to be added in the right order:
+
+    uniform.add_id(sampler_rid)   # first
+    uniform.add_id(texture_rid)   # second
+
+I DON'T USUALLY COPY AND PASTE PROSE FROM CLAUDE BUT SOMETIMES HE WRITES FINE 
+
+He even extended my office park metaphor! He could murder and replace me at any moment!
+
+Per Claude:
+
+    In GLSL you can declare a uniform as an array at a single binding slot. Like:
+
+    layout(set = 0, binding = 0) uniform image2D shadow_maps[4];
+
+    That's one binding (binding 0), but it holds four separate images. Inside main() you'd index into it: imageLoad(shadow_maps[2], coord).
+
+    On the gdscript side, you'd build one RDUniform with binding = 0, and then call add_id() four times — one texture RID per slot:
+
+    uniform.add_id(shadow_map_0_rid)
+    uniform.add_id(shadow_map_1_rid)
+    uniform.add_id(shadow_map_2_rid)
+    uniform.add_id(shadow_map_3_rid)
+
+    The shader sees those as shadow_maps[0] through shadow_maps[3], in the order you added them.
+
+    Why you'd ever do this instead of four separate bindings: when the resources are conceptually a set of the same thing and you want to loop over them in the shader. Classic examples:
+
+    Shadow maps for several lights — the shader loops for (i = 0; i < 4; i++) and samples each one.
+    A G-buffer's color attachments (albedo, normal, depth, motion) when you want index-based access.
+    Reading the previous N frames for temporal effects (TAA, motion blur).
+    A small material atlas where each terrain layer is its own texture but they share filtering rules.
+
+    In office-park terms: it's not "one mural at address (0,0) and another mural at (0,1)" — it's one wall at (0,0) that has four murals tacked up on it side by side, and the workers ask for "mural number 2 on that wall."
+
+I suppose one day a lot of this stuff will be abstracted away. But for now, you manually write it out.
+
+    var uniform_set := rd.uniform_set_create([uniform], shader, 0)
+
+And finally, the uniform gets created. You pass in the spec sheet, FINISH WRITING ABOUT ARGUMENTS 
+
+
+
+
+
+
+
+
+

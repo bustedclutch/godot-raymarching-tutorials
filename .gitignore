@@ -14,3 +14,9 @@
 !raymarching-chapter-*/project.godot
 !raymarching-chapter-*/public/
 !raymarching-chapter-*/public/**
+
+# Allow sidequest projects, following the same whitelist as chapters
+!compute-shader-sidequest/
+!compute-shader-sidequest/project.godot
+!compute-shader-sidequest/public/
+!compute-shader-sidequest/public/**
