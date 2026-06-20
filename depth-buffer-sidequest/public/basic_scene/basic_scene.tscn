@@ -1,0 +1,60 @@
+[gd_scene format=3 uid="uid://diqaw56py04qp"]
+
+[ext_resource type="Shader" uid="uid://bqajolvm0ekc" path="res://public/basic_scene/depth_buffer_viewer.gdshader" id="1_aa2f2"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_viv5q"]
+sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
+ground_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
+
+[sub_resource type="Sky" id="Sky_aa2f2"]
+sky_material = SubResource("ProceduralSkyMaterial_viv5q")
+
+[sub_resource type="Environment" id="Environment_i21cd"]
+background_mode = 2
+sky = SubResource("Sky_aa2f2")
+tonemap_mode = 2
+glow_enabled = true
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_si3q3"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_ot0qt"]
+
+[sub_resource type="SphereMesh" id="SphereMesh_12o55"]
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_viv5q"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_i21cd"]
+render_priority = 0
+shader = ExtResource("1_aa2f2")
+shader_parameter/example_number = 0.4
+shader_parameter/example_number2 = 0.0
+shader_parameter/far_distance = 30.0
+
+[node name="BasicScene" type="Node3D" unique_id=1699191930]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=2064278928]
+environment = SubResource("Environment_i21cd")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=459630312]
+transform = Transform3D(-0.8660254, -0.43301278, 0.25, 0, 0.49999997, 0.86602545, -0.50000006, 0.75, -0.43301266, 0, 0, 0)
+shadow_enabled = true
+
+[node name="Ground" type="MeshInstance3D" parent="." unique_id=880040514]
+transform = Transform3D(10, 0, 0, 0, 10, 0, 0, 0, 10, 0, 0, 0)
+mesh = SubResource("PlaneMesh_si3q3")
+
+[node name="Box" type="MeshInstance3D" parent="." unique_id=1843949561]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.80363035, 0.5261854, 0)
+mesh = SubResource("BoxMesh_ot0qt")
+
+[node name="Sphere" type="MeshInstance3D" parent="." unique_id=929076961]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.64521813, 0.43046582, 0)
+mesh = SubResource("SphereMesh_12o55")
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=323367130]
+transform = Transform3D(1, 0, 0, 0, 0.9006072, 0.43463388, 0, -0.43463388, 0.9006072, 0, 1.2617769, 2.146556)
+
+[node name="DepthBufferViewer" type="MeshInstance3D" parent="Camera3D" unique_id=1032781222]
+transform = Transform3D(0.5, 0, 0, 0, -2.1855694e-08, -0.5, 0, 0.5, -2.1855694e-08, -0.856, 0.306, -1)
+mesh = SubResource("PlaneMesh_viv5q")
+surface_material_override/0 = SubResource("ShaderMaterial_i21cd")

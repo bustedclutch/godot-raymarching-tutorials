@@ -20,3 +20,8 @@
 !compute-shader-sidequest/project.godot
 !compute-shader-sidequest/public/
 !compute-shader-sidequest/public/**
+
+!depth-buffer-sidequest/
+!depth-buffer-sidequest/project.godot
+!depth-buffer-sidequest/public/
+!depth-buffer-sidequest/public/**

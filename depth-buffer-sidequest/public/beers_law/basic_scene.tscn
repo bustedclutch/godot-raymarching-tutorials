@@ -1,0 +1,90 @@
+[gd_scene format=3 uid="uid://dw5nuleop8vv5"]
+
+[ext_resource type="Shader" uid="uid://b7nfauxspdaja" path="res://public/beers_law/depth_buffer_viewer.gdshader" id="1_df4b7"]
+[ext_resource type="Shader" uid="uid://c26aflpq2d87w" path="res://public/beers_law/beers_law.gdshader" id="2_apvef"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_viv5q"]
+sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
+ground_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
+
+[sub_resource type="Sky" id="Sky_aa2f2"]
+sky_material = SubResource("ProceduralSkyMaterial_viv5q")
+
+[sub_resource type="Environment" id="Environment_i21cd"]
+background_mode = 2
+sky = SubResource("Sky_aa2f2")
+tonemap_mode = 2
+glow_enabled = true
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_si3q3"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_ot0qt"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_f1usp"]
+
+[sub_resource type="SphereMesh" id="SphereMesh_12o55"]
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_viv5q"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_i21cd"]
+render_priority = 0
+shader = ExtResource("1_df4b7")
+shader_parameter/example_number = 0.4
+shader_parameter/example_number2 = 0.0
+shader_parameter/far_distance = 30.0
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_y1r3y"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_vg17c"]
+render_priority = 0
+shader = ExtResource("2_apvef")
+shader_parameter/example_number = 0.4
+shader_parameter/example_number2 = 0.0
+shader_parameter/far_distance = 30.0
+
+[node name="BeersLaw" type="Node3D" unique_id=1699191930]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=2064278928]
+environment = SubResource("Environment_i21cd")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=459630312]
+transform = Transform3D(-0.8660254, -0.43301278, 0.25, 0, 0.49999997, 0.86602545, -0.50000006, 0.75, -0.43301266, 0, 0, 0)
+shadow_enabled = true
+
+[node name="Ground" type="MeshInstance3D" parent="." unique_id=880040514]
+transform = Transform3D(60, 0, 0, 0, 60, 0, 0, 0, 60, 0, 0, 0)
+mesh = SubResource("PlaneMesh_si3q3")
+
+[node name="Box" type="MeshInstance3D" parent="." unique_id=1843949561]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.80363035, 0.5261854, 0)
+mesh = SubResource("BoxMesh_ot0qt")
+
+[node name="Box2" type="MeshInstance3D" parent="." unique_id=301746337]
+transform = Transform3D(10, 0, 0, 0, 10, 0, 0, 0, 10, 6.420038, 29.055737, 0)
+mesh = SubResource("BoxMesh_f1usp")
+
+[node name="Sphere" type="MeshInstance3D" parent="." unique_id=929076961]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.64521813, 0.43046582, 0)
+mesh = SubResource("SphereMesh_12o55")
+
+[node name="Sphere2" type="MeshInstance3D" parent="." unique_id=766157815]
+transform = Transform3D(10, 0, 0, 0, 10, 0, 0, 0, 10, -10.757168, 14.505444, 0)
+mesh = SubResource("SphereMesh_12o55")
+
+[node name="Sphere3" type="MeshInstance3D" parent="." unique_id=17306395]
+transform = Transform3D(10, 0, 0, 0, 10, 0, 0, 0, 10, -3.8705177, 34.970875, 0)
+mesh = SubResource("SphereMesh_12o55")
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=323367130]
+transform = Transform3D(0.99998873, -1.3877788e-17, -0.0047472776, 0.004747278, -4.3711385e-08, 0.9999887, -2.0751012e-10, -0.99999994, -4.371089e-08, -0.13659042, 51.211796, -1.3493506)
+far = 154.32
+
+[node name="DepthBufferViewer" type="MeshInstance3D" parent="Camera3D" unique_id=1032781222]
+transform = Transform3D(0.5, 0, 0, 0, -2.1855694e-08, -0.5, 0, 0.5, -2.1855694e-08, -0.856, 0.306, -1)
+mesh = SubResource("PlaneMesh_viv5q")
+surface_material_override/0 = SubResource("ShaderMaterial_i21cd")
+
+[node name="WaterPlane" type="MeshInstance3D" parent="." unique_id=148926070]
+transform = Transform3D(10, 0, 0, 0, 10, 0, 0, 0, 10, 0, 40, 0)
+mesh = SubResource("PlaneMesh_y1r3y")
+surface_material_override/0 = SubResource("ShaderMaterial_vg17c")
