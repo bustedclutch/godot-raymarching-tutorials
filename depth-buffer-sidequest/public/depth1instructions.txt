@@ -184,7 +184,7 @@ You then have a basic algebra problem, where everything gets multiplied by every
 
 What happens now? Well, let's turn to the math offered by Freya Holmer in her talk, "Why Can't You Multiply Vectors", which is a fabulous video and you should watch it if you like math.
 
-X and Y are basis vectors, meaning they're just 1 unit long. You have two options here. Option one is to say "well we're screwed, because we don't know what x squared or y squared really mean." And there's an argument for that, and it's when math turns philisophical. Option two is to say, "...welllllllll they are just one unit long, and 1 to the power of 1 is 1!" That would allow you to reduce your result to this:
+X and Y are basis vectors, meaning they're just 1 unit long. You have two options here. Option one is to say "well we're screwed, because we don't know what x squared or y squared really mean." And there's an argument for that, and it's when math turns philosophical. Option two is to say, "...welllllllll they are just one unit long, and 1 to the power of 1 is 1!" That would allow you to reduce your result to this:
 
 3*1 + 4xy + 6xy + 8*1
 
@@ -194,7 +194,7 @@ X and Y are basis vectors, meaning they're just 1 unit long. You have two option
 
 And that might not seem too crazy; you've created something with the shape of a complex number. And you're probably thinking, "well that's dumb, and kind of meaningless, and requires you to ignore the fact that x squared and y squared should mean something." And just toss it aside.
 
-But if you follow the same process with a three component vector, and I'm ruining the real moment of horror in Holmer's video, which was the math equivalent of Carrie reaching out from her grave and jump scaring the crap out of you: When you multiply a 3 component vector with the same process, you get a quaternion. If you don't know what a quaternion is, it's a math fiction we use to rotate objects. Although Godot only shows you radian and Euler rotationson on the surface, it's rotating everything under the hood with quaternions. If you read the https://eater.net/quaternions explanation of quaternions, you might also be suspicious of the fact that just the four component quaternion can be used to project a 3D rotation, a two component complex number can be used to project a float. 
+But if you follow the same process with a three component vector, and I'm ruining the real moment of horror in Holmer's video, which was the math equivalent of Carrie reaching out from her grave and jump scaring the crap out of you: When you multiply a 3 component vector with the same process, you get a quaternion. If you don't know what a quaternion is, it's a math fiction we use to rotate objects. Although Godot only shows you radian and Euler rotations on the surface, it's rotating everything under the hood with quaternions. If you read the https://eater.net/quaternions explanation of quaternions, you might also be suspicious of the fact that just the four component quaternion can be used to project a 3D rotation, a two component complex number can be used to project a float. 
 
 The point of all this: We absolutely could choose to multiply vectors if we wanted to! It would take us to a place that allows us to navigate space ships in real life and in video games, and there's evidence suggesting a holy order behind it.
 
@@ -217,7 +217,7 @@ This helps explain why matrix multiplication doesn't follow the rules of multipl
 
 2 * 3 = 3 * 2 = 6.
 
-It's symettric. The math word is "communicative". Matrix "multiplication" is not. A times B does not equal B times A when dealing with matrix "multiplication".
+It's symmetric. The math word is "commutative". Matrix "multiplication" is not. A times B does not equal B times A when dealing with matrix "multiplication".
 
 Also, as we saw above, you really actually can multiply two vectors together. Can you do that with matrix "multiplication"?
 
@@ -244,9 +244,9 @@ SO WHAT IS IT, REALLY?
 
 If they're being honest, some math teachers will instead refer to it as a "function" (it is!) or that it expresses a "chain of functions" (also accurate!). The main reason matrix "multiplication" is useful is precisely because functions are really useful, especially when they're chained together, and matrix "multiplication" gives you the ability to do some consolidating.
 
-Let's say we have a scale(), rotate(), and translate() function that each move vertices around. Matrix multiplicatiton allows you to combine all three functions into one function. 
+Let's say we have a scale(), rotate(), and translate() function that each move vertices around. Matrix multiplication allows you to combine all three functions into one function. 
 
-Say you have a vector expressed in a matrix called "V". The scale function can be expressed in programming terms as this: (x*scale, y*scale, z*scale). But there's a way to write a matrix such that mutlipying the vector matrix by the scale matrix produces a scaled set of vectors. You can do the same thing with rotation and translation. And crucially, you can combine the scale, rotation, and translation matrices into one single matrix.
+Say you have a vector expressed in a matrix called "V". The scale function can be expressed in programming terms as this: (x*scale, y*scale, z*scale). But there's a way to write a matrix such that multiplying the vector matrix by the scale matrix produces a scaled set of vectors. You can do the same thing with rotation and translation. And crucially, you can combine the scale, rotation, and translation matrices into one single matrix.
 
 In graphics programming, this means this:
 
@@ -430,7 +430,7 @@ We already know that the 4,5,0 numbers in the top right are what do the translat
 
 You may have figured out the scale matrix just from looking at it. The rotation one is the only hard one, as it requires geometry (or you just memorize or look up the formula if you need it). So creating the inversions of those isn't too crazy either. Conversely, creating the inverse of a matrix that doesn't fit into these particular patterns is difficult and requires a lot of unrelated math.
 
-The notation of inversions is a little funny. The inverse of T is written as T^-1, just as 1/x = x^-1. The notation thus keeps the pattern of a algebraic division, but its only a philisophical similarity: It undoes the function, it's not division. 
+The notation of inversions is a little funny. The inverse of T is written as T^-1, just as 1/x = x^-1. The notation thus keeps the pattern of a algebraic division, but its only a philosophical similarity: It undoes the function, it's not division. 
 
 SEPARATING THE SCALE/ROTATION/TRANSFORM MATRIX, AND THE MODEL/VIEW/PROJECTION MATRIX 
 
@@ -440,9 +440,9 @@ When you first create a mesh, in Blender or whatever, it has an origin of 0,0,0.
 
 But let's say you join a universe with other objects. You're no longer at the center/origin of said universe. Maybe you're 100 meters away from the center, and looking away, and quite small compared to everything else. We need a set of functions to move all of your vertices appropriately, to scale and turn and position them. That's through a combination of the scale/rotation/translation matrix multiplication functions. You are the object. The name of the combined matrix that does all of this at once: the object matrix.
 
-God walks through this universe, among its objects. Aside from being a female, She's  also a cat, with only one eye. She does not sit at the at the universe's origin--She prefers to move around, being a cat and all. But since She's the metaphorical center of the universe, and all that matters is what She can see, we have to relocate literally everything else in the universe--rotation and translation included--to make Her, and more specifically, Her one remaining eyeball, the center of the universe. Whatever Her eyeball's rotation and translation, relative to the universe's origin, must be undone to make Her the center. To see the world through Her eye, we must apply a different matrix. The inversion of the rotation and translation matrices of the camera, when combined into one matrix, is: the view matrix.
+God walks through this universe, among its objects. Aside from being a female, She's also a cat, with only one eye. She does not sit at the universe's origin--She prefers to move around, being a cat and all. But since She's the metaphorical center of the universe, and all that matters is what She can see, we have to relocate literally everything else in the universe--rotation and translation included--to make Her, and more specifically, Her one remaining eyeball, the center of the universe. Whatever Her eyeball's rotation and translation, relative to the universe's origin, must be undone to make Her the center. To see the world through Her eye, we must apply a different matrix. The inversion of the rotation and translation matrices of the camera, when combined into one matrix, is: the view matrix.
 
-But: God does not see things without perspective. God is an artist. There are vanishing lines in her vision. Things further away are smaller than things that are close, but, how much smaller? Does she see things in widescreen, and if so, how wide? How far does she see into the distance? If she chooses to ignore things too close to her eyeball, like specks of dust an inch or two away, what is the cutoff? Does she pack a great deal into her vision, to see things on both sides, or is her field of view more narrow? (Is God a competitive, first-person shooter?) Perhaps we can't see things as God can, but if we could, and it were projected onto a monitor, the universe would lastly need to be multipled by one final matrix: the projection matrix.
+But: God does not see things without perspective. God is an artist. There are vanishing lines in her vision. Things further away are smaller than things that are close, but, how much smaller? Does she see things in widescreen, and if so, how wide? How far does she see into the distance? If she chooses to ignore things too close to her eyeball, like specks of dust an inch or two away, what is the cutoff? Does she pack a great deal into her vision, to see things on both sides, or is her field of view more narrow? (Is God a competitive, first-person shooter?) Perhaps we can't see things as God can, but if we could, and it were projected onto a monitor, the universe would lastly need to be multiplied by one final matrix: the projection matrix.
 
 DOES GODot MAKE THESE MATRIXES VISIBLE TO US?
 
