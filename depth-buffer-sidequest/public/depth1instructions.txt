@@ -2,9 +2,9 @@ For reasons unknown, I've always been afraid of the depth buffer. I've decided t
 
 BUILDING A BASIC SCENE 
 
-The depth buffer is often used by a transparent object using data about opaque objects.
+The depth buffer is often used when a transparent or translucent object is between the camera and an opaque object. In the example for this chapter, the depth buffer will help a water shader decide how dark objects below the water surface are.
 
-Thus, we need some opaque objects.
+To start, we need some opaque objects.
 
 Create a 3D scene with a Node3D as the root, and add some MeshInstance3D objects, like a plane for the ground, and a cube and a sphere as sample objects. Add a camera, and the default WorldEnvironment and DirectionalLight3D. The scene tree will look like this:
 
@@ -30,9 +30,9 @@ Click "Run current scene" or F6 and make sure you see the scene like you see it 
 
 ADD A PLANE AS A CHILD OF THE CAMERA 
 
-In my raymarching chapter, we added a plane that sat just in front of the camera lens, as it's child, that functioned as a sort of gel, like you painted something on the lens of the camera. We'll be doing something *similar*, but instead of covering the entire camera lens, this plane will take up the upper left quarter of the screen.
+In my raymarching chapter, we added a plane that sat just in front of the camera lens, as its child, that functioned as a sort of gel, like you painted something on the lens of the camera. We'll be doing something *similar*, but instead of covering the entire camera lens, this plane will only take up the upper left quarter of the screen.
 
-Once you've added another MeshInstance3D and set its mesh to "plane", and renamed it to "DepthBufferViewer", make sure you reset the transforms, rotation, and scale, and made it a child of the camera. It will now be sitting on top of the camera, and also, not quite where you need it to be. It needs to be rotated 90 degrees and pushed a little bit forward of the camera. Rotate the plane mesh 90 degrees around the X axis, transform it -1 meter along the Z axis, and scale it down to 0.5 on all three axes. 
+Once you've added another MeshInstance3D and set its mesh to "plane", and renamed it "DepthBufferViewer", make sure you reset the transforms, rotation, and scale of the gel, and made it a child of the camera. It will now be sitting on top of the camera, and also, not quite where you need it to be. It needs to be rotated 90 degrees and pushed a little bit forward of the camera. Rotate the plane mesh 90 degrees around the X axis, transform it -1 meter along the Z axis, and scale it down to 0.5 on all three axes. It should now sit just in front of the camera's view. 
 
 In the "view" section of the menu above the 3D viewport, you can divide your view into "2 Viewports". Then in the upper left corner of one viewport, you can click the triple-dot button where it probably says "perspective" and select "Cinematic Preview" to have that viewport show you the camera's perspective. 
 
@@ -40,7 +40,7 @@ Right now, the DepthBufferViewer is sitting in the middle of the camera's view, 
 
 REMEMBER THAT ALL OF THIS IS RELATIVE TO THE CAMERA 
 
-These transformations are all relative to the camera, assuming you made this plane the camera's child. It will inherit transformations made to the camera, so as you move the camera around the scene, the DepthBufferViewer will follow it around.
+These transformations are all relative to the camera, assuming you made this plane the camera's child. It will inherit transformations made to the camera, so as you move the camera around the scene, the DepthBufferViewer will follow the camera around.
 
 TURN ON A SHADER FOR THE DepthBufferViewer
 
@@ -54,7 +54,7 @@ Just to make sure your shader is wired up and doing things, edit it and change t
 
 Your upper left corner DepthBufferViewer mesh should display the classic red/green UV rainbow.
 
-Below the shader_type line, add the line needed to stop shading the plane:
+Below the shader_type line, add the line needed to stop shading the plane ("unshaded") and to exclude the plane from contributing to the depth buffer ("depth_draw_never"):
 
     shader_type spatial;
     render_mode unshaded, depth_draw_never;
@@ -65,7 +65,7 @@ THIS IS BORING AND I WANT TO SEE THE DEPTH BUFFER
 
 I agree, let's see the depth buffer.
 
-Replace the fragment() shader with this:
+Replace the fragment() shader with this, and note that there's a commented-out alternative line that I left in on purpose:
 
     uniform sampler2D godot_depth_sampler : hint_depth_texture;
 
@@ -79,15 +79,15 @@ Now to explain each line.
 
     uniform sampler2D godot_depth_sampler : hint_depth_texture;
 
-Uniforms, in theory, come from outside the shader, and stay constant within the four walls of the shader. So maybe they come from gdscript, or you set them in the inspector, or maybe they're making a trip from elsewhere in the GPU in time or space. They're a little confusing, in that when you write uniforms into your shader, you can declare them to have whatever value you want--so even though they're exposed for editing in the shader, you might forget that they're actually pulling their values from the Inspector. (Which is why you might go insane debugging a shader only to realize that you changed a value in the Inspector and that tweaking the default in the shader code does nothing.)
+Uniforms, in theory, come from outside the shader, and stay constant within the four walls of the shader. Maybe they come from gdscript, or you set them in the inspector, or maybe they're making a trip from elsewhere in the GPU in time or space. They're a little confusing, in that when you write uniforms into your shader, you can declare them to have whatever value you want--so even though they're exposed for editing in the shader, you might forget that they're actually pulling their values from the Inspector. (Which is why you might go insane debugging a shader only to realize that you changed a value in the Inspector and that tweaking the default in the shader code does nothing.)
 
 WAIT WHAT?
 
-Say you're creating a uniform that's a float between 0 and 1, with a default value of 0.4. It would read like this:
+Say you're creating a uniform that's a float between 0 and 1, with a default value of 0.4. It would read like this in the shader code:
 
     uniform float example_number : hint_range(0.0,1.0) = 0.4;
 
-What happens if you don't give it a default, and just write this:
+You could skip giving it a default, and just write this:
 
     uniform float example_number2 : hint_range(0.0,1.0);
 
@@ -97,35 +97,41 @@ This means the word "hint" isn't really a hint. It's an order. The colon ":" is 
 
 I WANT WORDS TO MEAN WHAT THEY NORMALLY MEAN
 
-Well then you picked the wrong hobby.
+Well you picked the wrong hobby. This entire chapter is full of words meaning the wrong thing.
 
 SO WHAT IS A SAMPLER 
 
-A sampler is "more than a texture". If you want a metaphor, I'd say that your textures are like the raw data picked up by satellites and those space-travelling telescopes that take black and white photos of space. They're able to see a lot of space-crap, some of which the human eye can see, and other things the human eye can't see. If you want to turn that machine's data into a beautiful color poster for your college dormitory wall to ponder, the people at NASA have to make choices about sampling the image. How do they colorize it? How do they brighten up the contrast? What human-invisible parts do they make visible, and what arbitrary colors do they assign? The path that data takes from being taken in by the satellite/telescope to becoming your dorm room poster is similar to the sampler to texture path. Both involve machine data taking an arbitrary path to a human-readable form. That said, you might not use it for that purpose--the sampler might be preparing the data for some other machine process, so "making it visible to people" is just one purpose, not the only purpose.
+A sampler is "more than a texture". If you want a metaphor, consider the telescopes we launch into outer space to take "pictures". I put "pictures" in quotes because they collect raw, machine-readable data; they don't take the beautiful color pictures you'd put up as a poster.
 
-Thus, via the sampler, a depth texture isn't just a texture--it's a reflection that Godot already made a choice about how that depth texture will be processed and presented to you. This matters later.
+The sensors are able to see all kinds of space-crap, some of which the human eye can see, and other things the human eye can't see. If you want to turn that machine's data into a beautiful color poster for your college dormitory wall to ponder, the people at NASA have to make choices about sampling the image. How do they colorize it? How do they brighten up the contrast? What human-invisible parts do they make visible, and what arbitrary colors do they assign to stuff we normally can't see? The path that data takes from being taken in by the satellite/telescope to becoming your dorm room poster is a similar path taken from the texture through the sampler. Both involve data taking an arbitrary path, colored by an intermediate process, to another form, often a human-legible one. It doesn't have to be meant for human consumption: the sampler might be preparing the data for some other machine process, so "making it visible to people" is just one purpose.
+
+Thus, a depth texture, like all pictures, reflects arbitrary decisions within its presentation. It's a reflection of Godot's choices about how depth should be processed and presented to you. This matters later.
 
 THE LINE OF CODE YOU'D USE IF THE DepthBufferViewer COVERED THE ENTIRE SCREEN 
 
     //float depth = texture(godot_depth_sampler, SCREEN_UV).x;
 
-Normally with shaders we care about the UV terrain of whatever object has the material on it. The top left of the plane's default UV is 0,0 and the bottom right's default UV coordinate is 1,1. 
+This is currently commented out, but you can replace the depth assignment with this line, and stretch the DepthBufferViewer to cover the entire camera lens, to see what it does.
 
-SCREEN_UV is like saying, "I don't care about what the object's UV coordinate is, I actually care about the UV coordinate of this particular pixel on the monitor". Try switching back and forth between the SCREEN_UV and the UV lines to see the difference. You might have to enlarge the DepthBufferViewer to cover up more of the screen and its objects so that you can see what is, and isn't, contributing to the depth buffer.
+Normally with shaders we care about the UV terrain of whatever object has the shader assigned to it. The top left of the plane's default UV is 0,0 and the bottom right's default UV coordinate is 1,1. 
 
-This is useful for using a plane like a gel in front of the camera. You don't have to match up the plane's UV coordinates with the camera's UV coordinates, which can be tedious.
+SCREEN_UV is like saying, "I don't care about what the object's UV coordinate is, I actually care about the coorinate location of the pixel on the monitor". Try switching back and forth between the SCREEN_UV and the UV lines to see the difference. You might have to enlarge the DepthBufferViewer to cover up more of the screen and its objects so that you can see what is, and isn't, contributing to the depth buffer.
+
+This is useful for using a plane as a gel in front of the camera. You don't have to match up the plane's UV coordinates with the camera's UV coordinates, which can be tedious.
+
+EXPLANATION OF THE DEPTH ASSIGNMENT AND SAMPLER LINE
 
     float depth = texture(godot_depth_sampler, UV).x;
 
-We are extracting a float and naming it "depth". The next clause:
+We are extracting a float and naming it "depth". The texture() function including arguments reads:
 
 texture(godot_depth_sampler, UV)
 
-...is a function taking two arguments. It is *NOT* returning an entire texture. The first argument is the image data from the sampler, and the second argument is the XY coordinate of the sampler's image that you want to pull color data from. 
+Note that texture() is *NOT* returning an entire texture. The first argument is the image data from the sampler, and the second argument is the XY coordinate of the sampler's image that you want to pull color data from. 
 
-In plain English, this texture() function is what normal humans would refer to as sampling a texture at a specific position. But we're not using normal human language here. 
+In plain English, this texture() function is what normal humans would refer to with a function name more like, sample_texture_at_this_UV_coordinate(). But we're not using normal human language in this chapter. 
 
-There's a final swizzle added:
+There's a final swizzle added, the .x :
 
 texture(godot_depth_sampler, UV).x
 
@@ -133,13 +139,13 @@ texture(godot_depth_sampler, UV).x
 
     ALBEDO = vec3(depth);
 
-This final line should be pretty obvious if you've read my other chapters--the float for depth gets pasted into all three color channels and gets spit out as the final color, making a black and white image representing depth.
+This final line should be pretty obvious if you've read my other chapters--the float for depth gets pasted into all three color channels as a vec3 and gets spit out as the final color, making a black and white image representing depth.
 
 THIS DEPTH BUFFER IS HARD TO SEE
 
-The depth buffer is expressed exponentially. This is so that you get more depth accuracy for close objects, at the expense of depth accuracy for far objects.
+The depth buffer is expressed by the engine exponentially. This is so that you get more depth accuracy for close objects, at the expense of depth accuracy for far objects.
 
-This is Claude's suggested code for converting that exponential version back into a linear version:
+This is Claude's suggested code for converting that exponential version into a linear version:
 
     uniform float far_distance : hint_range(0.0,100.0) = 30;
 
@@ -155,36 +161,57 @@ This is Claude's suggested code for converting that exponential version back int
 
     depth = linear_depth(UV, INV_PROJECTION_MATRIX) / far_distance;
 
+You don't need to get bogged down in that function yet--I'll spend the next couple thousand words getting into it.
 
 IT'S TIME TO ENTER MATRIX MATH HELL 
 
-I've watched many YouTube videos explaining matrix math, and perhaps I'm feeling hostile, but they all seem to assume I understand things easily. The irritation this brings to the surface could probably explain a lot about why democracies fall apart when academics fail to explain things well.
+I've watched many YouTube videos explaining matrix math, and perhaps I'm feeling hostile, but they all seem to assume I understand things easily. The irritation this brings to the surface could probably explain a lot about why democracies fall when academics fail to explain things well.
 
-I care about democracy, and so: I think it's time I take a crack at explaining matrix math.
+I care about democracy, and so: I think it's time I take a crack at explaining matrix math. Maybe I'll fail like so many others. Maybe I'll succeed.
 
-MATRIX MATH IS JUST AN ARBITRARY LANGUAGE 
+IT'S OK TO FIND MATRIX MATH CONFUSING 
 
-Let's get this out of the way first: Matrix math is arbitrary. I know that Claude and possibly your math teacher will claim that there's some kind of holy order underlying it, but I'm here to argue that there isn't a holy order to be found under it. If you came looking for God in matrix math, you came to the wrong place.
+I've worked through books and videos to learn the basics of raymarching, noise, hashes, shading, portrait sculpting, and programming. None of those subjects ever made me want to throw things as much as matrices. So if you find them irritating, let me validate those feelings now. Matrices are irritating, and there are some valid reasons why.
 
-What happens when you "multiply" two 1x2 matrices together? That's probably the first place to start, since we've done versions of that a bunch already, when we smash two vec2s together. Say we've got this:
+MATRIX MATH IS JUST AN ARBITRARY LANGUAGE WHERE WORDS DON'T MEAN WHAT THEY USUALLY DO
+
+Let's get this out of the way first: Matrix math is arbitrary. I know that Claude and possibly your math teacher will claim that there's some kind of holy order underlying it, but I'm here to argue that there isn't a holy order. If you came looking for God in matrix math, you came to the wrong place.
+
+If you're used to algebra and geometry and calculus, you know that they can get *weird*, but the closest thing you get to something truly arbitrary and made-up is algebra's order of operations. Why do we multiply before we do addition? Because we just agreed to do it that way. But there's a logic to most of the rest (in my opinion).
+
+Not so with matrix math, and in particular, matrix "multiplication".
+
+WHAT IF IT WEREN'T ARBITRARY? WHAT IF WE REALLY MULTIPLIED?
+
+Here's a question you might have initially bent toward: What if we just actually multiplied everything? *Can* we multiply a matrix?
+
+Let's try it!
+
+The easiest matrix you're already familiar with is a one row, two column vector: A point in space with an X coordinate and a Y coordinate. In regular shader code, we multiply these all the time. Say we've got this:
 
     (1,2) * (3,4)
 
-Can you multiply the vectors together? There's certainly what's called "component wise" multiplication, and that's what happens in normal shader programming all the time. It looks like this:
+Can you multiply the vectors together? If we were writing a shader, we would write the multiply character and multiply the two vectors just like this:
+
+    vec2 result = vec2(1.0,2.0)*vec2(3.0,4.0);
+
+ A mathematician (or you, if you're fastidious) might say: "That's not actually multiplication." And you'd be correct. All that's happened is "component wise" multiplication, and that's what happens in normal shader programming. It looks like this:
 
     (1*3,2*4) = (3, 8)
 
-But that's not actually multiplication. What does actual multiplication produce? Well, you'd start by sticking the letters back in, and replacing the commas with plus signs:
+We haven't really multiplied the vectors--we've just multiplied the X's, multiplied the Y's, and moved on. This has no connection to the multiplication you learn in grade school.
 
-(1x + 2y) * (3x + 4y)
+What does actual multiplication produce? Well, you'd start by sticking the letters back in, and replacing the commas with plus signs:
+
+    (1x + 2y) * (3x + 4y)
 
 You then have a basic algebra problem, where everything gets multiplied by everything else, producing this:
 
-3x^2 + 4xy + 6xy + 8y^2
+    3x^2 + 4xy + 6xy + 8y^2
 
-What happens now? Well, let's turn to the math offered by Freya Holmer in her talk, "Why Can't You Multiply Vectors", which is a fabulous video and you should watch it if you like math.
+And we're already heading down the wormhole of chaos. What happens now? Well, let's turn to the math offered by Freya Holmer in her talk, "Why Can't You Multiply Vectors", which is a fabulous video and you should watch it if you like math.
 
-X and Y are basis vectors, meaning they're just 1 unit long. You have two options here. Option one is to say "well we're screwed, because we don't know what x squared or y squared really mean." And there's an argument for that, and it's when math turns philosophical. Option two is to say, "...welllllllll they are just one unit long, and 1 to the power of 1 is 1!" That would allow you to reduce your result to this:
+X and Y are *basis* vectors, and one of the qualities of these vectors is that they're just 1 unit long. You have two options here. Option one is to say "well we're screwed, because we don't know what X squared or Y squared theoretically mean." And there's an argument for that, and it's when math turns philosophical. Option two is to take some drugs and say, "...welllllllll they are just one unit long, and 1 to the power of 1 is 1!" which would allow you to reduce your result to this:
 
 3*1 + 4xy + 6xy + 8*1
 
@@ -192,36 +219,42 @@ X and Y are basis vectors, meaning they're just 1 unit long. You have two option
 
 11 + 10xy.
 
-And that might not seem too crazy; you've created something with the shape of a complex number. And you're probably thinking, "well that's dumb, and kind of meaningless, and requires you to ignore the fact that x squared and y squared should mean something." And just toss it aside.
+And you've created something with the shape of a complex number. And you're probably thinking, "well that's dumb, and kind of meaningless, and requires you to ignore the fact that x squared and y squared should mean something, and also only makes sense if I'm on drugs." And so you toss it aside. But should you?
 
-But if you follow the same process with a three component vector, and I'm ruining the real moment of horror in Holmer's video, which was the math equivalent of Carrie reaching out from her grave and jump scaring the crap out of you: When you multiply a 3 component vector with the same process, you get a quaternion. If you don't know what a quaternion is, it's a math fiction we use to rotate objects. Although Godot only shows you radian and Euler rotations on the surface, it's rotating everything under the hood with quaternions. If you read the https://eater.net/quaternions explanation of quaternions, you might also be suspicious of the fact that just the four component quaternion can be used to project a 3D rotation, a two component complex number can be used to project a float. 
+If you follow the same process with a three component vector, and I'm ruining the real moment of horror in Holmer's video, which was the math equivalent of Carrie reaching out from her grave and jump scaring the crap out of you (I've ruined two great works in one sentence!): When you multiply a 3D vector by another 3D vector and redcue it with the same process, you get a quaternion. If you don't know what a quaternion is, it's a math fiction we use to rotate objects. Although Godot only shows you radian and Euler rotations on the surface, it's rotating everything under the hood with quaternions. If you read the https://eater.net/quaternions explanation of quaternions, you might also be suspicious of the fact that just as the four component quaternion can be used to project a 3D rotation, a two component complex number can be used to project a float. (It can also be used to rotate a vector.) Suddenly, what you thought was just a drug induced foray into a "what-if" starts to feel... holy-orderish.
 
-The point of all this: We absolutely could choose to multiply vectors if we wanted to! It would take us to a place that allows us to navigate space ships in real life and in video games, and there's evidence suggesting a holy order behind it.
+The point of all this: We absolutely could choose to multiply vectors if we wanted to! It would take us to a place that allows us to navigate space ships in real life and in video games, and thus, there's evidence suggesting a holy order behind it.
 
 I'M STILL CONFUSED ABOUT WHAT THIS HAS TO DO WITH MATRICES 
 
-Well, when we "multiply" vectors in practice, we instead often do either the component wise multiplication I mentioned earlier, or the "dot product". The dot product is below:
+I swear I'm getting there.
+
+When we "multiply" vectors in practice, we usually do the component wise multiplication I mentioned earlier, or the "dot product". The dot product is below:
 
 (1,2) dot product (3, 4) =
 1*3 + 2*4 = 
 3 + 8 =
 11
 
-Notice that the dot product isn't "the one true way to multiply vectors". It's just... "a useful function to run on two vectors".
+Written as a function in shader code it'll look like this:
+
+    float result = dot(vec2(1.,2.),vec2(3.,4.));
+
+Notice that the dot product isn't "the one true way to multiply vectors". It's just... "a useful function to run on two vectors". It's a built-in function in Godot's shader code and accepts two floats, two vec2s, two vec3s, or two vec4s.
 
 MATRIX MULTIPLICATION: IT'S NOT MULTIPLICATION 
 
-And this is where I give my middle finger to linear algebra textbooks everywhere, which is that there's nothing inherently legitimately multiplicative about matrix "multiplication". It's just a useful function we run on two matrices. And which includes some multiplication.
+And this is where I give my middle finger to linear algebra textbooks everywhere, which is that the thing everybody calls "matrix multiplication" isn't multiplication. It's just a useful function we run on two matrices.
 
 This helps explain why matrix multiplication doesn't follow the rules of multiplication. Normally in algebra:
 
-2 * 3 = 3 * 2 = 6.
+    2 * 3 = 3 * 2 = 6.
 
 It's symmetric. The math word is "commutative". Matrix "multiplication" is not. A times B does not equal B times A when dealing with matrix "multiplication".
 
-Also, as we saw above, you really actually can multiply two vectors together. Can you do that with matrix "multiplication"?
+Also, as we saw above, you really actually can multiply two vectors together. Can you multiply two vectors together with matrix "multiplication"?
 
-No. Can't do that either. Matrix multiplication requires the number of *columns* in the *first* matrix to match the number of *rows* in the *second* matrix. That's why you can't do this:
+No. You can't. Matrix multiplication requires the number of *columns* in the *first* matrix to match the number of *rows* in the *second* matrix. That's why you can't do this:
 
 [1,2] * [3,4]
 
@@ -230,7 +263,7 @@ But you can do this:
 [1,2] * [3]
         [4]
 
-...if you want to know how that shakes out, it's:
+The math of that operation is this:
 
 [1*3 + 2*4] = 3 + 8 = 11
 
@@ -238,61 +271,148 @@ The number 11 looks familiar, doesn't it?
 
 DOES THIS MEAN MATRIX MULTIPLICATION IS ACTUALLY MATRIX DOT PRODUCTING AND EVERYONE HAS BEEN LYING TO ME THIS ENTIRE TIME?
 
-Yes. You're not crazy. Now, some teachers and textbooks might say something like, "we never called it 'multiplication', we just said it was a 'product'" but I refuse to be gaslit on this. I will go to my grave scare-quoting matrix "multiplication".
+Yes. You're not crazy. Now, some teachers and textbooks might say something like, "we never called it 'multiplication', we just said it was a particular 'product'" but I refuse to be gaslit on this. I will go to my grave scare-quoting matrix "multiplication".
 
 SO WHAT IS IT, REALLY?
 
-If they're being honest, some math teachers will instead refer to it as a "function" (it is!) or that it expresses a "chain of functions" (also accurate!). The main reason matrix "multiplication" is useful is precisely because functions are really useful, especially when they're chained together, and matrix "multiplication" gives you the ability to do some consolidating.
+If they're being honest, some math teachers will instead refer to it as a "function" (it is!) or that it developed to express a "chain of functions" (also accurate!). The main reason matrix "multiplication" is useful is because functions are useful. Functions can be chained together. Functions can be consolidated. And in graphics programming, consolidating functions into more efficient versions means: "more FPS more more more now!"
 
-Let's say we have a scale(), rotate(), and translate() function that each move vertices around. Matrix multiplication allows you to combine all three functions into one function. 
+Let's say we have a scale(), rotate(), and translate() function that each move vertices around. Matrix multiplication allows you to combine all three functions into one function, like a scale_rotate_translate() function, in a way that can be computed very quickly.
 
-Say you have a vector expressed in a matrix called "V". The scale function can be expressed in programming terms as this: (x*scale, y*scale, z*scale). But there's a way to write a matrix such that multiplying the vector matrix by the scale matrix produces a scaled set of vectors. You can do the same thing with rotation and translation. And crucially, you can combine the scale, rotation, and translation matrices into one single matrix.
+That way, you don't have to do the scale function first and then the rotate function second and the translate function third, repeating math all along the way. You can just do it all at once. When running that operation on millions of polygons at 60+ frames per second for every pixel on the monitor, that... adds up!
 
-In graphics programming, this means this:
+FUN FACT ABOUT MATRIX MULTIPLICATION: IT'S WRITTEN BACKWARDS
 
-V * S * R * T = result 
+There are many rakes hiding in the ground when it comes to matrices. Among the most tedious is that the standard convention for writing matrix multiplication functions is to write them *backwards*, and as I mentioned above, you get a different result if the matrix multiplication happens in the wrong order. Also: Not everyone writing on the internet follows that convention, so some people write them forwards. Which means you don't actually know for sure what order it's supposed to be in, you have to figure it out from context.
 
-Can be shortened by turning S*R*T into a single matrix named "C" to produce this:
+The logic for this comes from the fact that matrix multiplication was always a function in disguise. So you might see someone in an internet forum say: 
 
-V * C = the same result!
+    "Vectors are first multiplied by scale, then by rotation, then by the translation matrix, and thus the equation is T*R*S*V".
 
-I DON'T BELIEVE YOU
+That person is definitely using the backwards notation. But the only way you can be absolutely dead sure of that is that they literally just told you the order they were working in.
 
-I don't believe me either. I do sound kind of crazy, and I did just claim a global conspiracy about the truth behind matrix multiplication. So let's just do it.
+And if you're accustomed to reading left to right, you might go, wait what? Shouldn't it be V*S*R*T? Am I going crazy?
 
-Say you've got a four component vector of (6, 4, 3, 1). And your first matrix, named S for scale, is:
+You're not crazy! Instead, imagine it like the programming functions you're used to:
+
+    result=T(R(S(V)))
+
+From programming or algebra, you'd know that the things inside the parentheses happen first. The scale function would happen first, followed by the R function, and finishing with the T function.
+
+Matrix multiplication works the same way but nobody writes parentheses to clarify anything, causing misery and confusion the world over.
+
+SOME NOTES ABOUT THE INNER OUTER RULES 
+
+Matrices have shapes, and that shape is their number of rows and columns; the first number is the row, the second number is the column. A 2x4 matrix has two rows and four columns.
+
+The inner numbers must match for a valid multiplication, so you can do this:
+
+    [2 rows, 324 columns] x [324 rows, 8 columns]
+
+...but not this, because 6 doesn't equal 4:
+
+    [2 rows, 6 columns] x [4 rows, 2 columns]
+
+The shape of the final matrix is determined by the outside numbers. So this:
+
+  [2 rows, 324 columns] x [324 rows, 8 columns]
+
+...produces a result matrix with 2 rows, and 8 columns.
+
+ANOTHER ASPECT OF MATRIX MATH THAT EVERYONE DECIDED TO DIVERGE ON 
+
+You might be getting overwhelmed by the discrepancies at this point. But wait, there's more!
+
+The matrices that do scaling/rotation/translation are 4x4 matrices; that shape is mostly true everywhere now.
+
+What's NOT true everywhere is whether a vector is expressed as a row or a column.
+
+Say we have a three dimensional vector at (2,3,4,1). That fourth dimension, w, is always 1 and is an arbitrary element I'll discuss later. Should the matrix to express the vector be a single column:
+
+    [2]
+    [3]
+    [4]
+    [1]
+
+....or should the matrix be a single row:
+
+    [2,3,4,1]
+
+Well, in theory, since we control the construction of the scale_rotate_translate matrix, we could do either and still make computer graphics. So, quelle surprise, the graphics communities diverged. Just as they couldn't agree on a right hand or left handed coordinate system, or a less ridiculous or more helpful mnemonic than "left and right handed", they split into two camps. DirectX chose the row method, and everyone else apparently chose columns. 
+
+The language we're writing in is GLSL, so we're "Team Column". If this is your first intro to matrix math, it's like you're being born into a decades old battle of sectarian violence. Defend the column vectors to the death!
+
+WHAT THIS MEANS FOR THE ORDERING OF THE MATRICES INSIDE THE FUNCTIONS THEMSELVES 
+
+Following the inner-outer rule, and being members of "team column", this means within each individual matrix function, the vector receiving changes will be the second matrix.
+
+You can get mixed up easily because if you only have one vector, it's legal to do the multiplication as either:
+
+[1x4] matrix multiplied by [4x4] matrix
+or
+[4x4] matrix multiplied by [4x1] matrix
+
+But remember, we are born adherents to pro-column sectarian violence, meaning we will only accept the [4x4]*[4x1] operation.
+
+SCALING, ROTATION, AND TRANLATION MATRICES IN ACTION
+
+I did just claim a global conspiracy about the truth behind matrix multiplication, so you might doubt my claims without examples. Fair!
+
+Say you've got a vector of (6, 4, 3, 1). And your first matrix, named S for scale, is:
 
 [2, 0,   0, 0]
 [0, 2.5, 0, 0]
 [0, 0,   1, 0]
 [0, 0,   0, 1]
 
+This means that our matrix math will look like this:
+
+[2, 0,   0, 0]          [6]
+[0, 2.5, 0, 0]    *     [4]
+[0, 0,   1, 0]          [3]
+[0, 0,   0, 1]          [1]
+
 Here's how the math shakes out. Each cell of the new matrix is composed of the dot product of the first matrix's row and the second matrix's column:
 
-X component: 6*2 + 4*0   + 3*0 + 1*0 = 12.
-Y component: 6*0 + 4*2.5 + 3*0 + 1*0 = 10.
-Z component: 6*0 + 4*0   + 3*1 + 1*0 =  3.
-W component: 6*0 + 4*0   + 3*0 + 1*1 =  1.
+X component: 2*6   + 0*4   + 0*3 + 0*1 = 12.
+Y component: 0*6   + 2.5*4 + 0*3 + 0*1 = 10.
+Z component: 0*6   + 0*4   + 1*3 + 0*1 =  3.
+W component: 0*6   + 0*4   + 0*3 + 1*1 =  1.
 
-If you're like "ahhhhh my mind is blown!" then you can read https://www.mathsisfun.com/algebra/matrix-multiplying.html for some basic walkthoughs of multiplying matrices.
+If you're like "ahhhhh my mind is blown!" then you can read https://www.mathsisfun.com/algebra/matrix-multiplying.html for some basic walkthoughs of multiplying matrices. (This is also an imperfect example, as the diagonal symmetry allows you to dot product columns with columns and still get the right answer--but that will fail with the subsequence matrices, which are not mirror images around the diagonal.)
 
-The new vector is (12, 10, 3, 1). That scaling matrix/function scales X up by 2 and scales Y up by 2.5. As you can see, it sets most of the matrix numbers to 0 to avoid changing anything else.
+The new vector is:
 
-Now, let's say our second matrix, named R, for rotate, is this:
+[12]
+[10]
+[ 3]
+[ 1]
 
-[-1, 0, 0, 0]
+That scaling matrix/function scales X up by 2 and scales Y up by 2.5. As you can see, it sets most of the matrix numbers to 0 to avoid changing anything else.
+
+Now, let's say our second matrix, named R, for rotate, is a 90 degree rotation around the Y axis:
+
+[ 0, 0, 1, 0]
 [ 0, 1, 0, 0]
-[ 0, 0,-1, 0]
+[-1, 0, 0, 0]
 [ 0, 0, 0, 1]
 
-Multiplying the vector matrix by the rotation matrix:
-                (12, 10, 3, 1)
-X component: 12*-1 + 10*0 + 3* 0 +1*0 = -12
-Y component: 12*0 + 10*1 + 3*0 +1*0=10
-Z component: 12*0 + 10*0 + 3*-1 + 1*0 = -3
-W component: 12*0 + 10*0 + 3*0 + 1*1 = 1
+Which means our rotation multiplication looks like this:
 
-Resulting in a vector of (-12,10,-3,1). This was a rotation vector that spins things 180 degrees around the Y axis, which is why the Y coordinate stayed in place and the X and Z coordinates reversed.
+
+[ 0, 0, 1, 0]       [12]
+[ 0, 1, 0, 0]   *   [10]
+[-1, 0, 0, 0]       [ 3]
+[ 0, 0, 0, 1]       [ 1]
+
+
+Multiplying the rotation matrix by the vector matrix:
+X component:  0*12 + 0*10 + 1*3 + 0*1 =   3
+Y component:  0*12 + 1*10 + 0*3 + 0*1 =  10
+Z component: -1*12 + 0*10 + 0*3 + 0*1 = -12
+W component:  0*12 + 0*10 + 0*3 + 1*1 =   1
+
+Resulting in a vector of (3, 10, -12, 1). This is a rotation matrix that spins things 90 degrees around the Y axis. The Y coordinate stays in place (Y is the axis we're rotating around), and the X and Z coordinates swap roles--what used to be 12 units along X is now 12 units along -Z, and what used to be 3 units along Z is now 3 units along X.
 
 And let's say our third matrix, named T, for translate, is this:
 
@@ -301,11 +421,18 @@ And let's say our third matrix, named T, for translate, is this:
 [0, 0, 1, 0]
 [0, 0, 0, 1]
 
-                (-12,10,-3,1)
-X component: -12*1 + 10*0 + -3*0 + 1*4 = -8
-Y component: -12*0 + 10*1 + -3*0 + 1*5 = 15
-Z component: -12*0 + 10*0 + -3*1 + 1*0 = -3
-W component: -12*0 + 10*0 + -3*0 + 1*1 = 1
+So we have the last bit of matrix multiplication:
+
+[1, 0, 0, 4]        [  3]
+[0, 1, 0, 5]    *   [ 10]
+[0, 0, 1, 0]        [-12]
+[0, 0, 0, 1]        [  1]
+
+X component: 1*3 + 0*10 + 0*-12 + 4*1 =   7
+Y component: 0*3 + 1*10 + 0*-12 + 5*1 =  15
+Z component: 0*3 + 0*10 + 1*-12 + 0*1 = -12
+W component: 0*3 + 0*10 + 0*-12 + 1*1 =   1
+
 
 This is a translation matrix, and this one moves things 4 units along the X axis and 5 units along the Y axis.
 
@@ -313,32 +440,37 @@ USING A COMBINED MATRIX
 
 One of the three main reasons for using matrices is that they can be combined. The scale, then rotate, then translate functions/matrices can be turned into this:
 
-[-2, 0, 0, 4]
+[ 0,   0, 1, 4]
 [ 0, 2.5, 0, 5]
-[0, 0, -1, 0]
-[0, 0,  0, 1]  
+[-2,   0, 0, 0]
+[ 0,   0, 0, 1]
 
 Let's make sure it works with the original vector:
 
-                (6, 4, 3, 1)
-X component: 6*-2 + 4*0 + 3*0 + 1*4 = -8
-Y component: 6*0 + 4*2.5 + 3*0 + 1*5 = 15
-Z component: 6*0 + 4*0 + 3*-1 + 1*0 = -3
-W component: 1*0 + 1*0 + 1*0 +1*1 = 1
+[ 0,   0, 1, 4]     [6]
+[ 0, 2.5, 0, 5] *   [4]
+[-2,   0, 0, 0]     [3]
+[ 0,   0, 0, 1]     [1]
 
-Aaaaaaand it's the same--the combined matrix impacted the initial vector the same way as doing it one matrix at a time.
+X component:  0*6 +   0*4 + 1*3 + 4*1 =   7
+Y component:  0*6 + 2.5*4 + 0*3 + 5*1 =  15
+Z component: -2*6 +   0*4 + 0*3 + 0*1 = -12
+W component:  0*6 +   0*4 + 0*3 + 1*1 =   1
+
+
+Aaaaaaand it's the same result--the combined matrix impacted the initial vector the same way as doing it one matrix at a time.
 
 So, how do we smash the S, R, and T matrices together? Can we multiply them S*R*T? Nope!
 
 REMEMBER HOW I SAID MATRIX MULTIPLICATION WAS REALLY A COMBINATION OF FUNCTIONS?
 
-It's common in programming to do this: 
+As mentioned above, the matrix multiplication is really this pattern: 
 
 func1(func2(func3(func4(argument))));
 
-What gets evaluated first? Well, if you've been doing linear algebra or programming for some amount of time, then you know that func4(argument) gets evaluated first. Then func3(), then func2(), and finally, func1(). It's kind of obvious in programming because it feels somewhat impossible to do it any other way--you'd often be trying to evaluate some abstract noise to do it otherwise.
+You might know from the parentheses of algebra or the basics of programming that func4(argument) gets evaluated first. Then func3(), then func2(), and finally, func1().
 
-This is another reason not to think of matrix "multiplication" as multiplication. It's a function. If you want to apply scale, rotation, and translation in that same 1-2-3 order, then you actually need to chain it exactly how functions chain together, by working backwards. If these were functions, and you need them to evaluate in the order of scale, then rotation, then translation, you'd write it like this:
+This is another reason not to think of matrix "multiplication" as multiplication. It's a function. If you want to apply scale, rotation, and translation in that same 1-2-3 order, then you need to chain the functions together in the right order, by working backwards. If these were functions, and you need them to evaluate in the order of scale, then rotation, then translation, you'd write it like this:
 
     T(R(S(argument)))
 
@@ -351,9 +483,9 @@ Let's do it together!
 R*S:
 
 R Matrix:
-[-1, 0, 0, 0]
+[ 0, 0, 1, 0]
 [ 0, 1, 0, 0]
-[ 0, 0,-1, 0]
+[-1, 0, 0, 0]
 [ 0, 0, 0, 1]
 
 S Matrix:
@@ -362,26 +494,60 @@ S Matrix:
 [0, 0,   1, 0]
 [0, 0,   0, 1]
 
-It gets a little heady when the number of columns and rows expand. 
+It gets a little heady when the number of columns and rows expand.
 
-When you're filling in the answer, you're taking the dot product of the *row* of the first matrix and the *column* of the second matrix. If you're filling in the 7th row, 9th column of your answer, then you'd be taking the dot product of the 7th row of the first matrix and the 9th column of the second matrix. I've been filling things in on a column by column basis when completing my answers, though it's valid to fill it in row by row. 
+When you're filling in the answer, you're taking the dot product of the *row* of the first matrix and the *column* of the second matrix. If you're filling in the 7th row, 9th column of your answer, then you'd be taking the dot product of the 7th row of the first matrix and the 9th column of the second matrix. I've been filling things in on a column by column basis when completing my answers, though it's valid to fill it in row by row.
 
 I'm eliminating the 0's to save a little room:
 
 R matrix dot producting S matrix:
 
-                Col1 | Col2 | Col3 | Col4
-Row A:          -1*2    0       0       0
-Row B:          0      1*2.5    0       0
-Row C:          0       0      -1*1     0
-Row D:          0       0       0      1*1
+                Col1  |  Col2  |  Col3  |  Col4
+Row A:          0        0        1*1      0
+Row B:          0        1*2.5    0        0
+Row C:         -1*2      0        0        0
+Row D:          0        0        0        1*1
 
 Thus, "RS" is:
 
-[-2, 0,  0, 0]
+[ 0,   0, 1, 0]
+[ 0, 2.5, 0, 0]
+[-2,   0, 0, 0]
+[ 0,   0, 0, 1]
+
+
+WHAT IF YOU SCREWED IT UP AND RAN THE ORDER AS SR INSTEAD?
+
+You would get a different, and incorrect, result:
+S Matrix:
+[2, 0,   0, 0]
 [0, 2.5, 0, 0]
-[0, 0,  -1, 0]
+[0, 0,   1, 0]
 [0, 0,   0, 1]
+
+R Matrix:
+[ 0, 0, 1, 0]
+[ 0, 1, 0, 0]
+[-1, 0, 0, 0]
+[ 0, 0, 0, 1]
+
+
+S matrix dot producting R matrix:
+
+                Col1  |  Col2  |  Col3  |  Col4
+Row A:          0        0        2*1      0
+Row B:          0        2.5*1    0        0
+Row C:          1*-1     0        0        0
+Row D:          0        0        0        1*1
+
+Thus, "SR" is:
+
+[ 0,   0, 2, 0]
+[ 0, 2.5, 0, 0]
+[-1,   0, 0, 0]
+[ 0,   0, 0, 1]
+
+BACK TO CONSOLIDATION
 
 We now have to evaluate T("RS"):
 
@@ -392,28 +558,32 @@ T is:
 [0, 0, 0, 1]
 
 and "RS" is:
-[-2, 0,  0, 0]
-[0, 2.5, 0, 0]
-[0, 0,  -1, 0]
-[0, 0,   0, 1]
+[ 0,   0, 1, 0]
+[ 0, 2.5, 0, 0]
+[-2,   0, 0, 0]
+[ 0,   0, 0, 1]
 
-                Col1 | Col2 | Col3 | Col4
-Row A:          1*-2    0       0       4*1
-Row B:          0     1*2.5     0       5*1
-Row C:          0       0      1*-1     0
-Row D:          0       0       0       1
+                Col1  |  Col2  |  Col3  |  Col4
+Row A:          0        0        1*1      4*1
+Row B:          0        1*2.5    0        5*1
+Row C:          1*-2     0        0        0
+Row D:          0        0        0        1*1
 
 And this simplified becomes:
-[-2, 0, 0, 4]
+[ 0,   0, 1, 4]
 [ 0, 2.5, 0, 5]
-[0, 0, -1, 0]
-[0, 0,  0, 1]  
+[-2,   0, 0, 0]
+[ 0,   0, 0, 1]
 
-This is an example of why the order matters--if you do T(R) first, then R(S), it'll come out wrong. If you did S*R, and then that result times T, that would also come out wrong.
+ORDERING AND FUNCTIONS 
+
+Although I suppose you could always look it up, the T(R(S(V))) pattern, when consolidating, follows the same order that S(V) did. The argument of the function came second and the matrix identified by the function came first. 
+
+I find the ordering to be incredibly confusing, so if you do too, just sleep on it and come back to it later. Unless you're writing a game engine, you probably won't need to know all of the consolidation stuff by heart.
 
 WHAT IS DIVISION/INVERSION?
 
-As mentioned previously, we're not actually multiplying, when doing matrix "multiplication", so it should come as no surprise that we can't actually divide. "Division" in this case just means undoing the effects of the function. This is called inverting. So if you created the inverse of that SRT matrix, doing the multiplication/dot-producting of that inverse would restore you to your original position.
+As mentioned previously, we're not actually multiplying, when doing matrix "multiplication", so it should come as no surprise that you can't actually divide. "Division" in this case is just another way of saying undoing the effects of the function. This is also called inverting. So if you created the inverse of that SRT matrix, doing the multiplication/dot-producting of that inverse would restore you to your original position.
 
 Consider our translation matrix T:
 [1, 0, 0, 4]
@@ -430,23 +600,35 @@ We already know that the 4,5,0 numbers in the top right are what do the translat
 
 You may have figured out the scale matrix just from looking at it. The rotation one is the only hard one, as it requires geometry (or you just memorize or look up the formula if you need it). So creating the inversions of those isn't too crazy either. Conversely, creating the inverse of a matrix that doesn't fit into these particular patterns is difficult and requires a lot of unrelated math.
 
-The notation of inversions is a little funny. The inverse of T is written as T^-1, just as 1/x = x^-1. The notation thus keeps the pattern of a algebraic division, but its only a philosophical similarity: It undoes the function, it's not division. 
+The notation of inversions is a little funny. The inverse of T is written as T^-1, just as 1/x = x^-1. The notation thus keeps the written pattern of algebraic division, but its only a philosophical similarity: Just as we were never really multiplying when using the multiplication symbol, we're not really dividing when using the division symbol. We're just undoing the function.
 
-SEPARATING THE SCALE/ROTATION/TRANSFORM MATRIX, AND THE MODEL/VIEW/PROJECTION MATRIX 
+SEPARATING THE SCALE/ROTATION/TRANSFORM MATRIX FROM THE MODEL/VIEW/PROJECTION MATRIX 
 
-There's a whole lot of matrices running around.
+There's a whole lot of matrices running around! Which ones are which?
 
-When you first create a mesh, in Blender or whatever, it has an origin of 0,0,0. So long as it's the only object in a scene, its origin will always be 0,0,0, forever. It's scale and rotation are also meaningless. If you were just floating through an empty void, nothing else in the universe, how big would you be? What direction would you be pointed in? You wouldn't have a direction, you wouldn't have a size, and you wouldn't have a position. These only become things until you join a universe of other objects.
+When you first create a mesh, in Blender or whatever, it has an origin of 0,0,0. So long as it's the only object in a scene, its origin will always be 0,0,0, forever. Its scale, rotation, and position are all meaningless--the only thing with relevance is the individual polygons' relationship to each other. If you were just floating through an empty void, with nothing else in the universe, how big would you be? What direction would you be pointed in? Your hands would be in a different place than your feet, but inside the void, that's it. *You* wouldn't have a direction, *you* wouldn't have a size, and *you* wouldn't have a position. These only become things when you join a universe of other objects. When you are in the void, you are in local space, sometimes called object space.
 
-But let's say you join a universe with other objects. You're no longer at the center/origin of said universe. Maybe you're 100 meters away from the center, and looking away, and quite small compared to everything else. We need a set of functions to move all of your vertices appropriately, to scale and turn and position them. That's through a combination of the scale/rotation/translation matrix multiplication functions. You are the object. The name of the combined matrix that does all of this at once: the object matrix.
+But let's say you join a universe, a whole world with other objects. You're no longer at the center/origin of said universe. Maybe you're 100 meters away from the center, and looking away, and quite small compared to everything else. We need a set of functions to move all of your vertices together, in one swift motion, to scale and turn and position them. That's through a combination of the scale/rotation/translation matrix multiplication functions. You are the object. The name of the combined matrix that does all of this at once: the object matrix. It positions you and your vertices in this new space you've found yourself in, called "world space".
 
-God walks through this universe, among its objects. Aside from being a female, She's also a cat, with only one eye. She does not sit at the universe's origin--She prefers to move around, being a cat and all. But since She's the metaphorical center of the universe, and all that matters is what She can see, we have to relocate literally everything else in the universe--rotation and translation included--to make Her, and more specifically, Her one remaining eyeball, the center of the universe. Whatever Her eyeball's rotation and translation, relative to the universe's origin, must be undone to make Her the center. To see the world through Her eye, we must apply a different matrix. The inversion of the rotation and translation matrices of the camera, when combined into one matrix, is: the view matrix.
+God walks through this universe, among its objects. Aside from being a female, She's also a cat, with only one eye. She does not sit at the universe's origin--She prefers to move around, being a cat and all. But since She's the metaphorical center of the universe, and all that matters is what She can see, we have to relocate literally everything else in the universe--rotation and translation included--to make Her, and more specifically, Her one remaining eyeball, the center of the universe. Whatever Her eyeball's rotation and translation, relative to the universe's origin, must be undone to make Her the center. To see the world through Her eye, we must apply a different matrix. The inversion of the rotation and translation matrices of the camera, when combined into one matrix, is: the view matrix. This is view space.
 
-But: God does not see things without perspective. God is an artist. There are vanishing lines in her vision. Things further away are smaller than things that are close, but, how much smaller? Does she see things in widescreen, and if so, how wide? How far does she see into the distance? If she chooses to ignore things too close to her eyeball, like specks of dust an inch or two away, what is the cutoff? Does she pack a great deal into her vision, to see things on both sides, or is her field of view more narrow? (Is God a competitive, first-person shooter?) Perhaps we can't see things as God can, but if we could, and it were projected onto a monitor, the universe would lastly need to be multiplied by one final matrix: the projection matrix.
+But: God does not see things without perspective. God is an artist. There are vanishing lines in her vision. Things further away are smaller than things that are close, but, how much smaller? Does she see things in widescreen, and if so, how wide? How far does she see into the distance? If she chooses to ignore things too close to her eyeball, like specks of dust an inch or two away, what is the cutoff? Does she pack a great deal into her vision, to see things on both sides, or is her field of view more narrow? (Is God a competitive, first-person shooter?) Perhaps we can't see things as God can, but if we could, then everything needs to be multiplied by another matrix: the projection matrix. Everything that God cannot see is irrelevant--clipped from existence, at least for this frame. Perhaps the physics engine is still keeping track of it (some other, lesser god, in this metaphor) but not in view of the one true God. This is clip space.
+
+Your monitor is composed of thousands of little pixels, each staring into their little portion of God's clip space. They see a portion of a mesh; a triangle! A vertex hither, thither, and fro. Each pixel has a color, a normal, and well of interior thoughts. The pixel assesses the values of each of the three vertices, and chooses an interpolated blend, based on which one is closest, which furthest, and by how far. This is screen space. 
 
 DOES GODot MAKE THESE MATRIXES VISIBLE TO US?
 
 In shadercode, whilst within the main shader functions like fragment() (they don't seem available outside of that space) you can call the constants INV_PROJECTION_MATRIX and PROJECTION_MATRIX and INV_VIEW_MATRIX and VIEW_MATRIX . 
+
+BUT I WANT TO SEE THE MATRICES, I WANT TO UNDO GOD'S PERSPECTIVE!
+
+Shader code does seem like a direct line to the heavens, so let's undo it! Or, do it twice to visualize what it does!
+
+Create another basic scene with some spheres and a ground plane, and a light, environment, and camera.
+
+JUST KIDDING I LIED 
+
+I thought it would be fun to write a shader that visualizes that the projection matrix does, but it started to look like another rabbit hole so I'm leaving it alone for now. Maybe I'll come back to it later! Maybe you'll write it!
 
 RETURNING TO THE DEPTH BUFFER, VIA GOD
 
@@ -460,7 +642,7 @@ Yes.
 
 OMG I HATE YOU 
 
-I mean, I could have waited to tell you that until after the explanation of a function to derive the camera's near and far plane from its perspective matrix, so it's only half as bad as it could have been!
+I mean, I could have waited to tell you that until after the explanation of a function to derive the camera's near and far plane from its projection matrix, so it's only half as bad as it could have been!
 
 Also, I could have been like Claude, and never told you that other option even existed! I do find it quite interesting as a factual matter that Claude leaned on me so heavily to take the projection matrix path, even though it's 1. More lines of code and 2. Has problems that would be considered by many to outweigh its advantages. 
 
@@ -471,4 +653,15 @@ BACK TO THE FUNCTION FOR FINDING TRUE DEPTH
 Claude is actually correct that it's incredibly useful to have command of the view and projection matrices, so let's press on with extracting the actual depth of objects from the depth buffer using a function based on the projection matrix.
 
 
+TO DO LIST: Explain projection matrix components
+Separate them out via script 
+Contemplate the line traveling from the camera through the water plane to the object 
+Apply Beer's law
 
+
+
+APPENDIX: FURTHER READING 
+
+https://blog.mecheye.net/2024/10/the-ultimate-guide-to-matrix-multiplication-and-ordering/
+
+Brian Will's YouTube video: "OpenGL - clip space, NDC, and screen space"
