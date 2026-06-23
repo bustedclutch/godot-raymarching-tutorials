@@ -1,0 +1,76 @@
+[gd_scene format=3 uid="uid://dosyfs465j2r4"]
+
+[ext_resource type="Shader" uid="uid://dooinyadmgxne" path="res://public/matrix_fun/matrix_fun.gdshader" id="1_g2ite"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_d1lpf"]
+sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
+ground_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
+
+[sub_resource type="Sky" id="Sky_g2ite"]
+sky_material = SubResource("ProceduralSkyMaterial_d1lpf")
+
+[sub_resource type="Environment" id="Environment_sg7qo"]
+background_mode = 2
+sky = SubResource("Sky_g2ite")
+tonemap_mode = 2
+glow_enabled = true
+
+[sub_resource type="SphereMesh" id="SphereMesh_c8r76"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_sg7qo"]
+render_priority = 0
+shader = ExtResource("1_g2ite")
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_g2ite"]
+render_priority = 0
+shader = ExtResource("1_g2ite")
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_5sh0n"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_c8r76"]
+render_priority = 0
+shader = ExtResource("1_g2ite")
+
+[sub_resource type="BoxMesh" id="BoxMesh_c8r76"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_5sh0n"]
+render_priority = 0
+shader = ExtResource("1_g2ite")
+
+[node name="MatrixFun" type="Node3D" unique_id=2024969423]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1744147496]
+environment = SubResource("Environment_sg7qo")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1577189561]
+transform = Transform3D(-0.8660254, -0.43301278, 0.25, 0, 0.49999997, 0.86602545, -0.50000006, 0.75, -0.43301266, 0, 0, 0)
+shadow_enabled = true
+
+[node name="Sphere" type="MeshInstance3D" parent="." unique_id=2022431049]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.45731026, 0.48791194, 0)
+mesh = SubResource("SphereMesh_c8r76")
+surface_material_override/0 = SubResource("ShaderMaterial_sg7qo")
+
+[node name="Sphere3" type="MeshInstance3D" parent="." unique_id=1308072888]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.47221422, 0.48791194, 0.5598679)
+mesh = SubResource("SphereMesh_c8r76")
+surface_material_override/0 = SubResource("ShaderMaterial_sg7qo")
+
+[node name="Sphere2" type="MeshInstance3D" parent="." unique_id=1276495727]
+transform = Transform3D(0.6, 0, 0, 0, 0.6, 0, 0, 0, 0.6, 1.1898414, 0.26022446, 0)
+mesh = SubResource("SphereMesh_c8r76")
+surface_material_override/0 = SubResource("ShaderMaterial_g2ite")
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=1777806762]
+transform = Transform3D(1, 0, 0, 0, 0.9659258, 0.25881904, 0, -0.25881904, 0.9659258, -0.31203902, 1.8596555, 5.208278)
+far = 36.36
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=1068172907]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.039424777)
+mesh = SubResource("PlaneMesh_5sh0n")
+surface_material_override/0 = SubResource("ShaderMaterial_c8r76")
+
+[node name="MeshInstance3D2" type="MeshInstance3D" parent="." unique_id=869183240]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.7470626, 0.3949678, 0)
+mesh = SubResource("BoxMesh_c8r76")
+surface_material_override/0 = SubResource("ShaderMaterial_5sh0n")

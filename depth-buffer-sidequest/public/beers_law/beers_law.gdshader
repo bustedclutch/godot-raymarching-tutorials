@@ -26,6 +26,9 @@ void fragment() {
 	float thickness     = scene_depth - surface_depth;
 
 	ALBEDO = vec3(thickness / 50.0);
+	
+	float result = dot(vec2(1.,2.),vec2(3.,4.));
+	
 }
 ////THE OLD FUNCTION FOR REFERENCE
 //void fragment() {

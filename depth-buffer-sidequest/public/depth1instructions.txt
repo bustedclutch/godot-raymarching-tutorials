@@ -1,3 +1,6 @@
+THIS CHAPTER IS STILL UNFINISHED AND WILL CONTAIN EVEN MORE ERRORS THAN THE "FINISHED" CHAPTERS THANKS
+
+
 For reasons unknown, I've always been afraid of the depth buffer. I've decided those days are over!
 
 BUILDING A BASIC SCENE 
