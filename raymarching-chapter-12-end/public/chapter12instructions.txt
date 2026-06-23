@@ -22,7 +22,7 @@ The full code block is pasted below. The "include" for the line.gdshaderinc file
 			//if (floor_x == 1.0 && floor_y ==2.0){
 				//return vec3(1.0);}
 			//else{
-					//return vec3(0.0);
+				//return vec3(0.0);
 			//}
 			float between_x = step(0.9, floor_x) - step(1.1, floor_x);
 			return vec3(between_x);
@@ -100,7 +100,7 @@ GET TO TRANSLATING
 
 We've got quite a bit of translating to do. 
 
-I'm just copying and pasting in the gdscript functions we need in their entirety, which are these: 
+I'm just copying and pasting in the gdscript functions we need in their entirety, which are the below; I've excluded functions like "to_binary()", since we won't be translating that: 
 
 	##A simple vec2 to integer converter for hashing purposes
 	func combine_x_and_y_to_uint(x: int, y: int) -> int:
@@ -194,9 +194,9 @@ WHY THE UINT?
 
 I don't actually want to stop the book and do another binary-numbers-math-class chapter or I will burn out, but if you try to do bitwise math on signed integers on a GPU, weird crap will happen that you don't want. 
 
-One of the things you might have picked up on so far is that the GPU world is quite good about maintaining standards--a shader on Godot is a shader on Unity is a shader on Unreal. 
+One of the things you might have picked up on so far is that the GPU world is somewhat good about maintaining similar standards--hence why you don't need to do very much translating to write the same shader in multiple engines.
 
-And apparently, among those standards is that UINT math and bitwise operations always behaves the same way. So congratulations, you learn shader code here, you learned shader code everywhere. It's the esperanto of coding, if esperanto hadn't flamed out.
+And apparently, among those standards is that UINT math and bitwise operations always behaves the same way. So congratulations, you learn shader code here, you learned shader code everywhere. It's the Esperanto of coding, if Esperanto hadn't flamed out.
 
 TRANSLATING THE WELLONS HASH 
 
@@ -272,7 +272,7 @@ We've answered similar questions already when we lit up the grid cells and when 
 		return uint(int(y_floor));
 	}
 
-Only one real surprise here, which is converting the floor float to an integer and then again to an unsigned integer. I am not positive that the intermediate int() step is necessary, but we can try breaking later to find out!
+Only one real surprise here, which is converting the floor float to an integer and then again to an unsigned integer. I am not positive that the intermediate int() step is necessary (Claude feels strongly that it is), but we can try breaking later to find out!
 
 WHERE IS THE RANDOM POINT FOR THIS CELL?
 
@@ -286,7 +286,7 @@ As I said previously, we don't want the noise function called twice, but we shou
 		var x_float : float = x / 65536.0
 		var y_float : float = y / 65536.0
 
-Create a draft notepad function called draft_notepad that just returns 1 so it doesn't produce errors, and put your code in there for now:
+Create a draft notepad function called draft_notepad_function() that just returns 1 so it doesn't produce errors, and put your code in there for now:
 
 	int draft_notepad_function(uint hashed_uint){
 		uint combined_hash_uint = hashed_uint;
@@ -325,9 +325,9 @@ The draft_notepad_function is already looking like it's well on its way to becom
 
 BUT WAIT, WE NEED MORE MATH 
 
-The position of any given random point is a number between 0 and 1, some fraction, that gets added to the bottom left corner of any given grid cell to determine it's final position. 
+The position of any given random point is a number between 0 and 1, some fraction, that gets added to the bottom left corner of any given grid cell to determine its final position. 
 
-Thus, if in our function we asked, "how close am I to (0.57,0.38), we'd get a bunch of chaos, which we don't want. If the grid cell has an ID of (2,3) then the final point location for the math needs to be (2.57, 3.38). 
+Thus, if in our function we asked, "how close am I to (0.57,0.38)?", we'd get a bunch of chaos, which we don't want. If the grid cell has an ID of (2,3) then the final point location for the math needs to be (2.57, 3.38). 
 
 How to deal with this? For now, I'm just going to add two more arguments for the display function, to write in the grid ID numbers.
 
@@ -421,11 +421,13 @@ This is where you really get to break out the champagne. The hash gives you powe
 
 IMMEDIATE THINGS TO PLAY WITH 
 
-You know enough, by now, to change that step() function into a distance function that maps the color to the distance--this has the immediate payoff of transforming your shader to something that immediately looks a lot more like true cellular noise.
+You know enough, by now, to change that step() function into a distance function that maps the color to the distance--this has the immediate payoff of transforming your shader into something that immediately looks a lot more like true cellular noise.
 
-If you love the 3D math and want to play with that immediately, you could extend the number of dimensions further--perhaps you want to have four input dimensions and three output dimensions, rather than the current system of two-in/two-out. This would allow you to find a grid in 3D space, altered by the passage of time. To show it off in the 2d shader, you could have that third dimension be reflected in the point's color.
+If you love the 3D math and want to play with that immediately, you could extend the number of dimensions further--perhaps you want to have four input dimensions and three output dimensions, rather than the current system of two-in/two-out. This would allow you to find a grid in 3D space, altered by the passage of time. To show it off in the 2D shader, you could have that third dimension be reflected in the point's color.
 
-You could also consider how you might use linear interpolation, via the built-in lerp() function, to cause the points to transition slowly. Perhaps you'd like them to randomly float around, or perhaps you'd want them to move with the flow of a sin wave.
+You could also consider how you might use linear interpolation, via the built-in mix() function, to cause the points to transition slowly. The equivalent function in gdscript, which you might have used already, is lerp(). Perhaps you'd like them to randomly float around, or perhaps you'd want them to move with the flow of a sin wave.
+
+Interpolation is described in the Godot docs here: https://docs.godotengine.org/en/stable/tutorials/math/interpolation.html although that references the lerp() function. The mix() function behaves similarly. Both take three arguments: The starting position, the ending position, and finally, a "weight". The weight is between 0.0 and 1.0, and when operating in gdscript is often time, but in shaders, is usually the shader code's reflection of how close you are to the source of each of the two colors you're mixing together, such that being right in the middle would be a 0.5.
 
 These are all possible, and we now have an extension of our graphing calculator to help us visualize it.
 
@@ -435,7 +437,4 @@ As far as the next chapter, however, we will need to fix a problem: The closest 
 
 Additionally, many forms of cellular noise don't just rely on the distance to the closest point. Instead, they play with the distances to the second, third, fourth, and fifth nearest points. That's useful for taking the noise from something that still looks a bit computer generated to something more organic. 
 
-Once that's done, we'll have a side chapter about building a water shader, so that we can experiment with Godot's built in noise baking, and use our knowledge from prior chapters to deliver a water shader that precisely matches your aesthetic, rather than something that looks slightly out of place from being a copy/paste template.
-
-TO DO ITEMS:
-ERROR CORRECTION PASS
+Once that's done, we'll have a side chapter about building a water shader, so that we can experiment with Godot's built-in noise baking, and use our knowledge from prior chapters to deliver a water shader that precisely matches your aesthetic, rather than something that looks slightly out of place from being a copy/paste template.
