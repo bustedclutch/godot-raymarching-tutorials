@@ -2,6 +2,34 @@ shader_type spatial;
 render_mode unshaded;
 
 uniform float scale = 3.0;
+const float MAX_DISTANCE = 10.0;
+
+void winners_podium(float input_distance, inout float distance_array[5]){
+	if (input_distance < distance_array[0]){
+		distance_array[4]=distance_array[3];
+		distance_array[3]=distance_array[2];
+		distance_array[2]=distance_array[1];
+		distance_array[1]=distance_array[0];
+		distance_array[0]=input_distance;}
+	else if (input_distance < distance_array[1]){
+		distance_array[4]=distance_array[3];
+		distance_array[3]=distance_array[2];
+		distance_array[2]=distance_array[1];
+		distance_array[1]=input_distance;}
+	else if (input_distance < distance_array[2]){
+		distance_array[4]=distance_array[3];
+		distance_array[3]=distance_array[2];
+		distance_array[2]=input_distance;}
+	else if (input_distance < distance_array[3]){
+		distance_array[4]=distance_array[3];
+		distance_array[3]=input_distance;}
+	else if (input_distance < distance_array[4]){
+		distance_array[4]=input_distance;}
+	}
+
+	vec2 local_space_uv_coordinate(vec2 xy){
+		return vec2(fract(xy.x), fract(xy.y));
+	}
 
 uint grid_id_x(vec2 xy){
 	float x_vec = xy.x;
@@ -72,9 +100,10 @@ void fragment() {
 	vec3 col = vec3(0.);
 	uint uv_grid_id_x = grid_id_x(uv);
 	uint uv_grid_id_y = grid_id_y(uv);
-	uint combined_uv_for_hashing = combined_x_and_y_uint(uv_grid_id_x,uv_grid_id_y);
-	uint uv_hash = wellons_integer_hashed(combined_uv_for_hashing);
-	col = col + random_point_light(uv,scale,uv_hash,floor(uv.x),floor(uv.y));
+	float worley_distances[5] = float[5](MAX_DISTANCE,MAX_DISTANCE,MAX_DISTANCE,MAX_DISTANCE,MAX_DISTANCE);
+	
+	
+	
 	col = col + grid_line(uv, scale);
 	ALBEDO = col; ALPHA = 1.0;
 }

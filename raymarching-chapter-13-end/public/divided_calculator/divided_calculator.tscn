@@ -2,6 +2,7 @@
 
 [ext_resource type="Shader" uid="uid://n3lijorpdmm3" path="res://public/divided_calculator/abstracted_calculator.gdshader" id="1_npegn"]
 [ext_resource type="Shader" uid="uid://csykujm0bmndl" path="res://public/divided_calculator/divided_calculator.gdshader" id="2_uwky4"]
+[ext_resource type="Shader" uid="uid://bmdd6kjvxav7e" path="res://public/divided_calculator/worley_points.gdshader" id="3_iw45m"]
 [ext_resource type="Shader" uid="uid://bdy28m2iij7b8" path="res://public/divided_calculator/worley_p_start.gdshader" id="3_lt2sk"]
 
 [sub_resource type="PlaneMesh" id="PlaneMesh_uwky4"]
@@ -22,7 +23,7 @@ shader_parameter/scale = 3.0
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_kaewy"]
 render_priority = 0
-shader = ExtResource("3_lt2sk")
+shader = ExtResource("3_iw45m")
 shader_parameter/scale = 3.0
 
 [sub_resource type="PlaneMesh" id="PlaneMesh_kaewy"]
