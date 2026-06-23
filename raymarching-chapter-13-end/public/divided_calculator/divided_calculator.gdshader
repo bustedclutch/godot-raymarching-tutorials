@@ -1,0 +1,52 @@
+
+
+shader_type spatial;
+render_mode unshaded;
+
+#include "res://public/divided_calculator/line.gdshaderinc"
+
+//Adding scale as a uniform, exposing it to the Inspector
+uniform float scale = 3.0;
+
+	vec3 lit_block (vec2 xy, float local_scale) {
+		float floor_x = floor(xy.x);
+		float floor_y = floor(xy.y);
+		//if (floor_x == 1.0 && floor_y ==2.0){
+			//return vec3(1.0);}
+		//else{
+				//return vec3(0.0);
+		//}
+		float between_x = step(0.9, floor_x) - step(1.1, floor_x);
+		return vec3(between_x);
+	}
+
+vec3 grid_line (vec2 xy, float local_scale) {
+	//Take fractional parts of X and Y
+	float x_fract = fract(xy.x);
+	float y_fract = fract(xy.y);
+	//Test each part to see if the fractional part is close to zero or almost one.
+	float grid_test = step(x_fract, 0.02) + step(0.98, x_fract) + step(y_fract, 0.02) + step(0.98, y_fract) ;
+	float lit = min(1.0, grid_test);
+	vec3 grid_light = lit * vec3(0.0, 0.5, 0.2);
+	return grid_light;
+}
+
+
+vec2 uv_math(vec2 xy, float local_scale){
+	vec2 uv = xy;
+	uv = uv * 2.0 - 1.0;
+	uv = uv * vec2(1.0, -1.0);
+	uv = uv * local_scale;
+	return uv;
+}
+
+void fragment() {
+
+	vec2 uv = uv_math(UV, scale);
+	vec3 col = vec3(0.);
+	//col = col + line(uv, scale);
+	//col = col + line2(uv, scale);
+	col = col + lit_block(uv, scale);
+	col = col + grid_line(uv, scale);
+	ALBEDO = col; ALPHA = 1.0;
+}
