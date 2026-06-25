@@ -30,6 +30,8 @@ void winners_podium(float input_distance, inout float distance_array[5]){
 	vec2 local_space_uv_coordinate(vec2 xy){
 		return vec2(fract(xy.x), fract(xy.y));
 	}
+	
+
 
 uint grid_id_x(vec2 xy){
 	float x_vec = xy.x;
@@ -95,6 +97,28 @@ vec2 uv_math(vec2 xy, float local_scale){
 	return uv;
 }
 
+//vec2 random_local_point(vec2 xy){
+	//uint x_id = grid_id_x(xy);
+	//uint y_id = grid_id_y(xy);
+	//uint combined_xy = combined_x_and_y_uint(x_id, y_id);
+	//uint combined_hash = wellons_integer_hashed(combined_xy);
+	//uint x_uint = combined_hash >> 16u;
+	//uint y_uint = combined_hash &0xFFFFu;
+	//float x_normalized_hash = float(x_uint) / float(65536);
+	//float y_normalized_hash = float(y_uint) / float(65536);
+	//return vec2(x_normalized_hash,y_normalized_hash);
+//}
+
+vec2 random_local_point(uint grid_id_x, uint grid_id_y){
+	uint combined_uint_for_hashing = combined_x_and_y_uint(grid_id_x, grid_id_y);
+	uint combined_hash_uint = wellons_integer_hashed(combined_uint_for_hashing);
+	uint x_uint = combined_hash_uint >> 16u;
+	uint y_uint = combined_hash_uint &0xFFFFu;
+	float x_normalized_hash = float(x_uint) / float(65536);
+	float y_normalized_hash = float(y_uint) / float(65536);
+	return vec2(x_normalized_hash, y_normalized_hash);
+}
+
 void fragment() {
 	vec2 uv = uv_math(UV, scale);
 	vec3 col = vec3(0.);
@@ -102,7 +126,30 @@ void fragment() {
 	uint uv_grid_id_y = grid_id_y(uv);
 	float worley_distances[5] = float[5](MAX_DISTANCE,MAX_DISTANCE,MAX_DISTANCE,MAX_DISTANCE,MAX_DISTANCE);
 	
-	
+	vec2 local_current_pos = vec2(fract(uv.x),fract(uv.y));
+	for (int local_y = -1; local_y<=1; local_y++){
+		for (int local_x = -1; local_x<=1; local_x++){
+			//get this cell's uint identifiers. this first attempt broke. 
+			//the second attempt worked. feel free to ponder why
+			//uint cell_uint_x = uint(float(local_x) + uv.x);
+			//uint cell_uint_y = uint(float(local_y) + uv.y);
+			uint cell_uint_x = uint(int(uv_grid_id_x) + local_x);
+			uint cell_uint_y = uint(int(uv_grid_id_y) + local_y);
+			//pass this cell's uint identifiers in to get a local point
+			vec2 random_loc_p = random_local_point(cell_uint_x,cell_uint_y);
+			//update the random point with the neighborhood address
+			random_loc_p.x += float(local_x);
+			random_loc_p.y += float(local_y);
+			//get the distance from the neighborhood cell random point
+			//to the current local position in UV space
+			float dist = distance(random_loc_p, local_current_pos);
+			//update the winner's podium with the result 
+			winners_podium(dist, worley_distances);
+		}
+	}
+
+	//col = + vec3(worley_distances[0]);
+	col = + vec3(worley_distances[1] - worley_distances[0]);
 	
 	col = col + grid_line(uv, scale);
 	ALBEDO = col; ALPHA = 1.0;

@@ -6,7 +6,7 @@ TWO ROADS DIVERGED
 
 As introduced by Steve Worley, there wasn't just one point per grid-square. There was a range; sometimes many points, sometimes none. This was a "Poisson" distribution. It was also in 3D, and the code had various additions to increase its efficiency. It was more complex than our shader in almost every respect, except for the fact that it used a simple hash rather than an integer one.
 
-If the chapters are feeling too slow for you, you could make it more hardcore by introducing the Poisson distribution immediately, or by adding tests to make the code more efficient, or by coding it in three dimensions rather than two. For now, I'm going to take the path of inefficient, Poisson-free, two dimensional simplicity.
+If the chapters are feeling too slow for you, you could make it more hardcore by introducing the Poisson distribution immediately, by adding tests to make the code more efficient, or by coding it in three dimensions rather than two. For now, I'm going to take the path of inefficient, Poisson-free, two dimensional simplicity.
 
 CLEANING THINGS UP
 
@@ -95,9 +95,9 @@ The worley_points.gdshader file is feeling a little clouded with junk. I duplica
 
 REMEMBERING WHAT HAPPENS
 
-It's been a few days since I wrote the last chapter, and I've since completely forgotten everything that's going on. In terms of tracing what happens in a shader, you'd normally start with the vertex() shader, and then the fragment() shader, but there's no vertex() action yet. So to trace the events of this function, read the fragment() function from top to bottom. I reiterate its happenings below.
+It's been a few days since I wrote the last chapter, and I've since completely forgotten everything that's going on. In terms of tracing what happens in a shader, you'd normally start with the vertex() shader, and then the fragment() shader, but there's no vertex() action here. So to trace the events of this function, read the fragment() function from top to bottom. I reiterate its happenings below.
 
-First, the (lowercase) uv variable gets set through the uv_math() function. It takes the (uppercase) UV constant and the scale uniform as arguments.
+First, the (lowercase) "uv" variable gets assigned through the uv_math() function. It takes the (uppercase) UV constant and the scale uniform as arguments.
 
 Then, a vec3 that will make up the shader's evolving color, "col", is initialized as black vec3(0.) .
 
@@ -111,21 +111,21 @@ It's then tossed into the wellons_integer_hashed() function and the result is as
 
 Here, the random_point_light() function does a lot of work--arguably too much. It divides the hash into two uints, and divides that result by the total number of uints possible along the X axis and the Y axis, to provide a random X and Y value. That value is between 0 and 1 for each, and it gets added to the X and Y grid ID to find a random point in global space for the grid cell we're in presently. The distance to that point, from our current global uv location, is run through a step function to decide whether to pass a 1.0 out of the function to light the pixel.
 
-Finally, the grid lines get added, and the completed color gets assigned back to ALBEDO.
+Finally, the grid lines get added to the shader, if there's any nearby, and the completed color gets assigned back to ALBEDO.
 
 LET'S CRITIQUE THIS METHOD
 
 I see a couple issues in the code so far. The first issue is that it produces significant aliasing problems. I'm choosing not to care about those right now, because the current shading of the points is just a proof-of-concept to confirm that we are, actually, randomly putting points down, and that the random points match our gdscript function.
 
-The second problem runs deeper. The random point is initially an X and Y position between 0 and 1, and then the grid IDs are added back in, taking the random point from "local" space to global space. A random position of (0.35, 0.21) gets added to a grid ID of something like (2,4) to produce a global position for the random point at (2.35,4.21). The distance calculations then compare the distance between that local point and somewhere else, something like (2.9, 4.9).
+The second problem runs deeper. The random point is initially an X and Y position between 0 and 1, and then the grid IDs are added back in, taking the random point from "local" space to global space. A random position of (0.35, 0.21) gets added to a grid ID of something like (2,4) to produce a global position for the random point at (2.35,4.21). The distance calculations then compare the distance between that global point and the global version of our current position, like (2.9, 4.9).
 
-This remains true even if the cell and its random point are hundreds of millions of units away. And that might feel a little silly, since even in that circumstance, the distance between the random point and the present uv coordinate is still small, like, less than a single unit typically.
+This remains true even if the cell and its random point are hundreds of millions of units away. And that might feel a little silly, since even in that circumstance, the distance between the random point, and the present uv coordinate, is still small, like, less than a single unit typically.
 
-You can see it described in the function as "scaled_current_position" and "coordinate_pos_in_global_space". Even if we were in the ten-million by ten-millionth grid cell, we're running the distance calculation in global space, confirming that the current uv coordinate and the random point ten million units from the origin are something like 0.5 units apart.
+You can see it described in the function as "scaled_current_position" and "coordinate_pos_in_global_space". Even if we were in the ten-million by ten-millionth grid cell, we're running the distance calculation in global space, confirming that the current uv coordinate, and the random point, both possibly ten million units from the origin, are something like 0.5 units apart.
 
-That math might sound unnecessary, because it is. We can ask the points to evaluate their local distances before converting them to global space, if we even need the global space coordinates at all. This "we don't actually care about global space here" spin on Worley noise is credited to Inigo Quilez. If this sounds confusing and hard to understand, it'll hopefully make more sense as we code it.
+That math might sound unnecessary, because it is. We can ask the points to evaluate their local distances from each other before converting them to global space, if we even need the global space coordinates at all. This "we don't actually care about global space here" spin on Worley noise is credited to Inigo Quilez. If this sounds confusing and hard to understand, it'll hopefully make more sense as we code it.
 
-It's probably the only update I want to give to the underlying function.
+It's probably the only substantive overhaul I want to give to the underlying function's logic.
 
 TELL THE RUBBER DUCKY YOUR PROBLEMS 
 
@@ -136,23 +136,23 @@ I have a gut feeling that the code is probably fine for the first couple lines--
 
 But we need to diverge here. As I alluded to before, we don't just want the distance to the closest point inside of our cell, we want the distances to the five closest points. So next, we need to:
 
-	declare five variables to store not just the distance to the closest point, but the distances to the five closest points; we'll follow Worley's nomenclature and name these distances F1, F2, F3, F4, and F5.
+	declare five variables, or an array of five floats, to store not just the distance to the closest point, but the distances to the five closest points; Woraley referred to these distances as F1, F2, F3, F4, and F5.
 
 We know shader code is a basic machine. We'll be feeding nine different distances in, and we'll need to end up with the distances in the right order. So, we need:
 
-	a function that receives a new distance as its argument, compares it to the existing list of distances, and plops the new one into the right position of the hierarchy, or discards it if it doesn't rank at all 
+	a function that receives a new distance as its argument, compares it to the existing list of distances, and plops the new one into the right position of the hierarchy, or discards it if it doesn't rank at all. Lesser members of the hierarchy will need to be pushed down the podium.
 
-With that "winner's podium" built, we need winners. Holding a distance competition requires another piece of staging equipment besides the winner's podium. We need to know where we are right now in "local space". So we'll toss in:
+With that "winner's podium" built, we need winners. Holding a distance competition requires another piece of staging equipment besides the winner's podium. We need to know where we are right now in "local space". So we'll potentially toss in:
 
 	a helper function that says where we are in local space, even though experienced programmers might not bother to write that out as a separate function
 
- The distance competition must run not just for the cell we're in, but the cells around our grid. Fortunately, the grid number of the neighbors will be pretty easy to determine--it'll just be the current grid cell, plus or minus one. Cake! So after that, we'll code:
-
-	a function that loops through all nine cells, calculates the random location of the cell's point, and then calls the "where are we now" and the "olympics podium" functions to add their respective distances to the rankings
-
 We don't currently have a function whose discrete job is to return the random point location for a given grid ID. It was previously built into the visualization function, but we need to abstract that out now. So, we'll code:
 
-	a function that takes a global grid ID as an argument and returns a local space coordinate for a random point. We'll want this function to read flexible, because eventually, it'll potentially return more than one, or zero, points.
+	a function that takes a global grid ID as an argument and returns a local space coordinate for a random point. We'll want this function to read flexibly, because eventually, it'll potentially return more than one, or zero, points.
+
+ The distance competition must run not just for the cell we're in, but the cells around our grid. Fortunately, the grid number of the neighbors will be pretty easy to determine--it'll just be the current grid cell, plus or minus one. So after that, we'll code:
+
+	a function that loops through all nine cells, calls for the random location of the cell's point, and then calls the "where are we now" and the "olympics podium" functions to add their respective distances to the rankings
 
 We'll need something pretty to look at. So we'll add:
 
@@ -182,13 +182,15 @@ Scopes "are an area of code where you can access a variable", including "local s
 
 https://www.youtube.com/watch?v=mvAYOcLr8Dk
 
-A brief summary: A variable declared inside of a function can't be accessed outside of that function. This is a "locally scoped" variable.
+A brief point: A variable declared inside of a function can't be accessed outside of that function. This is a "locally scoped" variable.
 
 We don't really deal too much with scope in shaders because nested functions aren't even allowed--you can't shove a function inside of the fragment() function. Also, the functions I've written so far have always returned something--they are not "void" functions that act without returning something like a float or a vector.
 
-And although we've used "globally scoped" variables, in the shader context, that would technically mean a variable declared outside of any of the shader's functions. You might have noticed those variables fall into two categories: Constants, which the shader can't change, and Uniforms shipped in by the CPU, which the shader also can't change.
+And although we've used "globally scoped" variables, in the shader context, that would technically mean a variable declared outside of any of the shader's functions. You might have noticed those variables fall into two camps: Constants, which the shader can't change, and Uniforms shipped in by the CPU, which the shader... also can't change.
 
-For the current chapter, we'll be structuring the functions using the "inout" parameter modifier. It will allow local variables, declared inside of fragment(), to get altered by functions outside of fragment(). 
+So if we need a variable that can bounce among the functions and be changed, what do we do?
+
+For the current chapter, we'll be structuring functions using the "inout" parameter modifier. It will allow local variables, declared inside of fragment(), to get altered by functions outside of fragment(). 
 
 This gives us a path around a scope problem that could otherwise be very annoying. We'll be using it a bunch shortly, so if the concept of scope itself is new to you, pop open the video, listen to Saldina Nurak explain it to you, and come back.
 
@@ -225,7 +227,7 @@ Crucially, it'll also need the "inout" keyword--otherwise, the function will not
 
 If you're wondering whether you could have written the "[5]" after "float" instead of after "distance_array", well, it seems that Godot doesn't care, and in terms of what's better, I'm the wrong person to ask. Onward!
 
-In terms of the logic, it could compare the input_distance to the current winner first, or it coudl compare it to the current fifth place finisher. Which should it be? Well, if we start by comparing it to the fifth place finisher, we risk having the input replace the fifth place finisher even when it should place higher--or alternatively, we'd have tons of nested logic to test upwards.
+In terms of the logic, it could compare the input_distance to the current winner first and work down, or it could compare it to the current fifth place finisher and work up. Which should it be? Well, if we start by comparing it to the fifth place finisher, we risk having the input replace the fifth place finisher even when it should place higher--or alternatively, we'd have tons of nested logic to test upwards.
 
 So the logical place to begin the if-else analysis is at the very top, and to work downward:
 
@@ -242,7 +244,7 @@ So the logical place to begin the if-else analysis is at the very top, and to wo
 			distance_array[4]=input_distance;}
 		}
 
-This code has a significant bug: It leaves all the finishers lower on the podium in place, when they should all be demoted to make room. So, write in the demotions:
+This code has a significant bug: It leaves all the finishers lower on the podium in the same place, when they should all be demoted to make room for the distance getting replaced. So, write in the demotions:
 
 	void winners_podium(float input_distance, inout float distance_array[5]){
 		if (input_distance < distance_array[0]){
@@ -277,7 +279,7 @@ That aside, you might enjoy coding purely for the craftsmanship and the challeng
 
 WHERE ARE WE IN LOCAL SPACE FUNCTION 
 
-Althoug this function might not be necessary, it's got similar vibes to a pair of functions we already wrote:
+Although this function might not be necessary, it's got similar vibes to a pair of functions we already wrote:
 
 	uint grid_id_x(vec2 xy){
 		float x_vec = xy.x;
@@ -290,7 +292,7 @@ Althoug this function might not be necessary, it's got similar vibes to a pair o
 		return uint(int(y_floor));
 	}
 
-This returned the unsigned integer floor() of X and Y, which is the opposite of what we want. If we're in the ten millionth grid cell of X, such that we're at 10,000,000.50 on the X axis, we just want the 0.50 part, to bring us into the neighborhood we actually care about. 
+This returned the unsigned integer floor() of X and Y, which is the opposite of what we want. If we're in the ten millionth grid cell of X, such that we're at 10,000,000.50 on the X axis, we just want the fractional 0.50 part, to bring us into the neighborhood we actually care about. 
 
 The code for this is simple:
 
@@ -301,6 +303,8 @@ The code for this is simple:
 
 
 FLEXIBLE RETURN POINT OR POINTS FOR THIS CELL FUNCTION 
+
+For the function that provides the random point for any given cell, I initially planned to write a flexible one that could return multiple points. I was a bit bewildered on how I wanted to frame it, so, I posed the question to Claude the chatbot.
 
 Claude pointed out that there are two interesting options here:
 
@@ -331,11 +335,11 @@ Claude pointed out that there are two interesting options here:
 	The thing to abandon is the idea of returning a variable-size array. GLSL just won't let you, and any
 	workaround (sentinel values, etc.) is worse than picking one of the above.
 
-I've committed to limiting the length of my chapters, and Claude did a good explanation of the more flexible options so: I'm going to code an *inflexible, one point* version. Besides, I'm trying to follow my own advice, which is to drive the fastest, simplest, easiest path to something visible on screen, and then layer the complexity on afterward.
+I've committed to limiting the length of my chapters, and Claude did a good explanation of the more flexible options so: I'm going to code an *inflexible, one point* version. Besides, I'm trying to follow my own advice, which is to drive the fastest, simplest, easiest path to something visible on screen, and then layer the complexity on afterward. 
 
 We'll be doing a little cut and paste from last chapter's fragment() and random_point_light() functions to build a function that only generates one random point when given a grid cell id:
 
-	vec2 random_point(uint grid_id_x, uint grid_id_y){
+	vec2 random_local_point(uint grid_id_x, uint grid_id_y){
 		uint combined_uint_for_hashing = combined_x_and_y_uint(grid_id_x, grid_id_y);
 		uint combined_hash_uint = wellons_integer_hashed(combined_uint_for_hashing);
 		uint x_uint = combined_hash_uint >> 16u;
@@ -345,9 +349,14 @@ We'll be doing a little cut and paste from last chapter's fragment() and random_
 		return vec2(x_normalized_hash, y_normalized_hash);
 	}
 
-It's worth noting what the above function does *not* do. It only returns a fractional, 0-1 vec2 for the current cell you're in. We'll eventually be measuring the distance from a place in the current cell to a place in the neighboring cell. 
+It's worth noting what the above function does *not* do. It only returns a fractional, 0-1 vec2 for the current cell you're in. We'll eventually be measuring the distance from a place in the current cell to a place in the neighboring cell. Which means whatever function makes *that* call will have to do *that* math to find the correct distance.
 
-I use a lot of office building metaphors--if a grid cell is an office building, every grid cell has a point in the middle at (0.5,0.5). If there's a cubicle number 5 on the fifth floor of an office building, there's an identical cubicle in every other office building. So we'll need to make sure our distance() function takes into account the position of the neighbors. We don't want to run distance((0.5),(0.5,0.5)) as that would erroneously return zero, when we likely intended the cubicle in the center, compared to the cubicle one building over. We'll handle that in the loop function.
+I use a lot of office building metaphors--if a grid cell is an office building, every grid cell has a point in the middle at (0.5,0.5). If there's a cubicle number 5 on the fifth floor of an office building, there's an identical cubicle in every other office building similarly shaped office building. So we'll need to make sure our distance() function takes into account the position of the neighbors. We don't want to run distance((0.5,0.5),(0.5,0.5)) as that would erroneously return zero, when we likely intended the cubicle in the center, and a cubicle one building over. We'll have to handle that in the loop function.
+
+SHOULD WE WRITE A SPECIAL DISTANCE FUNCTION?
+
+I love writing additonal functions to clarify what I'm doing, but only the loop function knows the local coordinates for the distances its calling for, and distance() is a built-in.
+
 
 THE LOOP FUNCTION 
 
@@ -356,6 +365,79 @@ The loop function here is probably the most intimidating function so far. Loopin
 But in addition to that, each part of the loop has to track its global grid address and its local grid address in a way that's clean and easy to understand. 
 
 RETURNING TO OUR PSEUDOCODING RUBBER DUCKY THERAPIST 
+
+I think I'll have the loop read from the bottom left to the top right, one row at a time. This means we'll have a nested loop; a parent loop that ticks upwards for each row, Y, and a child loop, that ticks left to right for each cell/column. 
+
+The function needs to initially declare a local "where we are now" variable to store the first argument for a distance() function. It will also need to track a "what grid cell are we currently looping through for points", as that's the second argument of the distance() function. The result of that distance function can be fed into the winner's podium function to update the distances. 
+
+A standard for loop looks like this:
+
+for (int i = 0; i < 64; i++) {
+	// body                   
+}
+
+The parent loop is columns, and I'm going to go with "local_y" and "local_x" to add a little clarity. 
+
+
+	for (int local_y = -1; local_y<=1; local_y++){
+		for (int local_x = -1; local_x<=1; local_x++){
+			;
+		}
+	}
+
+Structuring the loop in this way takes care of the math problem from earlier (and is how Worley coded it originally, albeit he wrote "ii","jj", and "kk"). The loop is going to be tracking the local grid cell coordinate on our behalf. Lovely.
+
+The "where are we now" variables are just the fractional values of the current uv:
+
+	vec2 local_current_pos = vec2(fract(uv.x),fract(uv.y));
+
+And written right above the for loop looks like this:
+
+	vec2 local_current_pos = vec2(fract(uv.x),fract(uv.y));
+	for (int local_y = -1; local_y<=1; local_y++){
+		for (int local_x = -1; local_x<=1; local_x++){
+			;
+		}
+	}
+
+Now, each cell needs to grab the random local coordinate via random_local_point of the point for the cell currently in the loop to obtain a random position local to that cell, add the local_x and local_y to that coordinate so that it has a sort of "neighborhood address", run the distance from that coordinate to the local_current_pos, and ship that off to the winners_podium function.
+
+	//get this cell's uint identifiers. this first attempt broke. 
+	//the second attempt worked. feel free to ponder why
+	//uint cell_uint_x = uint(float(local_x) + uv.x);
+	//uint cell_uint_y = uint(float(local_y) + uv.y);
+	uint cell_uint_x = uint(int(uv_grid_id_x) + local_x);
+	uint cell_uint_y = uint(int(uv_grid_id_y) + local_y);
+	//pass this cell's uint identifiers in to get a local point
+	vec2 random_loc_p = random_local_point(cell_uint_x,cell_uint_y);
+	//update the random point with the neighborhood address
+	random_loc_p.x += float(local_x);
+	random_loc_p.y += float(local_y);
+	//get the distance from the neighborhood cell random point
+	//to the current local position in UV space
+	float dist = distance(random_loc_p, local_current_pos);
+	//update the winner's podium with the result 
+	winners_podium(dist, worley_distances);
+
+This is about the stage where I get anxiety about whether any of this will pan out.
+
+So I toss this line in:
+
+	col = + vec3(worley_distances[0]);
+
+When I first coded it, I saw the negative numbers misbehaving, which is a sign of uint conversions doing weird crap. Anytime we see negative numbers showing undesirable behavior, and there's a place where signs are getting relabeled or eliminated, you have at least a starting direction on where to look.
+
+You can revise that color line to this to check out the classic alligator skin cellular version:
+
+col = + vec3(worley_distances[1] - worley_distances[0]);
+
+Things to check for at this point:
+Are you getting classic Worley shading?
+Are your randomly generated points in the exact same position as your previous iterations? This latest iteration should have left the points in the same position, and their location will be obvious if you only color the 0th distance.
+Has your computer exploded?
+
+
+
 
 CONTINUE DRAFTING HERE 
 
