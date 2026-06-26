@@ -10,7 +10,7 @@ If the chapters are feeling too slow for you, you could make it more hardcore by
 
 CLEANING THINGS UP
 
-The worley_points.gdshader file is feeling a little clouded with junk. I duplicated it as "worley_p_start.gdshader" and took a hatchet to its unused sections.
+The worley_points.gdshader file is feeling a little clouded with junk. I duplicated it as "worley_p_start.gdshader" and took a hatchet to its unused sections. This is the block we'll butcher and build from.
 
 	shader_type spatial;
 	render_mode unshaded;
@@ -166,7 +166,7 @@ Steve Worley wrote, "The best way to see the different possible appearances is t
 THE TASK LIST 
 
 -Declare five variables
--"Winnder's podium" function 
+-"Winner's podium" function 
 -"Where are we in local space" function 
 -Flexible "return random point or points for this grid cell" function 
 -Loop through the current cell and neighbors function, including distance calls
@@ -193,6 +193,18 @@ So if we need a variable that can bounce among the functions and be changed, wha
 For the current chapter, we'll be structuring functions using the "inout" parameter modifier. It will allow local variables, declared inside of fragment(), to get altered by functions outside of fragment(). 
 
 This gives us a path around a scope problem that could otherwise be very annoying. We'll be using it a bunch shortly, so if the concept of scope itself is new to you, pop open the video, listen to Saldina Nurak explain it to you, and come back.
+
+CLAUDE'S COMPLAINT ABOUT MY DEPICTION OF SCOPE
+
+Claude made the following edit:
+
+	Technically, inout doesn't break scope — the function still has its own local parameter. But that parameter is bound to the same storage as whatever you pass in, so writes through it modify the original.
+
+And when I said "and this is to to solve the scope wall no?"
+
+	Yes (em dash) I was being a little too tidy.
+
+I guess this makes me wonder if AI is ever "a little too tidy" when choosing targets to bomb and people to arrest and surveil.
 
 DECLARING THE DISTANCE VARIABLES 
 
@@ -301,6 +313,8 @@ The code for this is simple:
 		return vec2(fract(xy.x), fract(xy.y));
 	}
 
+It felt a little too simple for use, so I eventually in-lined it in the code below.
+
 
 FLEXIBLE RETURN POINT OR POINTS FOR THIS CELL FUNCTION 
 
@@ -351,7 +365,13 @@ We'll be doing a little cut and paste from last chapter's fragment() and random_
 
 It's worth noting what the above function does *not* do. It only returns a fractional, 0-1 vec2 for the current cell you're in. We'll eventually be measuring the distance from a place in the current cell to a place in the neighboring cell. Which means whatever function makes *that* call will have to do *that* math to find the correct distance.
 
-I use a lot of office building metaphors--if a grid cell is an office building, every grid cell has a point in the middle at (0.5,0.5). If there's a cubicle number 5 on the fifth floor of an office building, there's an identical cubicle in every other office building similarly shaped office building. So we'll need to make sure our distance() function takes into account the position of the neighbors. We don't want to run distance((0.5,0.5),(0.5,0.5)) as that would erroneously return zero, when we likely intended the cubicle in the center, and a cubicle one building over. We'll have to handle that in the loop function.
+I use a lot of office building metaphors--if a grid cell is an office building, every grid cell has a point in the middle at (0.5,0.5). If there's a cubicle number 5 on the fifth floor of an office building, there's an identical cubicle in every other similarly shaped office building. So we'll need to make sure our distance() function takes into account the position of the neighbors. We don't want to run distance((0.5,0.5),(0.5,0.5)) as that would erroneously return zero, when we likely intended the cubicle in the center, and a cubicle one building over. We'll have to handle that in the loop function.
+
+ABOUT THAT SHADOWING PROBLEM 
+
+I'm doing an unfortuante beginners thing, which is to shadow the name of functions and parameters. "grid_ix_x" shows up as both the function name and the parameter name where that function's result gets used.
+
+To avoid this, you can rewrite your functions and parameter names so that functions get verbs, and values get nouns. Thus, grid_id_x() could be refactored to get_grid_id_x(). (Other options include: Using a verbose word for the function, and a shorter word for the value, or writing "in_" or "arg_" as a prefix to indicate where its an input/argument.) A more experienced coder would get this right the first time, but I'm not, so I'll have to hit it on a later edit. 
 
 SHOULD WE WRITE A SPECIAL DISTANCE FUNCTION?
 
@@ -423,18 +443,43 @@ This is about the stage where I get anxiety about whether any of this will pan o
 
 So I toss this line in:
 
-	col = + vec3(worley_distances[0]);
+	col = vec3(worley_distances[0]);
 
-When I first coded it, I saw the negative numbers misbehaving, which is a sign of uint conversions doing weird crap. Anytime we see negative numbers showing undesirable behavior, and there's a place where signs are getting relabeled or eliminated, you have at least a starting direction on where to look.
+When I first coded it, I saw the negative numbers misbehaving, which is a sign of uint conversions doing weird things, and in particular, that I'd forgotten to reuse the uv_grid_id_x that I'd already calculated. As usual, I leave my errors in because I think they give you an idea of the weird paths you might accidentally take, and the results they'll display.
 
 You can revise that color line to this to check out the classic alligator skin cellular version:
 
-col = + vec3(worley_distances[1] - worley_distances[0]);
+	col = vec3(worley_distances[1] - worley_distances[0]);
 
 Things to check for at this point:
-Are you getting classic Worley shading?
-Are your randomly generated points in the exact same position as your previous iterations? This latest iteration should have left the points in the same position, and their location will be obvious if you only color the 0th distance.
-Has your computer exploded?
+-Are you getting classic Worley shading?
+-Are your randomly generated points in the exact same position as your previous iterations? This latest iteration should have left the points in the same position, and their location will be obvious if you only color the 0th distance. We want this to hold true because we put a ton of work into making the hash consistent between the CPU and the GPU.
+-Has your computer exploded?
+
+FOLLOW STEVE WORLEY'S ADVICE 
+
+So Steve Worley says that you're much better off just firing a zillion random numbers in to see the results. This would give you a function like this, where each random number, five different Q's below, are factors of the F values, and they're all added together, like this:
+
+	result = Q1*F1 + Q2*F2 + Q3*F3 + Q4*F4 + Q5*F5
+
+A problem arises: This number could be negative, and will be, a lot of the time. Easily fixed, we just take the absolute value of all of them:
+
+	result = abs(Q1*F1 + Q2*F2 + Q3*F3 + Q4*F4 + Q5*F5)
+
+We have another problem, which is that these values are probably going to go way over 1, which would leave us with a white image. We need to normalize somehow. We can't normalize in a conventional way in a shader, but we can divide the result by a number that increases as the UV of x increases from 0 to 1:
+
+	result / (UV.x*normalization_factor)
+
+That normalization_factor can be a uniform sent by gdscript, so that you can tweak that independently.
+
+We might also want a power function. That can magnify the impact of a shader, allowing you to make otherwise faint effects pop:
+
+	pow(x ,n) // x raised to n 
+	pow(result, exponent_factor) //with the proposed uniform name 
+
+GOING UI FIRST WITH GODOT 
+
+
 
 
 

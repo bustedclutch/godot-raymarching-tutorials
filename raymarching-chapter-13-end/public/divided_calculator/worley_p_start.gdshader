@@ -148,8 +148,8 @@ void fragment() {
 		}
 	}
 
-	//col = + vec3(worley_distances[0]);
-	col = + vec3(worley_distances[1] - worley_distances[0]);
+	//col = vec3(worley_distances[0]);
+	col = vec3(worley_distances[1] - worley_distances[0]);
 	
 	col = col + grid_line(uv, scale);
 	ALBEDO = col; ALPHA = 1.0;
