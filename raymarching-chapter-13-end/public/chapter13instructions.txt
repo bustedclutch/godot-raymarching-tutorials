@@ -763,12 +763,44 @@ A lot of things in Godot I find intuitive, and a lot of things I don't. I don't 
 
 The code, instead, is scripting something that *listens* to what the UI controls are already screaming into the universe.
 
-BUT CLAUDE GAVE A USEFUL TABLE OF THE CASES AND FORMS WHERE YOU DO USE INPUT AND I'D BE REMISS TO LEAVE IT OUT 
+BUT CLAUDE GAVE A USEFUL TABLE OF THE CASES AND FORMS WHERE YOU DO USE INPUT AND I'D BE REMISS TO LEAVE IT OUT
+
+	Where each mechanism lives in your script — and which ones are *signals* vs. *callback functions* vs. *polling*:
+
+	- Player movement: poll Input.get_vector() inside _physics_process(). _physics_process() is its own callback function — Godot calls it every physics tick (60Hz by default), and it sits at the top level of your script alongside _ready() and the other callbacks, not nested inside any of them. Polling input there gives smooth, frame-rate-independent movement.
+
+	- "Press Esc to pause": use _input(event) or _unhandled_input(event), and inside check event.is_action_pressed("pause"). _input is *also* its own top-level callback function — a peer of _physics_process and _ready, not something you call from inside _physics_process. Godot calls _input whenever an input event occurs and hands it to you as the "event" argument.
+
+	- Button click in UI: this is a *signal*, not an input mechanism at all. The Button node emits a "pressed" signal when clicked, and your script wires a method to listen via button.pressed.connect(_on_button_pressed). The button handles the input itself; the script just listens for the announcement.
+
+	- Slider drag in UI: also a signal. slider.value_changed.connect(_on_slider_changed) — the HSlider or VSlider emits value_changed every time the user drags it, and the connected method receives the new value as an argument. No input-handling code on your side.
+
+	- Custom drag widget: implement _gui_input(event) as a method on the Control node itself. This is a third event callback function, in the same family as _input, but it only fires when the input lands on this specific Control. Useful for building custom interactive widgets when no existing widget fits.
+
+	- World clicks where UI shouldn't swallow them: use _unhandled_input(event) instead of _input(event). Same callback shape, same place in the script. The difference is that _unhandled_input only fires for events no Control has handled — so clicks on buttons get filtered out automatically before they reach the world.
+
+	- Rebindable controls: always route through the Input Map. Define abstract actions in Project Settings → Input Map ("jump", "shoot", "cycle_preset") and check actions by name in code. Users (or you) can rebind them later without touching the script.
+
+	The three input-related callback functions worth keeping straight in your head, each living at the top level of your script:
+	- _process(delta) runs every rendered frame — for visual updates that don't depend on physics.
+	- _physics_process(delta) runs every physics tick at a fixed rate — for movement and for continuously polling Input.
+	- _input(event) and _unhandled_input(event) run only when an event happens — for one-shot reactions like keypresses or clicks.
+
+	Signals are a separate mechanism entirely. A UI widget emits a signal; your script connects a method to that signal once (usually in _ready) and the method gets called automatically when the event happens. No callback function on the input side, no polling — purely event-driven.
 
 
 
+TO DO LIST:
+BREAK THIS CHAPTER OFF INTO CH 14 IMMEDIATELY, before I forget what is different. Should be easy-ish since I created a new folder at the outset for "random_worleys".
+IT'S PROBABLY time to create a readme and an introduction
+A BRIEF SIGNAL EXPLANATION (learn to code it, because the instantiation situation requires it; also there's repetitive signals; though note the pluses and minuses of the signal information being stored in the scene file, particularly when working on teams)
+DISCUSS THE POTENTIAL MATH ISSUES (and why I'm ignoring them for now and letting normalize handle the overages)
+DISCUSS SOME WORLEY RESULTS 
+DISCUSS EXTENSION OPTIONS, both for the UI and for the worley noise itself 
+DISCUSS NEXT CHAPTER, which will involve refactoring the Worley shader into something that can be brought in with an include file 
+DISCUSS SIDE QUEST CHAPTERS, since there's enough info already to construct a water shader
 
-CONTINUE DRAFTING HERE 
+
 
 
 
