@@ -11,8 +11,12 @@ config_version=5
 [application]
 
 config/name="Raymarching Chapter 13 End"
-run/main_scene="uid://bq8bjqw1xnfem"
+run/main_scene="uid://bxk5828x5qqil"
 config/features=PackedStringArray("4.6", "Forward Plus")
+
+[display]
+
+window/stretch/mode="viewport"
 
 [input]
 

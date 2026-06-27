@@ -477,9 +477,293 @@ We might also want a power function. That can magnify the impact of a shader, al
 	pow(x ,n) // x raised to n 
 	pow(result, exponent_factor) //with the proposed uniform name 
 
+I'm going to just chain all three of those together as one in the code.
+
 GOING UI FIRST WITH GODOT 
 
+Now that there's a vague idea of what the user interface will need to control, I decided to shift to its design before coding it.
 
+There's no need to copy me, but at this point, I created a new scene and folder ("random_worleys") so I could focus on just the user interface. I'm copying the shader as it exists now as "random_worleys.gdshader" and the scene has a root 3D node called RandomWorleys, along with a MeshInstance3D to display the shader.
+
+The shader GUI needs to control F1-F5, via a big button that randomizes them. Ideally, they would also display as individual numbers you could tweak, which would help with debugging and also remembering anything good before the save feature gets coded. The exponent value would need to be editable, as well as the normalization value.
+
+Because the code is just for me, and I don't want to go crazy, I'm going to renumber them as F0 to F4. 
+
+We'll eventually want a "save" and "load" button as well. That means an increasing list of saved files to reload and look at. 
+
+So, from the GUI perspectve:
+-F0 to F4 as a series of editable text boxes
+	-Adjacent labels
+-"Randomize F0 to F4" button 
+-Exponent text box 
+	-Adjacent label 
+-Normalization factor text box 
+	-Adjacent label
+-"Save current" button
+-"Load selected" button
+-Saved versions text box 
+
+ANOTHER MOMENT WHERE I LET CLAUDE WRITE PROSE 
+
+I'll let Claude the chatbot fill in for me to explain Godot UI components:
+
+	Godot UI is built entirely around Control nodes — that's the base class everything inherits from. The
+	system has three pieces worth getting straight: the host layer, containers, and leaf widgets.
+
+	The host layer
+
+	- CanvasLayer — most UI lives under one of these. It renders in screen space, on top of (or below)
+	your 3D/2D world, and ignores Camera2D.
+	- Control — the abstract base. Has anchors, offsets, size flags, focus, theme. Everything below
+	inherits from it.
+
+	Containers (auto-layout)
+
+	Containers position their children automatically. You generally don't set positions manually inside
+	one — you set size flags on the children to tell the container how to distribute space.
+
+	- VBoxContainer / HBoxContainer — stack children vertically or horizontally. 90% of UIs are built
+	from these.
+	- GridContainer — rows × columns.
+	- MarginContainer — pads its child on four sides. The standard way to add breathing room.
+	- CenterContainer — centers a single child.
+	- PanelContainer — gives its child a themed background panel.
+	- ScrollContainer — scrollable region.
+	- TabContainer — tabs across the top, one child per tab.
+	- HSplitContainer / VSplitContainer — user-draggable divider between two children.
+	- AspectRatioContainer — preserves a fixed ratio (good for game viewports embedded in UI).
+	- SubViewportContainer — hosts a SubViewport, which is how you render a 3D scene inside a UI panel.
+
+	Static display widgets
+
+	- Label — plain text.
+	- RichTextLabel — BBCode ([b]bold[/b], [color=red]…[/color], etc.) plus scrolling.
+	- TextureRect — an image.
+	- ColorRect — a flat color.
+	- NinePatchRect — a stretchy bordered image (windows, buttons).
+	- Panel — themed background rectangle.
+
+	Interactive widgets
+
+	- Button, CheckBox, CheckButton, OptionButton (dropdown), MenuButton (button that opens a menu).
+	- LineEdit — one line of text.
+	- TextEdit — multi-line, syntax highlighting, code-editor-grade.
+	- SpinBox — number input with up/down.
+	- HSlider / VSlider — drag a value in a range.
+	- ProgressBar — fill bar.
+	- ItemList — flat list of selectable items.
+	- Tree — hierarchical list (what the Inspector uses).
+	- ColorPicker, FileDialog, AcceptDialog — prebuilt complex dialogs.
+
+	The layout system in one paragraph
+
+	Every Control has anchors (where its edges latch onto the parent — center, corners, sides, full-rect)
+	and offsets (pixel distances from those anchors). You almost never touch offsets by hand inside a
+	container — the container drives them. Outside containers (e.g. a Control sitting directly in a
+	CanvasLayer), you pick an Anchor Preset from the toolbar dropdown ("Full Rect", "Center", "Top Left",
+	etc.) and that sets everything for you. Inside a container, you use size flags on children: Fill,
+	Expand, Shrink Center, etc., to say "take all the space the container offers" or "stay your minimum
+	size and align center."
+
+	Theming in one paragraph
+
+	Visual styling lives in Theme resources. You attach a Theme to a top-level Control and it cascades to
+	children. Themes hold colors, fonts, icons, and StyleBox resources (StyleBoxFlat for solid panels
+	with corner radius, StyleBoxTexture for nine-patch). You can override any single theme property on
+	any single Control via the Inspector → Theme Overrides — handy for one-offs without making a new
+	theme.
+
+	Mental model for assembling a screen
+
+	Most screens are: CanvasLayer → MarginContainer → VBoxContainer → (rows of HBoxContainers containing 
+	widgets). Nest VBox/HBox/Grid as needed, wrap with Panel/Margin for padding, drop widgets at the
+	leaves.
+
+If you're like me, then making the UI is something you learn how to do, do, then immediately forget how to do. And you're always like "why am I always relearning how to do this". 
+
+My first piece of advice is to hit "run scene" every time you add something, because this is not a WYSIWYG editing experience. 
+
+CAN WE MAKE IT A WYSIWYG EXPERIENCE?
+
+I normally dislike making UI's, so I'm going to invest some time in making it feel a little more fun.
+
+DEBUGGING GAME MODE 
+
+I initially thought Game Mode wasn't working, and went through a bunch of settings, because I thought Game Mode was supposed to show up within the editor. Not so. If a separate window opens for Game Mode, and the special Game Mode buttons are visible on top (Pause,Input,2D,3D, and so forth) then you're running Game Mode.
+
+Here's a youtube walkthrough of Game Mode from "Letta Corporation":
+
+https://www.youtube.com/watch?v=yyxkMSL7I1I
+
+BACK TO DESIGNING
+
+Claude suggested a basic structure of CanvasLayer, MarginContainer, VBoxContainer, HBoxContainer. I believe he's correct.
+
+CanvasLayer, at the top of the UI hierarchy, has the power to make choices about its own visibility relative to literally everything else. You don't necessarily need that, but you will enough that you might as well put it in. Although I don't usually add anything I don't need initially, UI items involve a lot of explicit references in the code that can break if you change the scene hierarchy around, so I personally prefer the more-is-more approach.
+
+MarginContainer has a simple job: Create padding around the kids. A UI with no margins is pretty much never cute. 
+
+As soon as you add MarginContainer as a child, your screen will change to what I think of as The Intimidating Grey Void. There's anchor points and handles and buttons and you're like "omg I just learned three different coding languages, and the scene tree interface, and the shading interface, and the interfaces for Blender and Krita, why God why is there yet another interface?" But there's another interface. Life is pain.
+
+VBOX FIRST OR HBOX FIRST?
+
+If you want to build your UI around columns, you actually parent them all with a HBoxContainer, and if you build your UI around rows, you start with a VBoxContainer. I'm structuring it around columns, so I initially look like this in the scene tree:
+
+	CanvasLayer
+		-MarginContainer
+			-HBoxContainer
+				-VBoxContainer
+				-VBoxContainer2
+
+With a name revision to this:
+
+	CanvasLayer
+		-MarginContainer
+			-HBoxContainer
+				-ShaderSettings
+				-SaveLoad
+
+
+I normally know exactly what node to add and search for it by name, but when building out the UI, I just looked through all of the node possibilities under the Control branch and read the descriptions for anything that looked vaguely like what I wanted.
+
+The only node that has a slightly confusing name is "Label". We normally interpret "label" to mean a short piece of text, which the Label node can do, but it can also be used for displaying multiple paragraphs of text. Its upgraded version is RichTextLabel. We can use the basic Label to identify the top of the column.
+
+I'm going to use ItemList to display the list of saved shader settings. Shader settings should have a name, so I'll toss in a LineEdit, and another Label, along with a Button for saving and a Button for loading.
+
+The UI portion of my scene tree now looks like this:
+
+	CanvasLayer
+		-MarginContainer
+			-HBoxContainer
+				-ShaderSettings
+				-SaveLoad
+					-Label
+					-ItemList
+					-Label2
+					-LineEdit
+					-Button
+					-Button2
+
+And then renamed to:
+
+	CanvasLayer
+		-MarginContainer
+			-HBoxContainer
+				-ShaderSettings
+				-SaveLoad
+					-Header
+					-SavedSettingsList
+					-EditSaveNameLabel
+					-EditSaveName
+					-SaveButton
+					-LoadButton
+
+I'd like to go aheaad and get these looking kinda right. I changed the Text of the Header to "Save and Load Your Worley Settings".
+
+I gave the ItemList a single, unselectable item with the text "Saved presets" and then under height gave it a minimum y pixel count of 200 (set this number to whatever looks good).
+
+I set the label text of the next label "Save name" and gave the LineEdit below it the placeholder text of "Type save name...". 
+
+And then gave the two buttons below the text "Save" and "Load", respectively.
+
+NOW THE SHADER SETTINGS COLUMN 
+
+For the below additions, I gave everything that was a LineEdit paired with a Label a new row via HBoxContainer. This also saves you a little bit of effort since you can just CTRL+D to duplicate the groups of nodes.
+
+That requires a header Label up top, then the five F values as line edits with corresponding labels. Below that a "randomize" Button, and then the Normalize and Exponent factors as LineEdits with respective Labels. 
+
+It occurs to me now that I'd like a button to toggle whether the normalization is applied based on the UV.x value or whether it's uniform throughout, so I'll add a Button to toggle normalizing across X.
+
+By this point, you probably already have opinions on which features you'd like to add in support for, so add those in.
+
+Note that my "LineEdit" boxes will be doing double duty: Not only will you be typing in the number you want, they'll also show you whatever you ended up with from pushing the randomize button.
+
+So far the UI portion of my scene tree looks like this:
+
+	CanvasLayer
+		-MarginContainer
+			-HBoxContainer
+				-ShaderSettings
+					-Label
+					-HBoxContainer
+						-LineEdit
+						-Label
+					-HBoxContainer2
+						-LineEdit
+						-Label
+					-HBoxContainer3
+						-LineEdit
+						-Label
+					-HBoxContainer4
+						-LineEdit
+						-Label
+					-HBoxContainer5
+						-LineEdit
+						-Label
+				-SaveLoad
+					-Header
+					-SavedSettingsList
+					-EditSaveNameLabel
+					-EditSaveName
+					-SaveButton
+					-LoadButton
+
+With some renaming to become:
+
+				-ShaderSettings
+					-Header
+					-F0
+						-LineEdit
+						-Label
+					-F1
+						-LineEdit
+						-Label
+					-F2
+						-LineEdit
+						-Label
+					-F3
+						-LineEdit
+						-Label
+					-F4
+						-LineEdit
+						-Label
+
+I changed the default text of the labels to their "F" names, and the default text of the Header node to "Shader Settings".
+
+CREATING SPACE BETWEEN THE COLUMNS 
+I'm not feeling particularly wacky, so to create space between the columns I added a VSeparator in the node tree and increased its Custom Minimum Size to 20 pixels on the x axis.
+
+RETURNING TO SHADER SETTINGS 
+
+Add a Button named RandomizeButton with a default text of "Randomize!"
+
+Below that, an HSeparator.
+
+Then an HBoxContainer with a LineEdit and Label as children twice, first for the exponent value and second for the normalizing value.
+
+Then we need a Button to toggle normalizing over the X axis; add that with a "Norm over X-axis" default text.
+
+RUN IT IN GAME MODE AND MAKE SURE IT LOOKS CUTE 
+
+With it running in Game Mode, you can drag the shaded quad or the camera around so that the UI and the quad fill the screen how you like.
+
+WIRING IT UP 
+
+So to have the UI actually do something useful, we need a script. Where to attach it?
+
+You could attach it to the UI itself. You could attach it to the root node. You could attach it to the mesh. I ended up reparenting the entire UI (CanvasLayer all the way down) under a basic Node and called it "Controller". The Controller can listen for signals from the UI, and send those signals as uniforms to the chosen shader. 
+
+The advantage of this: We just put a lot of work into building a cute shader UI and it would be nice to never do it again. Our UIs will of course be different when creating them for different shaders, but I want the skeleton.
+
+If you feel similarly, create a Node, and drag CanvasLayer into it to become Node's child. Rename Node to Controller.
+
+GIVE Controller A SCRIPT, AND RUBBER DUCKY YOUR WAY THROUGH IT 
+
+A lot of things in Godot I find intuitive, and a lot of things I don't. I don't find input intuitive. Also, fun fact, for this UI, we can avoid using input entirely, and that's what I recommend. The UI elements already send out what Godot calls "Signals", so you don't actually have to code anything additional for the UI controls to do their job. They already default to doing their job.
+
+The code, instead, is scripting something that *listens* to what the UI controls are already screaming into the universe.
+
+BUT CLAUDE GAVE A USEFUL TABLE OF THE CASES AND FORMS WHERE YOU DO USE INPUT AND I'D BE REMISS TO LEAVE IT OUT 
 
 
 
