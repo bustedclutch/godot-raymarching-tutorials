@@ -105,6 +105,7 @@ layout_mode = 2
 
 [node name="Label" type="Label" parent="Controller/CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/Exponent" unique_id=300119894]
 layout_mode = 2
+text = "Exponent Factor"
 
 [node name="NormalizeFactor" type="HBoxContainer" parent="Controller/CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings" unique_id=197953997]
 layout_mode = 2
@@ -114,9 +115,11 @@ layout_mode = 2
 
 [node name="Label" type="Label" parent="Controller/CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/NormalizeFactor" unique_id=2039711727]
 layout_mode = 2
+text = "Norm Factor"
 
 [node name="NormalizeXButton" type="Button" parent="Controller/CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings" unique_id=2003502930]
 layout_mode = 2
+toggle_mode = true
 text = "Norm over X-Axis"
 
 [node name="VSeparator" type="VSeparator" parent="Controller/CanvasLayer/MarginContainer/HBoxContainer" unique_id=470173884]

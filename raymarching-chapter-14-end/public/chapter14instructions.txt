@@ -10,13 +10,13 @@ GOING UI FIRST WITH GODOT
 
 Now that there's a vague idea of what the user interface will need to control, I decided to shift to its design before coding it.
 
-There's no need to copy me, but at this point, I created a new scene and folder ("random_worleys") so I could focus on just the user interface. I'm copying the shader as it exists now as "random_worleys.gdshader" and the scene has a root 3D node called RandomWorleys, along with a MeshInstance3D to display the shader.
+There's no need to copy me, but at this point, I created a new scene and folder ("random_worleys") so I could focus on just the user interface. I'm copying the shader as it exists now as a new file called "random_worleys.gdshader" and the scene has a root 3D node called RandomWorleys, along with a MeshInstance3D to display the shader.
 
-The shader GUI needs to control F1-F5, via a big button that randomizes them. Ideally, they would also display as individual numbers you could tweak, which would help with debugging and also remembering anything good before the save feature gets coded. The exponent value would need to be editable, as well as the normalization value.
+The shader GUI needs to indivudally control F1-F5, along with a big button that randomizes all of them at once. The exponent value would need to be editable, as well as the normalization value.
 
-Because the code is just for me, and I don't want to go crazy, I'm going to renumber them as F0 to F4. 
+Because the code is just for me, and I don't want to go crazy, I'm going to renumber them F1 through F5 as F0 to F4.
 
-We'll eventually want a "save" and "load" button as well. That means an increasing list of saved files to reload and look at. 
+We'll eventually want a "save" and "load" button as well. That means a component to display and list saved files to reload and look at. 
 
 So, from the GUI perspectve:
 -F0 to F4 as a series of editable text boxes
@@ -29,6 +29,10 @@ So, from the GUI perspectve:
 -"Save current" button
 -"Load selected" button
 -Saved versions text box 
+
+DON'T RELIGIOUSLY TRY TO FOLLOW MY UI 
+
+If you understand the concepts of what I'm shoving into the UI, it is totally irrelevant whether you follow how I've done it. I'm also describing a visual interface, and that's inherently indescribable. Thus, just skim what I've written about my own design, and design your UI however you want.
 
 ANOTHER MOMENT WHERE I LET CLAUDE WRITE PROSE 
 
@@ -108,11 +112,15 @@ I'll let Claude the chatbot fill in for me to explain Godot UI components:
 
 If you're like me, then making the UI is something you learn how to do, do, then immediately forget how to do. And you're always like "why am I always relearning how to do this". 
 
-My first piece of advice is to hit "run scene" every time you add something, because this is not a WYSIWYG editing experience. 
+My first piece of advice is to hit "run scene" every time you add something, until you get a sense of how the final product compares to the one under editing.
 
 CAN WE MAKE IT A WYSIWYG EXPERIENCE?
 
+Kind of,  yes!
+
 I normally dislike making UI's, so I'm going to invest some time in making it feel a little more fun.
+
+If you run your scene in Game Mode, it will update as you make edits.
 
 DEBUGGING GAME MODE 
 
@@ -126,11 +134,15 @@ BACK TO DESIGNING
 
 Claude suggested a basic structure of CanvasLayer, MarginContainer, VBoxContainer, HBoxContainer. I believe he's correct.
 
-CanvasLayer, at the top of the UI hierarchy, has the power to make choices about its own visibility relative to literally everything else. You don't necessarily need that, but you will enough that you might as well put it in. Although I don't usually add anything I don't need initially, UI items involve a lot of explicit references in the code that can break if you change the scene hierarchy around, so I personally prefer the more-is-more approach.
+CanvasLayer, at the top of the UI hierarchy, has the power to make choices about its own visibility relative to literally everything else. You don't necessarily need that, but it's needed often enough to treat as a default. Although I don't usually add anything I don't need initially, UI items involve a lot of explicit references in the code that can break if you change the scene hierarchy around, so I personally prefer the more-is-more approach.
 
 MarginContainer has a simple job: Create padding around the kids. A UI with no margins is pretty much never cute. 
 
-As soon as you add MarginContainer as a child, your screen will change to what I think of as The Intimidating Grey Void. There's anchor points and handles and buttons and you're like "omg I just learned three different coding languages, and the scene tree interface, and the shading interface, and the interfaces for Blender and Krita, why God why is there yet another interface?" But there's another interface. I have several theories for hell, but one of them is that it's just a series of interfaces.
+As soon as you add MarginContainer as a child, your screen will change to what I think of as The Intimidating Grey Void. There's anchor points and handles and buttons and you're like "omg I just learned three different coding languages, and the scene tree interface, and the shading interface, and the interfaces for Blender and Krita, why God why is there yet another interface?" 
+
+But there's another interface. 
+
+I have several theories for hell, but one of them is that it's just a series of interfaces.
 
 VBOX FIRST OR HBOX FIRST?
 
@@ -153,7 +165,7 @@ With a name revision to this:
 
 I usually know what node to add and search for it by name, but when building out the UI, I just looked through all of the node possibilities under the Control branch and read the descriptions for anything that looked vaguely like what I wanted.
 
-The only node that has a slightly confusing name is "Label". We normally interpret "label" to mean a short piece of text, which the Label node can do, but it can also be used for displaying multiple paragraphs of text. Its upgraded version is RichTextLabel. We can use the basic Label to identify the top of the column.
+One node that has a slightly confusing name is "Label". We normally interpret "label" to mean a short piece of text, which the Label node can do, but it can also be used for displaying multiple paragraphs of text. Its upgraded version is RichTextLabel. If you're looking for "TextBox", you won't find TextBox; you're looking for Label. We can use the basic Label to identify the top of the column.
 
 I'm going to use ItemList to display the list of saved shader settings. Shader settings should have a name, so I'll toss in a LineEdit, and another Label, along with a Button for saving and a Button for loading.
 
@@ -312,6 +324,8 @@ INPUT AND ITS MANY COSTUMES
 
 I've gone through a bunch of game tutorials, and I think part of the reason I felt trapped in "tutorial hell" is that nobody ever sat me down and said "Alex, I'm going to tell you about the different ways Godot collects and uses input." There are many, many things I wish someone had told me earlier in life, and you're here for game engine advice and not life advice, so I'm going to tell you about the many places input shows up. Only one of these (the last one) will actually be used for our UI. I discuss the rest because... I'm tired of tutorials that don't mention why it feels like there's thirty different varieties of input. 
 
+But if you're familiar with all of these, skim/skip as usual.
+
 POLLING INPUT IN _physics_process
 
 This is probably the one you learn first. You can just call Input.get_vector() inside of the _physics_process function, often with a line that looks like this:
@@ -321,7 +335,7 @@ This is probably the one you learn first. You can just call Input.get_vector() i
 
 That's used for moving a character around, and it happens inside of physics via a built-in because you want your character to be moving consistently no matter what else is happening, even if your frame rate is plummeting. Your frame rate could be 1/2 a frame per second, and it'll still keep on collecting your direction.
 
-You also want that data collected extremely fast. When first experimenting with input, you might have caused yourself bugs because you put some UI related input inside of physics process, but when you do that, pushing the "e" button once doesn't usually register as an "e", but instead as "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee". Because that's how many e's it picked up before your finger lifted back up. Thus, this isn't the place where you're typing your character name. But it's often how you're moving them around the world.
+You also want that data collected extremely fast. When first experimenting with input, you might have caused yourself bugs because you put some UI related input inside of physics process, but when you do that, pushing the "e" button once doesn't usually register as an "e", but instead as "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee". Because that's how many e's it picked up before your finger lifted back up. (There's alternatives to prevent that from happening even inside of _physics_process, btw.) It's not the place where you're typing your character name. But it's often how you're moving them around the world.
 
 In terms of using it to actually do stuff with your character, there's some crossover with the next bit, which is "_unhandled_input".
 
@@ -329,31 +343,41 @@ FOR THAT INPUT WHICH IS NOT YET HANDLED: _unhandled_input()
 
 _unhandled_input is one of the "top-level" functions, which is to say, it lives alongside _physics_process and _ready() and if you include it, Godot will do stuff with it automatically, just like it will go ahead and do stuff with _ready and _physics_process. 
 
-_unhandled_input is kind of a collector of keystrokes. It's best explained in comparison to the polling of input in _physics_process. Every time there's a physics "tick", which is, once every fraction of a second, the physics processor will ask if a button is smushed. _unhandled_input is like the inverse of the concept: The moment you push a button, it's hoovered into this function as a Thing That Happened. If you tapped the button, this function says The Button Was Pushed! And once you let it go, The Button Was Released!
+_unhandled_input is kind of a collector of keystrokes. It's best explained in comparison to the polling of input in _physics_process. Every time there's a physics "tick", which is, once every fraction of a second, the physics processor will ask if a button is smushed. _unhandled_input is like the inverse of the concept: The moment you push a button, it's hoovered into this function as a Thing That Happened. If you tapped the button, this function says The Button Was Pushed! And once you let it go: The Button Was Released!
 
-If you're wondering "which one do I use", well, it isn't always obvious. If you have an ability with a cooldown, well, the cooldown can effectively time-gate the player, meaning you could shove the ability into either place. Mentally, maybe you want your "physics" things happening in your physics function, and your not-physics stuff happening somewhere else, for your own sanity. 
+If you're wondering "which one do I use", well, it isn't always obvious. If you have an ability with a cooldown, well, the cooldown mechanic itself can effectively time-gate the player, meaning you could shove the ability into either _unhandled_input or _physics_process. Mentally, maybe you want your "physics" things happening in your physics function, and your not-physics stuff happening somewhere else, for your own sanity. 
 
-But it wouldn't be programming if the two different things couldn't be used for the same thing, so try not to panic too much about the overlap. 
+It wouldn't be programming if the two different things couldn't be used for the same thing, so maybe the best thing I can tell you is: Yes, you're not crazy, plenty of things could be in one or the other.
 
 AND WHAT ABOUT _input 
 
 I mentioned the "unhandled" sibling of input first because your actual player's behavior is usually handled by either the polling or the _unhandled_input paths. The reason you don't use _input is because _input takes priority over basically everything else. 
 
-If you were to use _input to fire the character's gun or have them jump, then they could end up doing that even while the game is paused, because, again, priority over everything. You often want the player's input to be ignored, and the most common example is their input during a pause screen. 
+If you were to use _input to fire the character's gun, then they could end up doing that even while the game is paused, because, again, priority over *everything*. You often want the player's input to be ignored, and the most common example is their input during a pause screen. 
 
 The _input function is able to mark input as "handled" which prevents the _unhandled_input function from ever seeing it.
 
+Thus, the _input vs. _unhandled_input distinction is a lot more obvious. 
+
+Before you get married to the concept of _input, you should know that control nodes already handle input for you under the hood. _input might literally only show up as a way to escape/pause the game and enter the UI system, and that UI system will probably be created with control nodes, which handle all of the input for you, on their own, without you coding them to do it.
+
 THE CONTROL NODES THAT SKIP THESE INPUT STEPS ON YOUR BEHALF
 
-So do you type anything into an _input function for a lot of your UI? If you use Godot's built in Control nodes to make the UI, then no. There's several reasons to build your UI with Control nodes; one of them is that you don't have to burn any time scripting actions for clicking UI buttons. That would be tedious. 
+If you use Godot's built in Control nodes to make the UI, then you won't find much use for _input, at least as far as the UI is concerned. There's several reasons to build your UI with Control nodes; one of them is that you don't have to burn any time scripting actions for clicking UI buttons. That would be tedious. 
 
 But it's worth knowing that this is what it's doing. If you click a Button node, that click will get marked as "handled", and your _unhandled_input function will never register the click. 
 
-It's easy to go a little insane (or at least, I have) for failing to realize that all of this is happening under the hood already when you start using Control nodes. It can be tempting to do something like script an event for when you push "enter" on part of the UI, but what will actually happen if you do that: You'll be duplicating what the Godot control node is already doing, and it'll bug out. 
+It's easy to go a little insane (or at least, I have) for failing to realize that all of this is happening under the hood already when you start using Control nodes. It can be tempting to do something like script an event for when you push "enter" on part of the UI, but you'll be duplicating what the Godot control node is already doing, and it'll bug out. 
 
-AND THAT'S NOT THE ONLY THING THE CONTROL NODES SCRIPT ON YOUR BEHALF 
+ALL OF THE NODES ARE DUPLICATING SOMETHING YOU COULD SCRIPT YOURSELF 
 
-Just like most of the other nodes in Godot, the Control nodes both declare and emit their own signals. You don't have to code those either. If you were to re-declare it or re-emit it, again, you'll just drive yourself nuts trying to glue on something that's already baked-in.
+In case you haven't noticed this yet, the whole point of a game engine is to skip coding generic crap. Whenever you use a node, ask yourself, "am I coding something this node does already"? Because the Godot nodes do *a lot*. 
+
+Also fun: You can make your own nodes. It's remarkably easy. You can even give them icons and they'll show up like every other node when you enter the "Create Node" dialog. 
+
+INPUT IS NOT THE ONLY THING THE CONTROL NODES SCRIPT ON YOUR BEHALF 
+
+Just like most of the other nodes in Godot, the Control nodes both declare and emit their own signals. You don't have to code those either. If you were to re-declare it or re-emit it, again, you'll just drive yourself nuts duplicating something that's already happening.
 
 SIGNALS: CAN YOU LEARN TO LOVE THEM?
 
@@ -367,19 +391,25 @@ I DON'T KNOW WHAT THE OBSERVER PATTERN IS
 
 Although I'm confident its utility extends way beyond game design, it's a very game-design-ish programming pattern, kind of like how state machines are everywhere but especially so in game design.
 
-The observer pattern is such that one function can scream something into the void, and other functions can choose to listen to it and act, or not. This accomplishes something called "decoupling". When you keep things decoupled, functions can run independently of one another. If you put a coin on the screen, and your player character travels over it, the coin scene can emit a signal and scream into the void, "OMG SOMEONE PICKED ME UP EEEEEEEEEE!" That signal can also carry information with it (like *which* player did the pickup, or how valuable the coin is), so instead it's more like "OMG LUIGI PICKED ME UP AND I'M WORTH 5 COINS EEEEEEE!"
+The observer pattern is such that one function can scream something into the void, and other functions can choose to listen to it and act, or not. This accomplishes something called "decoupling". When you keep things decoupled, functions can run independently of one another. If you put a coin on the screen, and your player character travels over it, the coin scene can emit a signal and scream into the void, "OMG SOMEONE PICKED ME UP EEEEEEEEEE!" That signal can also carry information with it (like *which* player did the pickup, or how valuable the coin is), so the signal might instead read "OMG LUIGI PICKED ME UP AND I'M WORTH 5 COINS EEEEEEE!"
 
-And that signal can fire fire fire and nothing bugs out even if there's no function on the other end to listen for or do anything with it. But maybe you add functions to do something with it--a function that gives invulnerability after coin pickups, a function that increases your score, a function that shakes the screen, whatever--they can all listen for that signal, and do stuff with it. And similar to how the signaling coin doesn't break if nobody listens, the listening function doesn't depend on actually receiving a signal; it can just sit around, waiting, for whenever the signal eventually comes. Maybe you'll never pick up that coin.
+And that signal can fire fire fire and nothing bugs out even if there's no function on the other end to listen for or do anything with it. 
+
+But maybe you add functions to do something with it--a function that gives invulnerability after coin pickups, a function that increases your score, a function that shakes the screen, whatever--they can all listen for that signal, and do stuff with it. And similar to how the signaling coin doesn't break if nobody listens, the listening function doesn't depend on actually receiving a signal; it can just sit around, waiting, for whenever the signal eventually comes. Maybe you'll never pick up that coin.
 
 That flexibility is also the drawback. It's easy to lose track of where all the signalers and listeners are. 
 
 I believe signals are called "events" in C, "unityevents" in Unity, and something like "delegates" or "event delegates" in Unreal.
 
-They're also, for computer science reasons unknown to me, cheap. The listening part of the equation costs virtually nothing. That's why you can have an achievement system in a game monitoring for hundreds of different events every frame and never have a performance hit. 
+They're also, for computer science reasons unknown to me, cheap. The listening part of the equation costs virtually nothing. That's why you can have an achievement system in a game monitoring hundreds of different events every frame and never have a performance hit. 
 
 SIGNALS ARE FOR... EVERYTHING?
 
 In a simple game of Pong, you can use signals to dictate the bounce of the ball back and forth. You can use signals to open all the doors in your 3D adventure game. Every coin pickup. An achievement system. Anytime your nodes need to communicate with other nodes, they'll typically do so with a signal. This includes nodes communicating with their parents and children.
+
+CALL DOWN, SIGNAL UP?
+
+There's a saying in Godot that parents *call* on their children's functions directly, whereas children send signals to their parents to trigger function activation. That's a more programming specific convention, but I wanted to mention that you generally aren't supposed to have children call the functions of their parents directly.
 
 TWO METHODS FOR CONNECTING SIGNALS 
 
@@ -387,7 +417,7 @@ You have two options for connecting signals. You can use the Godot user interfac
 
 The other option is to code them. Learning to code them is mandatory, because the UI connection method doesn't work for objects instantiated by code while the game is running. So if the fireballs shooting out of your wand need to emit a "OMG I JUST HIT SOMEONE EEEEEEEEE!" signal, then... you gotta code it, because they don't yet exist while you're editing the game.
 
-The other reason you have to learn to code connecting them is because storing signals in the TSCN file can be a huge drawback. It means you can't just copy and paste a script into a scene and have it work, at least, not without reconnecting a bunch of signals. It prevents working together on a team, because the people given authority to check out the scene file (e.g. level designers) often are not the same people coding signals (e.g. programmers).
+The other reason you have to learn to code connecting them is because storing signals in the TSCN file can be a huge drawback. It means you can't just copy and paste a script into a scene and have it work, at least, not without reconnecting a bunch of signals. It prevents working together on a team, because the people given authority to check out and modify the scene file (e.g. level designers) often are not the same people coding signals (e.g. programmers).
 
 BEFORE I TALK ABOUT THE FOUR STEPS OF SIGNALING, SOMETHING TO CLEAR UP ABOUT THE UI 
 
@@ -401,11 +431,11 @@ Declaring a signal looks almost exactly like declaring a variable or declaring a
 
 Like a variable, you can name the signal almost anything. And like a function, you can create a signal that accepts arguments. 
 
-Godot already has nodes that function as coin pick-ups, but imagine for a second it didn't. It's Godot version 0.1. You'd probably want your coin signal's parameters to include who picked it up, and the value of the coin. You'd type cast those parameters too, so you'd type cast it as a CharacterBody3D for a 3D player and an integer or float for the coin value.
+Godot already has nodes that function as coin pick-ups, but imagine for a second it didn't. It's Godot version 0.1. You'd probably want your coin signal's parameters to include who picked it up, and the value of the coin. You'd type cast those parameters too, so you'd type cast it as a CharacterBody3D for a 3D player and an integer for the coin value.
 
-So this template or our coin would go from this:
+So this template for our coin would go from pseudocode like this:
 
-	signal my_signal(arg1: int, arg2: String)
+	signal my_signal(arguments for player and voin value)
 
 ...to something like this:
 
@@ -415,21 +445,23 @@ So this template or our coin would go from this:
 
 STEP TWO OF CODING A SIGNAL: EMITTING/SCREAMING INTO THE VOID 
 
-So, when does the coin actually scream into the universe, "OMG LUIGI PICKED ME UP AND I'M WORTH FIVE COINTS CAUSE I'M A BIG COIN EEEEEEEEEE!"
+So, when does the coin actually scream into the universe, "OMG LUIGI PICKED ME UP AND I'M WORTH FIVE COINS CAUSE I'M A BIG COIN EEEEEEEEEE!"
 
 As with all of programming, whenever you want. You'd probably code it to happen when the player touched the coin's collision body/shape. So, wherever that logic is happening, you'd write:
 
 	coin_pickup.emit(luigi, 5)
 
-Now, because programming is abstract, and you can layer signals on signals on signals, perhaps the identity of the character that touched the coin was shipped in from another signal. This "signals getting their arguments from other signals" phenomenon is common and part of what makes them so confusing, because when you're first learning about them, you think you're trying to break down and understand one signal, when really, you're looking at one signal feeding information to a second signal.
+Now, because programming is abstract, and you can layer signals on signals on signals, perhaps the identity of the character that touched the coin was shipped in from another signal. This "signals getting their arguments from other signals" phenomenon is common and part of what makes signals so confusing, because when you're first learning about them, you think you're trying to break down and understand one signal, when really, you're often looking at one signal feeding information to a second signal.
 
 DO I ALWAYS DECLARE SIGNALS AND WRITE CODE TO SAY THEY'RE EMITTING?
 
-No! Again, that's part of the whole "why use a game engine" deal. The nodes in Godot come with tons and tons of signals. Those signals are all already declared and emitting all the time. You don't have to turn them on. They just work out of the box. 
+No! Again, that's part of the whole "why use a game engine" deal. The nodes in Godot come with tons and tons of signals. Those signals are all already declared and emitting all the time. You don't have to turn them on. They just work out of the box.
 
 For example, a collision body already has signals and they're already emitting out of the box, so there's no declaring/emitting code coming from you.
 
 And that's not all--those nodes also already emit arguments. A collision body node, when emitting the signal that it's been collided with, emits additional information like who collided with it.
+
+This, I think, is what makes game engines hard to learn--they're already doing so much work for you, that it can be difficult to understand precisely when you're stepping in to take over.
 
 SO WITH THE BUILT IN NODE SIGNALS I JUST SKIP STEPS 1 AND 2?
 
@@ -458,7 +490,7 @@ A thing that got me when I first learned signals--when writing the code to creat
         coin_pickup.connect(screen_shaker())
         coin_pickup.connect(score_updater())
 
-I thought I was just providing the full name of the function. If you have a function called "screen_shaker", its real name is actually "screen_shaker". Its name is not "screen_shaker()". When you include parentheses, the function is executed then and there, at the moment the reader reads it. So in my case, I wasn't providing a name, I was actually executing the "screen_shaker" function and then executing the "score_updater" function as part of the _ready() function, and not much later, when the player touched it. The signal.connect() framing doesn't stop functions from running if they have the magic parentheses.
+I thought I was just providing the full name of the function. If you have a function called "screen_shaker", its real name is actually "screen_shaker". Its name is not "screen_shaker()". When you include parentheses, the function is executed then and there, at the moment the reader reads it. So in my case, I wasn't providing a name, I was actually executing the "screen_shaker" function and then executing the "score_updater" function as part of the _ready() function. The signal.connect() frame doesn't stop functions from running if they have the magic parentheses.
 
 (It's possible to actually want this to happen, like if the function itself is responsible for providing the name of some other function, but if you're a beginner it's likely a bug.)
 
@@ -483,7 +515,7 @@ So you'd have:
 		pass
 
 	func score_updater(player: CharacterBody3D, value:int):
-		#code that updates the score 
+		#code that updates the score for the correct character
 		pass
 
 I wrote "pass" at the end to initially form a stub, but you'd remove the "pass" once it had code to do a thing.
@@ -502,15 +534,15 @@ You always want your games to be as accessible as possible. One of the best ways
 
 WHEN ELSE SHOULD I USE THE UI FOR SIGNALS?
 
-Although the manual is good, it's nice to have a list of all the built-in signals available a click away (along with the tooltips that reveal arguments). Just like looking up property names via the Inspector, you can click the tab to see all the built-in signal names alongside any that you scripted.
+Although the manual is good, it's nice to have a list of all the built-in signals available a click away (along with the tooltips that reveal arguments). Just like looking up property names via the Inspector, you can click the Signals tab to see all the built-in signal names alongside any that you scripted (those show up too).
 
 Remember that signals you declare in a script also show up in the Signals tab of the UI--just because you coded the signal into existence doesn't mean you can't use the UI to handle the connections.
 
-SHOULD WE START WITH STEP 1 OR STEP 4?
+IS THIS THE TRUE ORDER OF THE STEPS? SHOULD WE START WITH STEP 1 OR STEP 4?
 
 I personally find it way, way easier to comprehend if I write the handling function first. 
 
-The steps are written 1-4 in manuals and elsewhere, in every tutorial I've read, the walkthough of the code is in that order. But I personally find it easier to conceptualize if I write the function first. It forces me to think through what arguments I'll need, what type they'll have, and if I'll get enough of what I need from the signal. Also: I might realize this function will do a lot of things and be called for reasons other than the signal firing.
+The steps are written 1-4 in manuals. In tutorials I've read, the walkthough of the code is in that order. But I personally find it easier to conceptualize if I write the function first. It forces me to think through what arguments I'll need, what type they'll have, and if I'll get enough of what I need from the signal. Also: I might realize this function will do a lot of things and be called for reasons other than the signal firing.
 
 Obviously, go with whatever makes it easier for you to think through it.
 
@@ -520,13 +552,13 @@ So to have the UI actually do something useful, we need a script. Where to attac
 
 You could attach it to the UI itself. You could attach it to the root node. You could attach it to the mesh. I ended up reparenting the entire UI (CanvasLayer all the way down) under a basic Node and called it "Controller". The Controller can listen for signals from the UI, and send those signals as uniforms to the chosen shader. 
 
-The advantage of this: We just put a lot of work into building a cute shader UI and it would be nice to (mostly) do it again. Our UIs will of course be different when creating them for different shaders, but I want the skeleton.
+The advantage of this: We just put a lot of work into building a cute shader UI and it would be nice to reuse later. Our UIs will of course be different when creating them for different shaders, but I want the skeleton.
 
-If you feel similarly, create a Node, and rename the Node "Controller". Drag CanvasLayer into it to become Controller's child.
+If you feel similarly, create a Node, and rename the Node "Controller". Drag CanvasLayer into it to become Controller's child, which will bring all of its children alongside.
 
 THE SHADER SETTER FUNCTION
 
-We've already seen early on retrieving a shader material as a variable and the assigning it a uniform, but I'll paste in part of the code from early on in the book that did it:
+We've already seen early on retrieving a shader material as a variable and then assigning it a uniform, but I'll paste in part of the code from early on in the book that did it:
 
 	@onready var raymarching_gel = $CharacterBody3D/CameraPivot/Camera3D/RaymarchingGel
 	@onready var shader_material = raymarching_gel.get_active_material(0)
@@ -547,7 +579,7 @@ THE HANDLING FUNCTION
 
 We can break up the function into as many pieces as we wanted, but I'm going to code a function that does all of the numbers as if they're manually set. 
 
-I'll do the Randomize behavior in a different function, because we could handle randomization in a lot of ways, and I don't want it mixed up with anything else. The randomize button also has a different behavior, in that it will pass text into the LineEdit nodes.
+I'll do the Randomize behavior in a different function, because we could handle randomization in a lot of ways, and I don't want it mixed up with anything else. The randomize button also has a different behavior, in that it will return text to update the LineEdit nodes.
 
 The Save button I'll handle later, but I anticipate saving and loading to each be their own function.
 
@@ -562,88 +594,118 @@ Exponent
 NormalizeXFactor
 NormalizeXToggle
 
-Shaders don't have all of the variable types that gdscript uses. There are no strings, nor are there booleans. I'll deal with the conversion later, but for now, I have what I need to write a function:
+Shaders don't have all of the variable types that gdscript uses. There are no strings. I'll deal with the conversion later, but for now, I suspect I have what I need to write a function:
 
 	func shader_setter(value, control):
-		uniform_name = #button name to uniform name conversion code here
+		# uniform_name = code to extract a name from the signal
+		var uniform_name = "Stub String"
+		#also some code to convert the value to a float
 		shaded_object.set_shader_parameter(uniform_name, value)
 
+And then I can add a connection to text_changed for F0's LineEdit node to the _ready function:
+
+	func _ready() -> void:
+		$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F0/LineEdit.text_changed.connect(shader_setter)
+
+There's a problem though, which is that signal only emits the value. The LineEdit node doesn't emit a signal that includes its own name or the name of its parent. The shader_setter function would just receive a number with no name, and the shader setter needs to be able to set several different parameters based on that name. In order to get "F0" added as an argument when the signal gets emitted, we need an additional argument tied to that signal somehow. The difference is remarkably small:
+
+	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F0/LineEdit.text_changed.connect(shader_setter.bind("F0"))
+
+It really is that simple: You replace shader_setter with shader_setter.bind("F0") and then the signal will include the bound argument after its regular arguments.
 
 
+You *could* write a function that avoids copying and pasting these lines like I'm about to do, but I prefer not to do logic in my head when reading UI code.
 
-TO DO LIST:
-
-
-DISCUSS THE POTENTIAL MATH ISSUES (and why I'm ignoring them for now and letting normalize handle the overages)
-DISCUSS SOME WORLEY RESULTS 
-DISCUSS EXTENSION OPTIONS, both for the UI and for the worley noise itself 
-DISCUSS NEXT CHAPTER, which will involve refactoring the Worley shader into something that can be brought in with an include file 
-DISCUSS SIDE QUEST CHAPTERS, since there's enough info already to construct a water shader
+Adding the remaining nodes for me ended up like this, and note, you can just click and drag the node into the script window to get the node's full path, don't go insane by typing out long node paths.
 
 
+	func _ready() -> void:
+	##	Below line ineffective, as it doesn't carry the name.
+		#$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F0/LineEdit.text_changed.connect(shader_setter)
+
+	#	Corrected code to bind the control names along with the signal.
+	#	WARNING: Below code uses capital names! Use to_lower() later when creating uniform names.
+		$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F0/LineEdit.text_changed.connect(shader_setter.bind("F0"))
+		$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F1/LineEdit.text_changed.connect(shader_setter.bind("F1"))
+		$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F2/LineEdit.text_changed.connect(shader_setter.bind("F2"))
+		$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F3/LineEdit.text_changed.connect(shader_setter.bind("F3"))
+		$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F4/LineEdit.text_changed.connect(shader_setter.bind("F4"))
+		$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/Exponent/LineEdit.text_changed.connect(shader_setter.bind("Exponent"))
+		$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/NormalizeFactor/LineEdit.text_changed.connect(shader_setter.bind("Normalize_Factor"))
+		$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/NormalizeXButton.toggled.connect(shader_setter.bind("Normalized_Bool"))
+
+A few thoughts about what I've done here. First, I've used capital letters in the names, and given myself a warning to use a to_lower() function later to convert the names to lowercase before they're sent to the shader. Additionally, there's one outlier signal here, which is the toggle button--it has a natural boolean like behavior, and Godot's boolean signal for that particular behavior is the "toggled" signal. WARNING: This only works if you go into the Inspector panel for the button and set "Toggle Mode" to "On"; its default is off.
 
 
+RETURNING TO THE HANDLER FUNCTION 
+
+Now that I've got a sense for what the signals are emitting, it's easier to shape out the handling function. I know it'll receive either a string or a boolean value, with uppercase letters to get rid of, along with a string for the value itself that will need to be converted to a float. Finally, the function will need to ship that value to the shader.
+
+Here's my code so far:
+
+	func shader_setter(value, control):
+		# uniform_name = code to extract a name from the signal
+		var uniform_name = "Stub String"
+		#also some code to convert the value to a float
+		shaded_object.set_shader_parameter(uniform_name, value)
+
+And here's what I updated it to now that I've connected the signals enough to have a sense of what they're sending:
+
+	func shader_setter(value, control_name):
+		var uniform_name = control_name
+		uniform_name = uniform_name.to_lower()
+		if value is String:
+			value = value.to_float()
+			shaded_object.set_shader_parameter(uniform_name, value)
+		elif value is bool:
+			shaded_object.set_shader_parameter(uniform_name, value)
+		else:
+			push_warning("The shader_setter function received an unhandled type for " + uniform_name)
+			print("The shader_setter function has pushed a warning.")
+
+The shader setter is now doing a couple things. 
+
+First, I tweaked the parameter name "control" to "control_name" since it's not receiving an actual Control node, but rather, the name of one.
+
+It's cleaning up the name slightly by converting it to lowercase by using the to_lower() method.
+
+Then, there's an if branch. Users will type in numbers, but those will initially be strings, so the to_float() method will convert them to floats.
+
+If it's a boolean, the value can be shipped to the shader as-is.
+
+Finally, I threw in a catch-all, and I gave it two warnings. The first "warning" isn't a Godot-style warning--it's just something printed to the console, specifically to the Output. The Godot warning appears in the Debugger tab at bottom. If you're unfamiliar with push_warning(), just make one up and put it in ready() if you want to see how it shows up. As a beginner programmer, you might be like me and use print() to figure out code behavior and identify problems, and that's perfectly fine for understanding (and thus debugging) basic functions, but as your project evolves, you'll use the real Godot debugging system to deal with problems, and you'll need to learn it eventually.
+
+A QUICK ASIDE FROM CLAUDE ON WARNING TYPES IN GODOT 
+
+If push_warning isn't enough, you can escalate to more hardcore warnings. Per Claude:
+
+	The ladder, softest to hardest:
+
+	┌────────────────────┬─────────────────────────┬─────────────┬──────────────────┐
+	│        Call        │      Color / where      │   Halts?    │ Survives export? │
+	├────────────────────┼─────────────────────────┼─────────────┼──────────────────┤
+	│ push_warning()     │ yellow, Warnings tab    │ no          │ yes              │
+	├────────────────────┼─────────────────────────┼─────────────┼──────────────────┤
+	│ push_error()       │ red, Errors tab + trace │ no          │ yes              │
+	├────────────────────┼─────────────────────────┼─────────────┼──────────────────┤
+	│ assert(false, "…") │ red + breaks            │ yes (debug) │ no (stripped)    │
+	├────────────────────┼─────────────────────────┼─────────────┼──────────────────┤
+	│ breakpoint         │ breaks in debugger      │ yes (debug) │ no               │
+	└────────────────────┴─────────────────────────┴─────────────┴──────────────────┘                                                                                                                       
+
+"Survives export" refers to whether the error survives when you ship your game to other players--sometimes you want them to be able to send you errors via bug reports, and sometimes not.
+
+PLANNING FOR THE NEXT STAGE 
 
 
+We've now got a working UI. At least, part of one. In the next chapter, I'm going to modify the shader and its math to accept these values. Once that's done, I'll have a follow-up chapter to round out the UI with a Randomize button that works, along with a save and load feature. As they're currently numbered, that will make for chapters 15 and 16, respectively.
 
+EXTENSIONS AND SIDE QUESTS 
 
+If you were a "don't repeat yourself" fanatic, you could code in a function that automatically connects all of the signals. For this it would be unnecessarily tedious, but knowing how to script repeated signal connections is a useful skill, even if you only decide to read about it.
 
+You might also consider creating a UI for another shader. If you're struggling to understand a shader on Shadertoy, building a UI for it would be one path toward understanding it.
 
+Another consideration would be all of the weird ways you could do with a UI--here I've used them to mess with one equation, but you could use a UI to tell a shader whether to include, or not, entire functions. This would give you the power to add and remove layers with a UI system.
 
-
-
-
-CLAUDE'S CLIFF NOTES ON CODING A SIGNAL:
-
-    signal my_signal(arg1: int, arg2: String)
-
-
-    func _ready() -> void:
-        my_signal.connect(_on_my_signal)
-        my_signal.emit(42, "hello")
-
-    func _on_my_signal(arg1: int, arg2: String) -> void:
-        print(arg1, arg2)
-
-    Key bits:
-    - signal name(args) declares it at the top of the script
-    - my_signal.emit(...) fires it
-    - my_signal.connect(callable) subscribes (or connect from another node:
-    $Other.my_signal.connect(_on_other_signal))
-
-EXCEPT WE'RE WORKING WITH BUILT IN SIGNALS 
-
-The signals we're going to use will be built-ins. That means they don't need to be declared.
-
-
-
-
-
-
-
-
-
-First, lets do some initial wiring to get the shader in place.
-
-The @export line allows you to choose your shaded quad in the Inspector panel:
-
-    @export var shaded_object : MeshInstance3D
-    @onready var shader_material = shaded_object.get_active_material(0)
-
-We've seen the .get_active_material() method before be called on a mesh, with the 0th indexed material (there's only one material on it, so it's indexed to 0). I'll skip the tangent on why you use @onready, but you pretty much always use it when you're setting up variables at the top of your script that reference other nodes.
-
-
-
-
-
-
-TO DO LIST:
-
-A BRIEF SIGNAL EXPLANATION (learn to code it, because the instantiation situation requires it; also there's repetitive signals; though note the pluses and minuses of the signal information being stored in the scene file, particularly when working on teams)
-DISCUSS THE POTENTIAL MATH ISSUES (and why I'm ignoring them for now and letting normalize handle the overages)
-DISCUSS SOME WORLEY RESULTS 
-DISCUSS EXTENSION OPTIONS, both for the UI and for the worley noise itself 
-DISCUSS NEXT CHAPTER, which will involve refactoring the Worley shader into something that can be brought in with an include file 
-DISCUSS SIDE QUEST CHAPTERS, since there's enough info already to construct a water shader
-
-
+Lastly, what would a UI look like if you were building something accessible for your artists? What if you used a ColorPickerButton node? What if you treated your player as the artist--what values would you expose to the player so they could choose their own character's colors? Right now it's connected to the fragment() portion of the shader, but what could you do attaching the player to the vertex() shader? 
