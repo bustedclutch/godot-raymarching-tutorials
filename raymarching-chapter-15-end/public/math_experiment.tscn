@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://dniskwdnb66o"]
+
+[ext_resource type="Script" uid="uid://c5a7yia8hsq3o" path="res://public/math_experiment.gd" id="1_57de1"]
+
+[node name="MathExperiment" type="Node3D" unique_id=1567137479]
+script = ExtResource("1_57de1")

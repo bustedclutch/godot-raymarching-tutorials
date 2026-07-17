@@ -1,0 +1,390 @@
+REFRESHING THE MEMORY
+
+Chapter 14 built the UI but the end of chapter 13 is where I described the functions called for by Worley.
+
+REMEMBERING THE FUNCTIONS TO BE BUILT FROM THIRTEEN
+
+I'll just copy and paste that description again.
+
+	So Steve Worley says that you're much better off just firing a zillion random numbers in to see the results. Options include a function like this, where each random number (the five different Q's below) are factors of the F values, and they're all added together, like this:
+
+		result = Q1*F1 + Q2*F2 + Q3*F3 + Q4*F4 + Q5*F5
+
+	A problem arises: This number could be negative, and will be, a lot of the time. Easily fixed, we just take the absolute value of all of them:
+
+		result = abs(Q1*F1 + Q2*F2 + Q3*F3 + Q4*F4 + Q5*F5)
+
+	We have another problem, which is that these values are probably going to go way over 1, which would leave us with a white image. We need to normalize somehow. We can't normalize in a conventional way in a shader, but we can divide the result by a number that increases as the UV of x increases from 0 to 1:
+
+		result / (UV.x*normalization_factor)
+
+	That normalization_factor can be a uniform sent by gdscript, so that you can tweak that independently.
+
+	We might also want a power function. That can magnify the impact of a shader, allowing you to make otherwise faint effects pop:
+
+		pow(x ,n) // x raised to n 
+		pow(result, exponent_factor) //with the proposed uniform name 
+
+	I'm going to just chain all three of those together as one in the code.
+
+REMEMBERING THE PARAMETER NAMES FROM FOURTEEN
+
+The parameter names were conveyed in the gdscript as arguments bound to signals emitted by various Control nodes. So they show up as the string contained in .bind() on the end of each of the signal subscriptions:
+
+	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F0/LineEdit.text_changed.connect(shader_setter.bind("F0"))
+	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F1/LineEdit.text_changed.connect(shader_setter.bind("F1"))
+	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F2/LineEdit.text_changed.connect(shader_setter.bind("F2"))
+	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F3/LineEdit.text_changed.connect(shader_setter.bind("F3"))
+	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F4/LineEdit.text_changed.connect(shader_setter.bind("F4"))
+	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/Exponent/LineEdit.text_changed.connect(shader_setter.bind("Exponent"))
+	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/NormalizeFactor/LineEdit.text_changed.connect(shader_setter.bind("Normalize_Factor"))
+	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/NormalizeXButton.toggled.connect(shader_setter.bind("Normalized_Bool"))
+
+Those parameter names will all be lowercase, because the handling function ran a .to_lower() method to make them so.
+
+REMEMBERING HOW OUR SHADER NAMES THE VARIABLES THAT ARE ALREADY ON THE BOARD 
+
+The money-line of the shader used this convention:
+
+	col = vec3(worley_distances[1] - worley_distances[0]);
+
+This equation looks a bit different from this:
+
+	result = Q1*F1 + Q2*F2 + Q3*F3 + Q4*F4 + Q5*F5
+
+...but all that's really happening is this:
+
+	result = -1*F1 + 1*F2 
+
+To test that, you can update the actual shader code to this:
+
+	col = vec3(-1.*worley_distances[0] + 1.*worley_distances[1]);
+
+...and everything looks the same as before, alligator skin and all. The only problem is that it has two of the coefficients, rather than all five. You can add all five by hand now is you want to experiment, but I skipped to doing it as part of the UI.
+
+ADDING THE UNIFORMS 
+
+The uniforms should be given defaults at the top of the shader, so the shader will still function before the UI ships any updates to it. Here's how I named mine:
+
+	uniform float f0 = -1.;
+	uniform float f1 = 1.;
+	uniform float f2 = 0.;
+	uniform float f3 = 0.;
+	uniform float f4 = 0.;
+	uniform float exponent = 1.;
+	uniform float normalize_factor = 1.;
+	uniform bool normalized_bool = true;
+
+CREATING THE F SERIES OF THE FORMULA
+
+The first step is creating a formula in the shader itself that has the full length for all five of the collected distances, which I essentially copied from Worley:
+
+	result = Q1*F1 + Q2*F2 + Q3*F3 + Q4*F4 + Q5*F5
+
+To preserve the alligator skin look, replace the col= line, that currently reads this:
+
+	col = vec3(-1.*worley_distances[0] + 1.*worley_distances[1]);
+
+...And replace it with a pair of lines that includes all five of the distance coefficients, like this:
+
+	float result = f0*worley_distances[0] + f1*worley_distances[1] + f2*worley_distances[2] + f3*worley_distances[3] + f4*worley_distances[4];
+	col = vec3(result);
+
+The output will still be the same if f2, f3, and f4 are set to zero.
+
+ABSOLUTE VALUE TO ELIMINATE NEGATIVE RESULTS
+
+There's a few more modifications to make. You'd want the absolute value to go ahead and capture any negative results, since colors don't traditionally go below zero. I say "traditionally" because, weirdly, Godot actually *does* handle negative colors in a bizarre, neon-glow way, and maybe you'll find a use for that, but I'm getting rid of it with an extra line:
+
+	result = abs(result);
+	col = vec3(result);
+
+You might want a negative result for some shader witchcraft along the way, so maybe you'll put the absolute value later on in the process. I maybe should have done the absolute value at the very end, but you can ponder the pros and cons and do whatever you want.
+
+NORMALIZING OVER THE X AXIS
+
+I can then normalize things over the X axis, by adding this line:
+
+	result = result / (UV.x*normalize_factor);
+	col = vec3(result);
+
+This introduces a glowy blast look on the left; part of the art is deciding whether that bothers you and how you choose to deal with it.
+
+The purpose of this normalization over the X axis is to make it a little easier to spot patterns that exist but are initially impossible to see. I found later on in the process that the normalize_factor needed to be much higher than 1.0 to accomplish this purpose, but you can play with it and judge it yourself.
+
+THE EXPONENT
+
+The exponent modification ended up being the most useful for tuning the final result.
+
+In order to introduce the exponent, I added this line:
+
+	result = pow(result, exponent);
+	col = vec3(result);
+
+The exponent and the normalization thus work at odds with one another, but I'm taking a more-is-more approach for now.
+
+Here's the full logic so far:
+
+	float result = f0*worley_distances[0] + f1*worley_distances[1] + f2*worley_distances[2] + f3*worley_distances[3] + f4*worley_distances[4];
+	result = abs(result);
+	result = result / (UV.x*normalize_factor);
+	result = pow(result, exponent);
+	col = vec3(result);
+
+IT'S MISSING THE BOOLEAN
+
+I built the UI so that normalizing over the X axis was optional. So the normalization line needs to be branched out with an if statement:
+
+	float result = f0*worley_distances[0] + f1*worley_distances[1] + f2*worley_distances[2] + f3*worley_distances[3] + f4*worley_distances[4];
+	result = abs(result);
+	if (normalized_bool){
+		result = result / (UV.x*normalize_factor);
+	}
+	result = pow(result, exponent);
+	col = vec3(result);
+
+Go ahead and change the default normalized_bool assignment to "false" to make sure the logic branch works as expected, and to make the annoying glow stop. You should now have an alligator shader that looks identical to what came before.
+
+LAUNCH THE SCENE AND PRAY 
+
+Now, maybe, just maybe, I wired everything correctly the first time, and if I run the scene, this will just... work. I am stopping to have a drink first.
+
+AND IT CRASHED 
+
+And the error is: "Invalid call. Nonexistent function 'set_shader_paremeter' in base 'MeshInstance3D'.
+
+I decided, at least this morning, to try and not use Claude to explain all of my errors, because I have sat in the cradle of AI for long enough and also this error happens to be something that I recognize. MeshInstance3D's don't have a built-in function to set a shader parameter; the actual shader assigned to them does. So I probably assigned the wrong variable in the controller.gd script, likely the mesh itself rather than the mesh's shader or material. Let's find out!
+
+In the code, I wrote this, which looks correct:
+
+	@export var shaded_object : MeshInstance3D
+	@onready var shader_material = shaded_object.get_active_material(0)
+
+I did take the extra step of getting the active material and assigning it to a variable called "shader_material". Did I actually use that variable name? Here's the code that crashed:
+
+		shaded_object.set_shader_parameter(uniform_name, value)
+	elif value is bool:
+		shaded_object.set_shader_parameter(uniform_name, value)
+
+And the answer is no, no I did not. Despite naming the variables correctly at the top of the script, I mindlessly auto completed "shaded_object" instead of "shader_material" when calling the .set_shader_parameter method. So, I replaced "shaded_object" with "shader_material" on those two lines and ran it again.
+
+PRAY AND RUN IT AGAIN 
+
+And for me, it works.
+
+If you followed this whole journey, I encourage you to start fiddling with the various F0 to F4 values. 
+
+There's something rather glorious about typing in random numbers to see what comes up. I found that F0=-1, F3=0.5, F4=1, with an exponent factor of -7 produces a bizarre crystalline pattern that I don't normally associate with Worley noise. Similarly, I found -2, 0.6, -0.2, 0, 0 with an exponent of 1 to be creepy and unusual.
+
+DARKENING AND LIGHTENING WITH THE EXPONENT 
+
+The exponent, for me, was the fastest way to darken and lighten the result to create something visible.
+
+THAT RANDOMIZE BUTTON WON'T WORK AS-IS
+
+Something that becomes immediately obvious is that a randomize button alone won't work. The results pretty much always have to be normalized with the exponent to produce something visible, and my "normalize over the x axis" hack isn't living its best life. For a randomize button to be worthwhile, one path would be to have the CPU to read the shaded output, identify the minimum and maximum values, and tweak the exponent until it met whatever rule you described to consider it sufficiently normalized. 
+
+Alternatively, the exponent could be redone as a slider, so that normalizing would be quick and easy on the user side.
+
+That first option sounds like a pain, but the slider seems reasonable and useful.
+
+SOME OBSERVATIONS ABOUT RANDOM VALUES 
+
+The lower F values seemed to be able to go higher (or lower if negative) without overwhelming the shader; this suggests that a randomize button might perform better if it had greater odds of producing bigger swings with the lower F's, and lower swings on the higher F's. 
+
+SOME OBSERVATIONS ABOUT DEFAULT TEXT IN THE UI 
+
+The default text for the LineEdit boxes should probably reflect the default values in the shader. I just typed those in. It's theoretically possible to have gdscript pull the assigned value and insert that in as the text, but coding that felt unexciting and unnecessary, and raise the possibility of an infinite loop if I did it wrong, so I hard passed.
+
+I also suspect that having default text will make saving the values easier later.
+
+CREATING THE EXPONENT SLIDER FIRST 
+
+It's possible to change a node type, but a slider is literally just a slider, and I'd like to be able to see the resulting number. Also, we wired the LineEdit box already and I don't want to mess with it. So, I'm just going to add an HBoxContainer, rename it ExponentSlider, give it an HSlider node as a child, give it a size of about 200x20 pixels, a range of -10.0 to 10.0, and a step size of 0.2. I also gave it 20 tick marks.
+
+My intention was to just have that slider send a signal that updates the text in the Exponent/LineEdit node, and have that function as a chain reaction that updates the shader. 
+
+WHAT WERE THE STEPS OF SIGNALING AGAIN?
+
+Declare the signal, emit the signal, subscribe the signal, handle the signal. Like all Godot nodes, especially the Control nodes, most signals are already declared and emitted under the hood, including those of the slider.
+
+WHAT SIGNAL TO USE ON THE SLIDER?
+
+In the Signals tab on the right (the same panel as Inspector), there's a "value_changed" signal emitted as a float. The tooltip offers a helpful warning that the slider sends the signal continuously, and to use a Timer node to prevent it from calling every single frame if that's a problem. I am *assuming* that won't be a problem.
+
+In the big list of Signal subscriptions under _ready(), I dragged and dropped the HSlider node and wrote a connection, with the callable name "exponent_slider_update".
+
+	func _ready() -> void:
+		#a bunch of other signal connections
+		$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/ExponentSlider/HSlider.value_changed.connect(exponent_slider_updater)
+
+That produces an error because no function exists yet.
+
+CREATING THE HANDLER
+
+The handling function needs to receive the updated value from the slider, which we know will be a float because the Signal panel's tooltip tells you what type it is. The function then needs to convert that value to a string, and update the text of the exponent box with it. Here's my draft:
+
+	func exponent_slider_updater(updated_value:float):
+		var exponent_node = $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/Exponent/LineEdit
+		var updated_value_as_string = str(updated_value)
+		exponent_node.text = updated_value_as_string
+
+Curiously, when I ran the scene with Godot 4.6.1, the function did succeed in updating the text of the LineEdit box, but that wasn't enough to trigger the LineEdit node to fire its own signal that its value changed. 
+
+I've come to think of some of these quirks as characteristics of the engine. It's possible that a future Godot version will decide that the logic for that should be handled differently. One means of handling the issue would be to force the signal from the LineEdit node to fire.
+
+Unfortunately, I have no idea how to do that. But it does only take one line of code for the current function to update the shader parameter by itself, and I definitely know how to do that. So I added one line to the end of the function:
+
+	func exponent_slider_updater(updated_value:float):
+		var exponent_node = $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/Exponent/LineEdit
+		var updated_value_as_string = str(updated_value)
+		exponent_node.text = updated_value_as_string
+		shader_material.set_shader_parameter("exponent", updated_value)
+
+And voila, it works.
+
+Claude felt that coding the signal to fire posed the risk of an infinite loop, as far as I can tell, I think it would just cause the signal to fire twice. 
+
+THE X AXIS NORMALIZER IS REDEEMED
+
+I was worried that X-axis hack would turn out to be completely pointless, but it actually produces an interesting look when paired with the slider, as it does illustrate the transition I was originally hoping for. Though I often only found it useful when the normalize_factor was cranked quite high, like 10.0 or higher.
+
+A WARNING ABOUT UNDER THE HOOD BEHAVIOR
+
+Little things like how a node operates under the hood can be design choices that change as a game engine receives updates--so maybe in some other version of Godot, that signal from LineEdit will fire when its text is updated by something other than the user. Or more likely, there's some reason I don't know for why it behaves that way now. Whatever the case, it's worth writing a comment into your actual code in these circumstances, whenever you hack your way toward a result, in case some later update corrects the gap and causes your hack to become a bug.
+
+THE RANDOMIZE BUTTON, PART 1: CREATING A DISTRUBTION CURVE 
+
+The first problem to deal with for the randomize button is a mathematical one--we don't want evenly distributed numbers for this. We want to load the dice in our favor.
+
+If you were feeling truly insane, you could create a Curve resource in Godot and sample with that. (Reminder about "what are resources"--they are not nodes. Shaders are a resource, fonts are a resource, scripts are a resource. 'Resource' may sometimes be capitalized as a proper noun, i.e. "Resource".)
+
+This whole book is about creating visualizations from math, so... might as well toss in another one.
+
+If you had the equation x^3 and you sampled it with a random number between -1 and 1, the great majority of your results would be close to zero, but the outliers could go as high as 1 or as low as -1. It's worth pulling up on a graphing calculator if you don't already know what x^3 looks like. I like Desmos for simple things like this, though you'll find Inigo Quilez' Graphtoy much more useful for shader math.
+
+If you just wanted a random result between -1 and 1 that tilted heavily to the center, then this would work:
+
+x = randf(-1.0, 1.0)
+x = pow(x, 3)
+
+Maybe, however, you want to mess with the distribution curve. What would X to the power of 1.1 or 1.2 or 1.4 or 1.8 or 3.5 or 4 or 5 or 10 look like? If you forgot middle school algebra and went to the trouble of pulling it up on the graphing calculator, you'll notice two things: First, the higher the exponent, the greater the smushing effect, and second, if X is less than zero, it can produce a lot of weird behaviors depending on the last digit of your exponent, including undefined behavior. Undefined behavior is generally bad news bears, so it's safer to store the sign of the input X (to preserve the 50/50 probability of a negative number), do the exponent operation on the absolute value of x, and then bring the sign back in at the end.
+
+YOU MIGHT CHOOSE TO SKIP ANY OF THIS SILLINESS GIVEN THAT GODOT HAS PLENTY OF RNG BUILT INS:
+
+https://docs.godotengine.org/en/latest/tutorials/math/random_number_generation.html
+
+Specifically, randf_range(-1.0, 1.0) produces the result that I'm building around, but you can skew results toward a normal using the built in function randfn(0.0, 1.0). As stated in the Godot docs:
+
+	# Prints a random floating-point number from a normal distribution with a mean 0.0 and deviation 1.0.
+	print(randfn(0.0, 1.0))
+
+Storing the sign is done using the sign() function.
+
+Here's the function I wrote:
+
+func weighted_random_number(exponent:float, multiplier:float):
+	var x = randf_range(-1.0, 1.0) #random float between -1 and 1
+	var sign_of_x = sign(x) #store the sign of x as -1, 0, or 1
+	var x_weighted_to_center = pow(abs(x),exponent) #pull the result closer to zero based on
+	# strength of exponent
+	return sign_of_x * x_weighted_to_center * multiplier #restore sign and use multiplier to produce
+	#numbers outside of the -1 to 1 range.
+
+This function has a fairly straightforward interface--the multiplier allows you to determine the full range, and the exponent lets you decide on the distribution, with a higher number dragging the results closer to zero.
+
+WHAT SHOULD THE RANDOMIZE BUTTON DO?
+
+Having learned my lesson from the exponent slider, I'm going to have the randomize button both update the numbers in LineEdit for each of the F values as well as push those values to the shader.
+
+If I were a better programmer I'd code it as a loop. But I'm not!
+
+Here's some code that will upset a lot of people:
+
+	func randomize_f_values() ->void:
+		var f0 = weighted_random_number(3.0, 10)
+		var f1 = weighted_random_number(3.0, 5)
+		var f2 = weighted_random_number(3.0, 4)
+		var f3 = weighted_random_number(3.0, 3)
+		var f4 = weighted_random_number(3.0, 2)
+		$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F0/LineEdit.text = str(f0)
+		$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F1/LineEdit.text = str(f1)
+		$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F2/LineEdit.text = str(f2)
+		$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F3/LineEdit.text = str(f3)
+		$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F4/LineEdit.text = str(f4)
+		shader_material.set_shader_parameter("f0", f0)
+		shader_material.set_shader_parameter("f1", f1)
+		shader_material.set_shader_parameter("f2", f2)
+		shader_material.set_shader_parameter("f3", f3)
+		shader_material.set_shader_parameter("f4", f4)
+
+AND HERE'S CLAUDE'S DRY VERSION IF THAT BOTHERS YOU 
+
+I have no idea if Claude did it better, but I imagine Claude is correct that the DRY version of the same code would look something like this:
+
+	func randomize_f_values() -> void:
+		var args := [[3.0, 10], [3.0, 5], [3.0, 4], [3.0, 3], [3.0, 2]]
+		var settings := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings
+		for i in args.size():
+				var value = weighted_random_number(args[i][0], args[i][1])
+				settings.get_node("F%d/LineEdit" % i).text = str(value)
+				shader_material.set_shader_parameter("f%d" % i, value)
+
+COMPLETING THE RANDOMIZE BUTTON: SUBCRIBING THE SIGNAL 
+
+So, this is one of those situations where I did step 4 first, which is building the handling function. I now just need to subscribe the handling function as the callable for the randomize button's signal. I added this line to the end of the long list of subscriptions in the _ready function:
+
+	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/RandomizeButton.pressed.connect(randomize_f_values)
+
+RUN IT AGAIN AND PRAY 
+
+And it works. At least for me. Maybe not for you. But for me it does! And these somewhat arbitrary multiplier values are producing a nice variety of patterns when smashing the Randomize! button proud. We have followed the advice of Steven Worley to leave some things to chance and it has worked out. 
+
+
+A MATHEMATICAL ASIDE: HOW WOULD YOU ANIMATE THESE PATTERNS?
+
+If youre initial thought is: I want to animate this! Then you might come to the realization that you can't simply shove TIME in as an input into Worley noise and get a fluid result. The location of each point in X and Y space is the result of a hash. That means even the tiniest difference in input will produce a completely different output. 
+
+That's easy to not notice because there wasn't any singular input--the shader runs the hash for block 0,0 and for block 5,10 and so on, and your block matches my block matches everyone else's block, if the hashes is the same. As a reminder of the process:
+
+	The block gets identified
+	The block's X and Y identifiers get combined into one integer
+	That integer goes through the Wellons hash to produce another integer
+	That integer gets broken up into an X integer and a Y integer 
+	Each integer gets divided by all possible integers to produce a local X and Y coordinate within that cellblock
+
+If you try to inject TIME in as part of the hash, you'll just end up with frame-by-frame static. Well, Worley-static. It will not be cute, and you probably want it to be cute. 
+
+You have two options; one I mentioned in a previous chapter, which is to add another dimension on top of X and Y, such that it hashes out to XYZ, and use TIME as the third input. Another option is to embrace the randomness described above, but interpolate between the values. I'll probably do that in a later chapter, because I'm pretty confident I'll need it to code a water shader.
+
+BACK TO THE INTERFACE 
+
+But this is an interface chapter.
+
+And there's still that whole Save and Load button, and damnit, I need to know how to save and load a video game. It's not glamorous, just like a pause menu isn't glamorous, and a resolution settings screen isn't glamorous, but it's necessary. Also, when I see it in tutorials, it's usually addressed very briefly.
+
+MULTIPLE SAVE GAMES DIVERGED IN A WOOD
+
+In the last chapter, I waxed philisophical about how I felt like everyone tends to only explain one method of signaling without boring the reader with the details of all the possible options. 
+
+If you like being bored with all of the possible options, you've come to the right place!
+
+
+
+
+CONTINUE HERE
+
+
+
+FILE ACCESS AND THE BUILT-IN FILEACCESS
+
+Godot's documentation of FileAccess is here:
+
+https://docs.godotengine.org/en/latest/classes/class_fileaccess.html
+
+My general feeling on the Godot documentation is that it's great, if you're an intermediate programmer. I think it's worth reading *after* you read some super-beginner friendly level explanation of whatever topic you're working on. Whatever tutorial I watch online, there's always something vitally important that gets left out but shows up in the documentation. 
+
+
+AN ALTERNATIVE I'M NOT USING 
+
+

@@ -1,0 +1,121 @@
+[gd_scene format=3 uid="uid://bq8bjqw1xnfem"]
+
+[ext_resource type="PackedScene" uid="uid://cy36aygvs66pn" path="res://public/licensed_assets/gdquest_gobot/gobot_skin.tscn" id="1_bcdym"]
+[ext_resource type="Script" uid="uid://ddqo8ywvyuor3" path="res://public/game_world.gd" id="1_jmtf8"]
+[ext_resource type="Script" uid="uid://phfuc13kxbwt" path="res://public/character_body_3d.gd" id="1_r1f5s"]
+[ext_resource type="Shader" uid="uid://cccyj107w2fs0" path="res://public/camera_gel.gdshader" id="3_roiqs"]
+
+[sub_resource type="QuadMesh" id="QuadMesh_vs8q8"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_3048b"]
+render_priority = 0
+shader = ExtResource("3_roiqs")
+shader_parameter/camera_pos = Vector3(0, 2.5452917, 3.4425278)
+shader_parameter/camera_basis = Basis(1, 0, 0, 0, 0.8040852, 0.59451413, 0, -0.59451413, 0.8040852)
+shader_parameter/marble1_pos = Vector3(0, 0, -2.5320473)
+shader_parameter/marble2_pos = Vector3(0.24051082, 0.9780182, -2.5320473)
+shader_parameter/marble3_pos = Vector3(-0.9030925, 0.9780182, -2.5320473)
+shader_parameter/game_floor_pos = Vector3(0.019134521, -1.5156848, -0.00012207031)
+shader_parameter/game_floor_size = Vector3(15.051819, 1, 15.052002)
+shader_parameter/marble1_color = Color(1, 0, 0, 1)
+shader_parameter/marble2_color = Color(0, 1, 0, 1)
+shader_parameter/marble3_color = Color(0, 0, 1, 1)
+shader_parameter/game_floor_color = Color(1, 0.5, 0, 1)
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_5itm1"]
+radius = 0.41064453
+height = 1.4238281
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_5itm1"]
+sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
+ground_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
+
+[sub_resource type="Sky" id="Sky_bcdym"]
+sky_material = SubResource("ProceduralSkyMaterial_5itm1")
+
+[sub_resource type="Environment" id="Environment_r1f5s"]
+background_mode = 2
+sky = SubResource("Sky_bcdym")
+tonemap_mode = 2
+glow_enabled = true
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_5itm1"]
+size = Vector3(15.051819, 1, 15.052002)
+
+[sub_resource type="BoxMesh" id="BoxMesh_bcdym"]
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_5itm1"]
+
+[sub_resource type="SphereMesh" id="SphereMesh_bcdym"]
+
+[node name="GameWorld" type="Node3D" unique_id=1167411435]
+script = ExtResource("1_jmtf8")
+
+[node name="CharacterBody3D" type="CharacterBody3D" parent="." unique_id=356078446]
+script = ExtResource("1_r1f5s")
+
+[node name="CameraPivot" type="Node3D" parent="CharacterBody3D" unique_id=221078913]
+transform = Transform3D(1, 0, 0, 0, 0.8040852, 0.59451413, 0, -0.59451413, 0.8040852, 0, 0, 0)
+
+[node name="Camera3D" type="Camera3D" parent="CharacterBody3D/CameraPivot" unique_id=189371115]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 4.281297)
+
+[node name="RaymarchingGel" type="MeshInstance3D" parent="CharacterBody3D/CameraPivot/Camera3D" unique_id=1198379325]
+transform = Transform3D(1.54, 0, 0, 0, 1.54, 0, 0, 0, 1.54, 0, 0, -1)
+mesh = SubResource("QuadMesh_vs8q8")
+surface_material_override/0 = SubResource("ShaderMaterial_3048b")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="CharacterBody3D" unique_id=940706488]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.72, 0)
+shape = SubResource("CapsuleShape3D_5itm1")
+
+[node name="GobotSkin" parent="CharacterBody3D" unique_id=1111350075 instance=ExtResource("1_bcdym")]
+transform = Transform3D(-1, 0, 8.742278e-08, 0, 1, 0, -8.742278e-08, 0, -1, 0, 0, 0)
+
+[node name="Wand" type="Marker3D" parent="CharacterBody3D" unique_id=376171678]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4878508, -0.20389128)
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=209781210]
+environment = SubResource("Environment_r1f5s")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=200877730]
+transform = Transform3D(-0.8660254, -0.43301278, 0.25, 0, 0.49999997, 0.86602545, -0.50000006, 0.75, -0.43301266, 0, 0, 0)
+shadow_enabled = true
+
+[node name="GameFloor" type="StaticBody3D" parent="." unique_id=2124893894]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.5156848, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="GameFloor" unique_id=895211127]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.019134521, 0, -0.00012207031)
+shape = SubResource("BoxShape3D_5itm1")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="GameFloor" unique_id=1109006374]
+transform = Transform3D(15, 0, 0, 0, 1, 0, 0, 0, 15, 0, 0, 0)
+mesh = SubResource("BoxMesh_bcdym")
+
+[node name="Marble1" type="RigidBody3D" parent="." unique_id=503688991]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -2.5320473)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Marble1" unique_id=293270849]
+shape = SubResource("SphereShape3D_5itm1")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Marble1" unique_id=825329551]
+mesh = SubResource("SphereMesh_bcdym")
+
+[node name="Marble2" type="RigidBody3D" parent="." unique_id=1143091419]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.24051082, 0.9780182, -2.5320473)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Marble2" unique_id=1455074410]
+shape = SubResource("SphereShape3D_5itm1")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Marble2" unique_id=456160568]
+mesh = SubResource("SphereMesh_bcdym")
+
+[node name="Marble3" type="RigidBody3D" parent="." unique_id=377767994]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.9030925, 0.9780182, -2.5320473)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Marble3" unique_id=220655769]
+shape = SubResource("SphereShape3D_5itm1")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Marble3" unique_id=1973415344]
+mesh = SubResource("SphereMesh_bcdym")
