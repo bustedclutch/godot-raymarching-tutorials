@@ -2,7 +2,28 @@ extends Node
 
 @export var shaded_object : MeshInstance3D
 @onready var shader_material = shaded_object.get_active_material(0)
+@onready var f0_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F0/LineEdit
+@onready var f1_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F1/LineEdit
+@onready var f2_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F2/LineEdit
+@onready var f3_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F3/LineEdit
+@onready var f4_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F4/LineEdit
+@onready var exponent_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/Exponent/LineEdit
+@onready var normalize_factor_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/NormalizeFactor/LineEdit
+@onready var normalize_toggle_button := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/NormalizeXButton
 
+##Beginning of save-related variables
+const PRESET_FOLDER := "user://presets"
+const PRESET_EXTENSION := ".json"
+const WORLEY_KEYS := ["pretty_name", 
+"f0",
+"f1",
+"f2",
+"f3",
+"f4",
+"exponent",
+"normalize_factor",
+"normalized_bool",	
+]
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
@@ -22,6 +43,13 @@ func _ready() -> void:
 	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/ExponentSlider/HSlider.value_changed.connect(exponent_slider_updater)
 	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/RandomizeButton.pressed.connect(randomize_f_values)
 	
+	#Save/load code below:
+	if not DirAccess.dir_exists_absolute(PRESET_FOLDER):
+		DirAccess.make_dir_recursive_absolute(PRESET_FOLDER)
+	update_file_list()
+	
+func update_file_list():
+	pass
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta: float) -> void:
