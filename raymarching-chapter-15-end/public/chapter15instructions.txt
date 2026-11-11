@@ -355,7 +355,22 @@ That's easy to not notice because there wasn't any singular input--the shader ru
 
 If you try to inject TIME in as part of the hash, you'll just end up with frame-by-frame static. Well, Worley-static. It will not be cute, and you probably want it to be cute. 
 
-You have two options; one I mentioned in a previous chapter, which is to add another dimension on top of X and Y, such that it hashes out to XYZ, and use TIME as the third input. Another option is to embrace the randomness described above, but interpolate between the values. I'll probably do that in a later chapter, because I'm pretty confident I'll need it to code a water shader.
+You have two options; one I mentioned in a previous chapter, which is to add another dimension on top of X and Y, such that it hashes out to XYZ, and use TIME as the third input. Another option is to embrace the randomness described above, but interpolate between the values. I'll handle it in a later chapter.
+
+*****WRITE CONCLUSION***********
+
+
+
+
+
+Copy project into next folder, then delete the save/load work from ch 15.
+
+
+
+
+
+
+
 
 BACK TO THE INTERFACE 
 
@@ -363,9 +378,11 @@ But this is an interface chapter.
 
 And there's still that whole Save and Load button, and damnit, I need to know how to save and load a video game. It's not glamorous, just like a pause menu isn't glamorous, and a resolution settings screen isn't glamorous, but it's necessary. Also, when I see it in tutorials, it's usually addressed very briefly.
 
+The next chapter will address saving and loading. As always, skip it if you're currently unconcerned with or already aware of saving and loading.
+
 MULTIPLE SAVE GAMES DIVERGED IN A WOOD
 
-In the last chapter, I waxed philisophical about how I felt like everyone tends to only explain one method of signaling without boring the reader with the details of all the possible options. 
+In the signals chapter, I waxed philisophical about how I felt like everyone tends to only explain one method of signaling without boring the reader with the details of all the possible options. 
 
 If you like being bored with all of the possible options, you've come to the right place!
 
@@ -378,6 +395,10 @@ SAVE OPTION SUMMARY: THE CONFIGFILE CLASS
 https://docs.godotengine.org/en/stable/classes/class_configfile.html
 
 There's the ConfigFile class, which saves things to an INI file. That's a very basic text file (with the .ini extension) with what is usually a long list of settings, like monitor resolution, UI size, and so on. 
+
+It's usually reserved for precisely that kind of thing. These INI files are not only human readable, but typically lack any kind of hierarchical formatting or coding like you might see in a JSON file (or an HTML file if you're more familiar with those). These INI files invite the user to go in and make changes themselves, perhaps because the game has stopped launching with a visible resolution, or it's showing up on the wrong monitor, or using the wrong driver, and so on.
+
+Nothing's stopping you from shoving other kinds of data into it, but it would be weird.
 
 SAVE OPTION SUMMARY: FILEACCESS WITHOUT JSON
 
@@ -393,17 +414,19 @@ JSON, if you're entirely unfamiliar with it, looks like HTML or like a heavily n
 
 Godot actually handles the conversion in and out of JSON for you, so... you don't have to learn another language. Yay!
 
-Thus, you can take a variable, and write it straight to the hard drive with fileaccess, or you can stringify it into JSON and *then* write it to the hard drive with fileaccess. If you stringify it first, then you can open the file later and read it to analyze for problems.
+Thus, although you *could* a variable, and write it straight to the hard drive with fileaccess, it's more common to stringify it into JSON and *then* write it to the hard drive with fileaccess. If you stringify it first, then you can open the file later in a text editor and read it to analyze for problems.
+
+Storing things in JSON can also make things more accessible for modders. Not so much because the mods will be touching the JSON files your game makes, but more likely because they'll save data to their own JSON files, and your game will already have a mechanism for moving that data in and out of the game.
 
 SAVE OPTION SUMMARY: RESOURCESAVER
 
 https://docs.godotengine.org/en/latest/classes/class_resourcesaver.html
 
-This is arguably the most "Godot-native" method of saving a file, because it's capable of taking a bunch of variables and saving them into one file as a Resource, using the same format that the other Godot scene files are written in (.tres and .res). These formats are human-readable text.
+This is arguably the most "Godot-native" method of saving a file, because it's capable of taking a bunch of variables and saving them into one file as a Resource, using the same format that the other Godot scene files are written in (.tres and .res). These formats are also human-readable text.
 
 SO WHAT'S BEST?
 
-I don't know nearly enough about game productions to have a qualified answer to this, but I didn't find the answer to be as obvious as others made it out to be. 
+I don't know nearly enough about game productions to have a qualified answer to this, but I didn't find the answer to be as obvious as others made it out to be. But as far as I can tell, the preferred two options tend to be either saving things as 1. a JSON file with FileAccess or 2. using ResourceSaver. With an honorable mention for the ConfigFile class for settings that don't involve the player's progression.
 
 Saving things as a resource has the obvious advantage that you can shove a ton of native Godot variables into one save file with minimal effort.
 
@@ -500,6 +523,8 @@ Twice now, I've declared the full paths of all of these LineEdit boxes--somethin
 
 Not really. If I had given the LineEdit nodes unique names, then I might have been able to use the "Access as Unique Name" feature by rightclicking the node. 
 
+You can continue to reuse the node paths, or embark on the sidequest below about declaring them as variables and refactoring. It's probably worth it if you don't know how to use multicursor.
+
 VSCODE, GODOT TOOLS, AND MULTI CURSOR TO THE RESCUE (AND WHAT ABOUT CLAUDE?)
 
 VSCode can be a bit of gateway drug to vibecoding, since it's tempting to install Claude and take him up on the opportunity to write everything for you. You can decide the ethics for that yourself, but learning to code has been a lifelong dream of mine, so if you feel the same way, consider keeping him firmly planted in the "supportive coach/bug catcher/advisor/teacher" role.
@@ -526,7 +551,7 @@ Here, I want to delete everything after the period on each line, and I want to a
 	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F3/LineEdit
 	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F4/LineEdit
 	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/Exponent/LineEdit
-	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/NormalizeFactor/LineEdi
+	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/NormalizeFactor/LineEdit
 	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/NormalizeXButton
 	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/ExponentSlider/HSlide
 	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/RandomizeButton
@@ -539,9 +564,60 @@ Then, select $CanvasLayer on the first line, hit CTRL+D to select the remaining 
 	@onready var x_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F3/LineEdit
 	@onready var x_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F4/LineEdit
 	@onready var x_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/Exponent/LineEdit
-	@onready var x_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/NormalizeFactor/LineEdi
+	@onready var x_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/NormalizeFactor/LineEdit
 	@onready var x_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/NormalizeXButton
 	@onready var x_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/ExponentSlider/HSlide
 	@onready var x_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/RandomizeButton
 
-After that
+After that, highlight the first "x_line", run a Find operation with Ctrl+F, Escape to close the Find menu, and then start typing over each one with the name you want, using F3 to bounce forward:
+
+	@onready var f0_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F0/LineEdit
+	@onready var f1_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F1/LineEdit
+	@onready var f2_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F2/LineEdit
+	@onready var f3_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F3/LineEdit
+	@onready var f4_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F4/LineEdit
+	@onready var exponent_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/Exponent/LineEdit
+	@onready var normalize_factor_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/NormalizeFactor/LineEdit
+	@onready var normalize_toggle_button := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/NormalizeXButton
+
+If you were to select that current line and then replace it, you'd be replacing the original variable, which is bad--the first reference needs to stay intact if you want to refactor. You have two choices worth learning, and Claude's explanation of them is fine, so I'll just quote him:
+
+	Two good answers depending on whether you want to fix it now or avoid it next time.
+
+	Right now (selections already made): Alt + Click directly on the first selection. Alt-clicking toggles a cursor at that spot — so clicking an existing one removes just that cursor and leaves all the others intact. It's one click, precise, and doesn't disturb the rest. (This is the only quick way to drop a specific cursor after the fact — Ctrl+U / Cursor Undo only removes the most recently added one, so you can't use it to reach back to the first without unwinding everything.)
+
+	Better habit — skip it during selection so you never grab it: the command is Ctrl + K, Ctrl + D ("Move Last Selection to Next Find Match"). Instead of adding the next occurrence, it moves the current selection forward to the next one, effectively skipping. So the flow becomes:
+
+	1. Ctrl + D — selects the first x_line (the one you want to leave alone).
+	2. Ctrl + K, Ctrl + D — jumps off it onto the second occurrence (first is now unselected).
+	3. Ctrl + D from here on — adds the third, fourth, … as normal.
+
+	Result: the original stays untouched, and you're editing everything from the second onward. That same Ctrl + K, Ctrl + D works mid-stream too — any time Ctrl+D lands on an occurrence you want to keep, press it to skip that one and move to the next.
+
+	So: Alt+Click to remove the first after the fact, or Ctrl+K Ctrl+D to skip it cleanly from the start. For a repeatable refactor the skip is the nicer muscle memory, but Alt+Click is the fastest fix for the selection you've already got.
+
+I'M LEAVING THE ONES I ALREADY PUT IN, IN
+
+I actually have to skip the refactor, since I made the mistake within this chapter and I need the GitHub code to match what I wrote. 
+
+I asked Claude for a mnemonic for CTRL+K and CTRL+D, and he suggested "aDD the next match" and "sKip the next match", which is fun reminder of how weirdly terrible Claude is at mnemonics.
+
+BACK TO THE SAVE/LOAD SITUATION; SAVE BUTTON, PART 1
+
+The Save button has quite a few things. What I laid out earlier:
+
+	the save button needs to fire a signal to a handling function.
+	the save file's handling function needs to write a dictionary that...
+		consists of the text in each of the relevant boxes, and is
+		matched to the correct keys
+		adds a number if the same name already exists (or overwrites?)
+		stringifies the dictionary to a variable
+		writes the now JSON dictionary to a new file
+		clears the save name box for reuse 
+		reloads the file list 
+
+The save button needs to fire a signal that also binds the name that the user typed into the name box, if they used one. (Otherwise, it should probably be something like "unnamed").
+
+
+
+TO DO LIST: FINISH SAVE/LOAD BUTTONS, WRITE EXTENSIONS SECTION. 
