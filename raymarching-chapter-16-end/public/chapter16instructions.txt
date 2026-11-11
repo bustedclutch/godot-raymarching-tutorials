@@ -1,0 +1,252 @@
+REFRESHING THE MEMORY
+
+The last chapter, chapter 15, wired up the coefficients called for by Worley to an interactive UI using Godot's standard built-in controller/UI node system. But it left something important out, which was a means to save, load, and delete your favorite creations as you go.
+
+WHY ARE SAVING AND LOADING INTERFACES SO TERRIBLE?
+
+You only need to build it once and people often treat it as an afterthought. But saving player progress is one of the most important parts of your game. You can probably think of a game you stopped playing because your save file got unintentionally wiped, or because saving and loading was tedious.
+
+Godot has several built in mechanisms for saving and loading.
+
+MULTIPLE SAVE GAMES DIVERGED IN A WOOD
+
+In the signals chapter, I waxed philisophical about how I felt like everyone tends to only explain one method of signaling without boring the reader with the details of all the possible options. 
+
+If you like being bored with all of the possible options, you've come to the right place!
+
+SAVING GAMES: ALL THE POSSIBLE OPTIONS
+
+Here's the possibilities that I know about, though there may be more!
+
+SAVE OPTION SUMMARY: THE CONFIGFILE CLASS
+
+https://docs.godotengine.org/en/stable/classes/class_configfile.html
+
+There's the ConfigFile class, which saves things to an INI file. That's a very basic text file (with the .ini extension) with what is usually a long list of settings, like monitor resolution, UI size, and so on. 
+
+It's usually reserved for precisely that kind of thing. These INI files are not only human readable, but typically lack any kind of hierarchical formatting or coding like you might see in a JSON file (or an HTML file if you're more familiar with those). These INI files invite the user to go in and make changes themselves, perhaps because the game has stopped launching with a visible resolution, or it's showing up on the wrong monitor, or using the wrong driver, and so on. They often avoid private data so they can be uploaded for bug reports.
+
+Nothing's stopping you from shoving other kinds of data into it, but it would be weird. I won't use it here, but I said I'd mention everything.
+
+SAVE OPTION SUMMARY: FILEACCESS WITHOUT JSON
+
+https://docs.godotengine.org/en/latest/classes/class_fileaccess.html
+
+The FileAccess class is a conventional way of saving and opening pretty much anything. By itself, it won't be something a person can read, because it writes in binary.
+
+SAVE OPTION SUMMARY: FILEACCESS WITH JSON
+
+https://docs.godotengine.org/en/latest/classes/class_json.html
+
+You can use FileAccess and have it write a file that isn't binary: JSON. JSON, if you're entirely unfamiliar with it, looks like HTML or like a heavily nested dictionary. It's technically code, but there's no logic, it's just a bunch of keys and values, nested however you want. 
+
+Godot actually handles the conversion in and out of JSON for you, so... you don't have to learn another language. Yay!
+
+Thus, although you *could* save a variable as-is, and write it straight to the hard drive with fileaccess, it's more common to stringify it into JSON and *then* write it to the hard drive with fileaccess. If you stringify it first, then you can open the file later in a text editor and read it to analyze for problems.
+
+Storing things in JSON can also make things more accessible for modders. Not so much because the mods will be touching the JSON files your game makes, but more likely because they'll save data to their own JSON files, and your game will already have a mechanism for moving that data in and out of the game.
+
+NOTE TO SELF: MOVE TO JSON SECTION:
+
+Claude alleges (and I think he's correct) that Godot's JSON abilities support dictionaries, arrays, strings, floats, booleans, and the "null" shape. He also alleges that JSON refers to dictionaries as "objects" and floats as "numbers". I'm guessing Claude probably isn't hallucinating that.
+
+SAVE OPTION SUMMARY: RESOURCESAVER
+
+https://docs.godotengine.org/en/latest/classes/class_resourcesaver.html
+
+This is arguably the most "Godot-native" method of saving a file, because it's capable of taking a bunch of variables and saving them into one file as a Resource, using the same format that the other Godot scene files are written in (.tres and .res). The .tres format is also human-readable text. ResourceSaver has a major security hazard, which I'll address below.
+
+SO WHAT'S BEST?
+
+I don't know nearly enough about game productions to have a qualified answer to this, but I didn't find the answer to be as obvious as others made it out to be, and others definitely made it out to be obvious. Broadly, most agree that ConfigFile is for the limited purpose I described above. Most agree that writing things in raw binary with FileAccess is best avoided.
+
+So you'll see arguments for the other two contenders: 1. a JSON file with FileAccess or 2. using ResourceSaver.
+
+Saving things as a resource has the obvious advantage that you can shove a ton of native Godot variables into one save file with minimal effort. If you're an indie dev making a small game, that's probably fine, but it comes with an enormous security hazard. ResourceSaver and its twin ResourceLoader deal in .tres and .res files, so if a player loads someone else's save file or whatever, it can run code on their machine. 
+
+JSON, on the other hand, is far more difficult to hide something nefarious in. Also, JSON is still required for things like multiplayer packets and modding. So I'm rolling with JSON.
+
+THE RUBBER DUCKY OUTLINE
+
+I need to...
+identify a folder within the editor for where saved files go.
+identify the save file as a variable.
+the _ready function should create the subfolder if it doesn't exist
+the _ready function should display any existing presets
+the save button needs to fire a signal to a handling function.
+the save file's handling function needs to write a dictionary that...
+	consists of the text in each of the relevant boxes, and is
+	matched to the correct keys
+	adds a number if the same name already exists (or overwrites?)
+	stringifies the dictionary to a variable
+	writes the now JSON dictionary to a new file
+	clears the save name box for reuse 
+	reloads the file list 
+the load button needs to fire a signal to its own handling function, that...
+	identifies the correct file through a passed in argument 
+	loads that file
+	parses that file to a dictionary 
+	writes the pieces of that dictionary to the LineEdit boxes 
+	updates the relevant shader parameters 
+
+Let's get it going.
+
+SOME CONSTANTS 
+
+Note that if you were to just write this:
+
+	const PRESET_FOLDER := user://presets
+
+You'll get an error that says "Expected end of statement after constant declaration, found ":" instead. Perhaps the error should instead be "put quotes around that, clown!" So put quotes around it:
+
+	const PRESET_FOLDER := "user://presets"
+
+Identifying the extension in use will be handy later probably:
+
+	const PRESET_EXTENSION := ".json"
+
+Along with identifying all the keys that will go into the dictionary:
+
+	const WORLEY_KEYS := ["pretty_name", 
+	"f0",
+	"f1",
+	"f2",
+	"f3",
+	"f4",
+	"exponent",
+	"normalize_factor",
+	"normalized_bool",	
+	]
+
+GET THE READY FUNCTION TO CREATE THE FOLDER IF IT DOESN'T EXIST YET 
+
+This requires use of the DirAccess class, short for "Directory Access".
+
+	func _ready() -> void:
+	#lots of intermediate code here (signal subscriptions)
+		if not DirAccess.dir_exists_absolute(PRESET_FOLDER):
+			DirAccess.make_dir_recursive_absolute(PRESET_FOLDER)
+
+DirAccess is FileAccess but for folders! The "recursive" bit will cause Godot to create intermediate folders if those don't exist. Claude pointed out that because "make_dir_recursive_absolute" will "no-op" if the folder already exists ('no-op' means nothing will happen) that you could actually skip the "if" test above it. As always I prefer code that I find easier to read, so I kept the if test.
+
+TEST IT 
+
+In the spirit of "test at every possible juncture", I ran the code here to make sure the folder actually got created. I couldn't find it. Mainly because I'm new to Linux, and Linux hides the userdata folder by default. 
+
+GODOT CAN OPEN THE FOLDER FOR YOU 
+
+It's under Project/Open User Data Folder, in the main menu of Godot. It's worth peeking in--you'll notice that there are other default folders you might not have known existed, such as "logs" and "shader_cache". 
+
+Once that folder is open, you should now see a "presets" folder. Huzzah!
+
+THE _ready FUNCTION SHOULD DISPLAY EXISTING PRESETS 
+
+I don't actually know yet what the save files will look like, so I'm just making a stub for this:
+
+		#Save/load code below:
+		if not DirAccess.dir_exists_absolute(PRESET_FOLDER):
+			DirAccess.make_dir_recursive_absolute(PRESET_FOLDER)
+		update_file_list()
+		
+	func update_file_list():
+		pass
+
+DECLARE SOME VARIABLES FOR THE TEXT OF THE LINEEDITS
+
+Twice now, I've declared the full paths of all of these LineEdit boxes--something that I should have abstracted from the outset. Is there an easy "abstractify" button in Godot to take all references to a node that are currently in a script, and turn them into a variable?
+
+Not at this time. If I had given the LineEdit nodes unique names, then I could have reached them in the script with the "Access as Unique Name" feature by rightclicking the node and then dragging it into the script.
+
+You can continue to reuse the node paths, or embark on the sidequest below about declaring them as variables and refactoring. It's worth it if you don't know how to use multicursor, because multicursor is amazing.
+
+VSCODE, GODOT TOOLS, AND MULTI CURSOR TO THE RESCUE (AND WHAT ABOUT CLAUDE?)
+
+VSCode can be a bit of gateway drug to vibecoding, since it's tempting to install Claude and take him up on the opportunity to write everything for you. You can decide the ethics for that yourself, but learning to code has been a lifelong dream of mine, so if you feel the same way, consider keeping him firmly planted in the "supportive coach/bug catcher/advisor/teacher" role.
+
+Claude can be a bit dangerous for refactors, particularly since you can use multicursor to handle a lot for you. If you want to ethically use claude, do a github commit/push before and after your refactor, do the refactor yourself, and have Claude check it for errors.
+
+HOW TO MULTICURSOR
+
+The below code block is where I declared all the signals. I could re-use this code block to declare a bunch of variables, but I would need to strip the signal declaration at the end of each line. Is there an easy way of doing that? Yes.
+
+	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F0/LineEdit.text_changed.connect(shader_setter.bind("F0"))
+	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F1/LineEdit.text_changed.connect(shader_setter.bind("F1"))
+	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F2/LineEdit.text_changed.connect(shader_setter.bind("F2"))
+	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F3/LineEdit.text_changed.connect(shader_setter.bind("F3"))
+	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F4/LineEdit.text_changed.connect(shader_setter.bind("F4"))
+	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/Exponent/LineEdit.text_changed.connect(shader_setter.bind("Exponent"))
+	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/NormalizeFactor/LineEdit.text_changed.connect(shader_setter.bind("Normalize_Factor"))
+	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/NormalizeXButton.toggled.connect(shader_setter.bind("Normalized_Bool"))
+	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/ExponentSlider/HSlider.value_changed.connect(exponent_slider_updater)
+	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/RandomizeButton.pressed.connect(randomize_f_values)
+
+The first job is stripping the end content that comes after the period in each line. I highlight a period, and then push CTRL+D to grab all the remaining periods. Then I hit SHIFT+END (the shortcut that highlights everything up to the end of the line), and hit "delete" or "backspace" on the keyboard to nuke all the the ending baggage at once: 
+	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F0/LineEdit
+	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F1/LineEdit
+	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F2/LineEdit
+	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F3/LineEdit
+	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F4/LineEdit
+	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/Exponent/LineEdit
+	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/NormalizeFactor/LineEdit
+	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/NormalizeXButton
+	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/ExponentSlider/HSlide
+	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/RandomizeButton
+
+Now I need to add the variable declarations at the beginning of each line. So I select $CanvasLayer on the first line, hit CTRL+D to select the remaining lines, move the cursors to the left with the arrow key, and type "@onready var x_line". The term "x_line" is just a placeholder for now.
+
+	@onready var x_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F0/LineEdit
+	@onready var x_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F1/LineEdit
+	@onready var x_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F2/LineEdit
+	@onready var x_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F3/LineEdit
+	@onready var x_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F4/LineEdit
+	@onready var x_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/Exponent/LineEdit
+	@onready var x_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/NormalizeFactor/LineEdit
+	@onready var x_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/NormalizeXButton
+	@onready var x_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/ExponentSlider/HSlide
+	@onready var x_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/RandomizeButton
+
+After that, highlight the first "x_line", run a Find operation with Ctrl+F, and then Escape to close the Find menu. Type each variable name, and push F3 to bounce forward to the next placeholder. This lets you skip from placeholder to placeholder:
+
+	@onready var f0_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F0/LineEdit
+	@onready var f1_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F1/LineEdit
+	@onready var f2_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F2/LineEdit
+	@onready var f3_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F3/LineEdit
+	@onready var f4_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F4/LineEdit
+	@onready var exponent_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/Exponent/LineEdit
+	@onready var normalize_factor_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/NormalizeFactor/LineEdit
+	@onready var normalize_toggle_button := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/NormalizeXButton
+
+
+A FEW MORE REFACTORING/MULTICURSOR TIPS
+
+Removing cursors:
+You often want to leave the first appearance of something intact, and replace all the others. The simple way to do this is to just highlight the second one and start CTRL+D'ing from there, but you can also ALT+click to remove a cursor if one is placed where you don't want it.
+
+Skipping:
+You can also skip ahead to the next match by using CTRL+K.
+
+I asked Claude for a mnemonic for CTRL+K and CTRL+D, and he suggested "aDD the next match" and "sKip the next match", which is fun reminder of how weirdly terrible Claude is at mnemonics.
+
+WON'T AI BE DOING THIS FOR ME 
+
+Confession: I never learned my multiplication tables, or how to touch type numbers. I regret both. Constantly.
+
+BACK TO THE SAVE/LOAD SITUATION; SAVE BUTTON, PART 1
+
+The Save button has quite a few things. What I laid out earlier:
+
+	the save button needs to fire a signal to a handling function.
+	the save file's handling function needs to write a dictionary that...
+		consists of the text in each of the relevant boxes, and is
+		matched to the correct keys
+		adds a number if the same name already exists (or overwrites?)
+		stringifies the dictionary to a variable
+		writes the now JSON dictionary to a new file
+		clears the save name box for reuse 
+		reloads the file list 
+
+The save button needs to fire a signal that also binds the name that the user typed into the name box, if they used one. (Otherwise, it should probably be something like "unnamed").
+
+
+
+TO DO LIST: FINISH SAVE/LOAD BUTTONS, WRITE EXTENSIONS SECTION. 
