@@ -105,18 +105,21 @@ Identifying the extension in use will be handy later probably:
 
 	const PRESET_EXTENSION := ".json"
 
-Along with identifying all the keys that will go into the dictionary:
+Along with declaring a constant dictionary that can be a template/default/check/something:
 
-	const WORLEY_KEYS := ["pretty_name", 
-	"f0",
-	"f1",
-	"f2",
-	"f3",
-	"f4",
-	"exponent",
-	"normalize_factor",
-	"normalized_bool",	
-	]
+	const WORLEY_KEYS := {
+		"pretty_name" : "unnamed",
+		"f0" : "-1.0",
+		"f1" : "1.0",
+		"f2" : "0.0",
+		"f3" : "0.0",
+		"f4" : "0.0",
+		"exponent" : "1.0",
+		"normalize_factor" : "1.0",
+		"normalized_bool" : false,
+	}
+
+
 
 GET THE READY FUNCTION TO CREATE THE FOLDER IF IT DOESN'T EXIST YET 
 
@@ -227,7 +230,7 @@ You can also skip ahead to the next match by using CTRL+K.
 
 I asked Claude for a mnemonic for CTRL+K and CTRL+D, and he suggested "aDD the next match" and "sKip the next match", which is fun reminder of how weirdly terrible Claude is at mnemonics.
 
-WON'T AI BE DOING THIS FOR ME 
+WON'T AI BE DOING THIS FOR ME?
 
 Confession: I never learned my multiplication tables, or how to touch type numbers. I regret both. Constantly.
 
@@ -245,8 +248,46 @@ The Save button has quite a few things. What I laid out earlier:
 		clears the save name box for reuse 
 		reloads the file list 
 
-The save button needs to fire a signal that also binds the name that the user typed into the name box, if they used one. (Otherwise, it should probably be something like "unnamed").
+The save button needs to fire a signal that calls the save function. This means adding the save button to the long list of @onready variables. Add the load button and the save name LineEdit node while you're here:
 
+	@onready var save_button : Button = $CanvasLayer/MarginContainer/HBoxContainer/SaveLoad/SaveButton
+	@onready var load_button : Button = $CanvasLayer/MarginContainer/HBoxContainer/SaveLoad/LoadButton
+	@onready var save_name_line : LineEdit = $CanvasLayer/MarginContainer/HBoxContainer/SaveLoad/EditSaveName
 
+The save and load buttons need to call save and load functions. They have a signal built in for that. In case you've forgotten what that signal looks like, you can click the "SaveButton" node in the node tree in the top left panel of Godot, and then the Signals tab to the in the far right panel that's normally behind the Inspector tab. The signal is "pressed". So add a subscription to the _ready function:
+
+	#Save/loading subscription below:
+	save_button.connect("pressed", _save_shader)
+	load_button.connect("pressed", _load_shader)
+
+Those will show up in red until you add a stubs for each callable:
+
+	func _save_shader()->void:
+		pass
+		
+	func _load_shader()->void:
+		pass
+
+If you want to confirm you're subscription is working, toss in a print function:
+
+	func _save_shader()->void:
+		print("Save button pressed!")
+		pass
+
+CHECKING THE FORMATTING OF LINEEDIT 
+
+Since we'll be using the data in the LineEdit nodes, try printing something from one of the nodes to make sure it displays what you expect:
+
+	func _save_shader()->void:
+		#print("Save button pressed!")
+		print(f0_line.text)
+		pass
+
+Now, pushing the save button will cause -1 to appear in the terminal, without quotation marks. Note that even though there's no quotation marks, that's still a string. If you weren't sure of that, you could write this:
+
+	print(f0_line.text is String)
+
+The user interface has largely traded in strings this whole time, so that's fine.
 
 TO DO LIST: FINISH SAVE/LOAD BUTTONS, WRITE EXTENSIONS SECTION. 
+

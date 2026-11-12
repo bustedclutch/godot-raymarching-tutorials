@@ -10,20 +10,25 @@ extends Node
 @onready var exponent_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/Exponent/LineEdit
 @onready var normalize_factor_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/NormalizeFactor/LineEdit
 @onready var normalize_toggle_button := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/NormalizeXButton
+@onready var save_button : Button = $CanvasLayer/MarginContainer/HBoxContainer/SaveLoad/SaveButton
+@onready var load_button : Button = $CanvasLayer/MarginContainer/HBoxContainer/SaveLoad/LoadButton
+@onready var save_name_line : LineEdit = $CanvasLayer/MarginContainer/HBoxContainer/SaveLoad/EditSaveName
+
 
 ##Beginning of save-related variables
 const PRESET_FOLDER := "user://presets"
 const PRESET_EXTENSION := ".json"
-const WORLEY_KEYS := ["pretty_name", 
-"f0",
-"f1",
-"f2",
-"f3",
-"f4",
-"exponent",
-"normalize_factor",
-"normalized_bool",	
-]
+const WORLEY_KEYS := {
+	"pretty_name" : "unnamed",
+	"f0" : "-1.0",
+	"f1" : "1.0",
+	"f2" : "0.0",
+	"f3" : "0.0",
+	"f4" : "0.0",
+	"exponent" : "1.0",
+	"normalize_factor" : "1.0",
+	"normalized_bool" : false,
+}
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
@@ -43,12 +48,24 @@ func _ready() -> void:
 	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/ExponentSlider/HSlider.value_changed.connect(exponent_slider_updater)
 	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/RandomizeButton.pressed.connect(randomize_f_values)
 	
+	#Save/loading subscription below:
+	save_button.connect("pressed", _save_shader)
+	load_button.connect("pressed", _load_shader)
+	
 	#Save/load code below:
 	if not DirAccess.dir_exists_absolute(PRESET_FOLDER):
 		DirAccess.make_dir_recursive_absolute(PRESET_FOLDER)
 	update_file_list()
 	
 func update_file_list():
+	pass
+	
+func _save_shader()->void:
+	#print("Save button pressed!")
+	print(f0_line.text)
+	pass
+	
+func _load_shader()->void:
 	pass
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
