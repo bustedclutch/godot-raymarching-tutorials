@@ -330,13 +330,15 @@ I try not to obsess too hard about some magical way to iterate through everythin
 		}
 		print(dictionary_to_save)
 
+For now I'm leaving out the "normalize over x-axis" toggle.
+
 NOW TURN IT INTO A JSON
 
 This is surprisingly easy, just by adding this line:
 
-	var jsoned_dictionary : String = JSON.stringify(dictionary_to_save, "/t", false)
+	var jsoned_dictionary : String = JSON.stringify(dictionary_to_save, "\t", false)
 
-The second argument is a tabbed indent which prevents the string from being one long hard to read line.
+The second argument is a tabbed indent which prevents the string from being one long hard to read line. It needs to be a backslash.
 
 The third argument prevents JSON.stringify from automatically sorting things alphabetically. I don't want things coming back out in a different order than I put them in, though I'm not sure it matters.
 
@@ -359,7 +361,7 @@ And then the DirAccess code in _ready has already created that folder:
 So now we just need a file name itself. Some stuff to deal with:
 -The file name should come from the pretty name the user typed
 -The name should be cleaned up in case it has slashes or whatever
--Things should abort if the file already exists (or add a number or something)
+-Things should abort if the file already exists, or add a number, though I may add this at the end
 
 Strings have a "validate_filename()" method on them which cleans up strings and turns them into functional names. Thus:
 
@@ -394,7 +396,120 @@ Claude produced/alleges this helpful table in terms of what happens depending on
 
 LETS TEST THIS BAD BOY 
 
+This worked "the first time" when I coded it in, except this is when I noticed I had put in a forward slash /t instead of a backslash \t for the tabbed indent of the JSON.stringify() thing. But other than that it was fine.
+
+POPULATING THE LIST OF SAVED ITEMS WITH DirAccess
+
+If you're wondering whether there's some Godot built-in that lists all of the files in a folder, yes, yes there is.
+
+Replace the update_file_list function with this:
+
+	func update_file_list():
+		var packed_array_of_presets : PackedStringArray = DirAccess.get_files_at(PRESET_FOLDER)
+
+A regular array can hold anything in its slots, whereas an Array that's typed as a string array by writing Array[String] is a more flexible array that holds only strings, and finally a PackedStringArray moves faster and uses less memory than all three but is the least flexible of the trio.
+
+"Packed" shows up a lot in Godot, and it seems to mean pretty much the same thing everywhere--less flexible, more performant. One of the learning curves of Godot is just knowing which of the built-ins use them. Godot's designers seem to tilt toward making everything perform insanely fast, so, "packed" is rather common and it's best not to be afraid of it. In computer science, data travels in chunks of a specific size, everywhere, all the time, and "packing" means smashing those chunks together as tightly as you can in only one place. Like, pretend you're storing things in a box at home, and you're packing your kitchen utensils in a box. In some cases, you might know exactly how many utensils are going in, and pack them into two adjacent boxes. But maybe you don't know, so you pack some of the utensils in a box, along with a piece of paper where you can write, "look in the red box in the attic for the rest of the utensils". Part of what makes a computer fast or slow is how good the programmer relies on the first method as opposed to the second. 
+
+I read a lot of tutorials that mentioned Packed things, but nobody ever told me what it was, so in case you're like me I'm telling you now. Now you know. It's possible to speed up games by packing the data efficiently, but whether that makes a meaningful difference depends on the data and the game.
+
+Add a for loop and a print command to the update_file_list function and make sure it's printing file names:
+
+func update_file_list():
+	var packed_array_of_presets : PackedStringArray = DirAccess.get_files_at(PRESET_FOLDER)
+	for file_name : String in packed_array_of_presets:
+		print(file_name.get_basename())
+
+Claude suggested the "get_basename" method which may end up being what we want--it drops the extension off the file name. Claude also suggested a guard, "if file_name.ends_with(PRESET_EXTENSION):", which I left out. You don't really ever know where an operating system will shove a temporary file, so it's worth inserting the guard when I create a "clean" variable for the file list.
+
+There's a very similar method, "get_extension()", which returns the extension.
+
+The tldr: is that ends_with is inherently a test returns a boolean that includes a period, and get_extension returns the actual extension without a period. They're both case-sensitive.
+
+These are methods running on String variables, so there's not any witchcraft happening with files themselves.
+
+Declare an array of legible file names, and iterate through the file names with a guard to protect against anything that doesn't end in .json :
+
+	func update_file_list():
+		var packed_array_of_presets : PackedStringArray = DirAccess.get_files_at(PRESET_FOLDER)
+		var legible_saved_file_list : Array[String]
+		for file_name : String in packed_array_of_presets:
+			if file_name.ends_with(PRESET_EXTENSION):
+				legible_saved_file_list.append(file_name.get_basename())
+
+There's now an array that can be loaded into the SavedSettingList node, which is an ItemList node.
+
+I haven't declared it up top yet, so add it to the running bevy of @onready variable declarations:
+
+	@onready var saved_settings_list : ItemList = $CanvasLayer/MarginContainer/HBoxContainer/SaveLoad/SavedSettingsList
+
+And then back in the update_file_list function, clear the list and then iterate through the legible list to add everything:
+
+	saved_settings_list.clear()
+	for item in legible_saved_file_list:
+		saved_settings_list.add_item(item)
+
+Finished update_file_list looks like this:
+
+	func update_file_list():
+		var packed_array_of_presets : PackedStringArray = DirAccess.get_files_at(PRESET_FOLDER)
+		#for file_name : String in packed_array_of_presets:
+			#print(file_name.get_basename())
+		var legible_saved_file_list : Array[String]
+		for file_name : String in packed_array_of_presets:
+			if file_name.ends_with(PRESET_EXTENSION):
+				legible_saved_file_list.append(file_name.get_basename())
+		saved_settings_list.clear()
+		for item in legible_saved_file_list:
+			saved_settings_list.add_item(item)
+
+That's actually all we need. The ItemList stores things by index (0, 1, 2, 3...) but each of those items carries a .name property with it that can be used later to get the file name.
+
+LOADING FILES
+
+Now we need to load stuff. Click the ItemList node, then check out the ItemList signals tab hiding under the Inspector panel to see your options for clicking things in the list. There's actually several.
+
+I'm going to roll with "item_clicked" but there's several useful options, like multi-selection and double-clicking. Like, you could make double-clicking load something instantly.
+
+I'm going to add a variable at the top of the script to identify the legible file name of whatever has been selected:
+
+	var selected_shader_name : String
+
+SOME VOCABULARY I FORGOT TO MENTION 
+
+Variables at the top of a script, or rather, variables that aren't sitting inside of any functions, are referred to as "member variables". They might also be called "properties", or "instance variables". Some languages refer to them as "fields". 
+
+I just say "up top" because that's where I write them.
+
+SUBSCRIBING THE SIGNAL 
+
+We don't need to declare the signal for clicking on an item in an ItemList because the signal is a built-in. We just have to subscribe to it in the ready function:
+
+	saved_settings_list.connect("item_selected", _shader_selected)
+
+That signal spits out one thing (if you've forgotten the thing, hovering over the signal in the signal list tells you the thing) which is the index.
+
+And then make a _shader_selected function that relies on that index to update the selected_shader_name and print it to make sure it works:
+
+	func _shader_selected(index)->void:
+		selected_shader_name = saved_settings_list.get_item_text(index)
+		print(selected_shader_name)
+
+LOADING SHADER JSON FILES 
 
 
-TO DO LIST: FINISH SAVE/LOAD BUTTONS, WRITE EXTENSIONS SECTION. 
+
+
+
+
+TO DO LIST:
+FINISH LOADING 
+TYPO CHECK 
+ERROR CHECK 
+EXTENSIONS SECTION
+
+EXTENSIONS 
+-Refactoring to clean up references, possibly by using unique names
+-Instantly loading on a double click 
+
 

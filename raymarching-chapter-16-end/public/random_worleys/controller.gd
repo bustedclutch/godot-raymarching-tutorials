@@ -14,6 +14,9 @@ extends Node
 @onready var load_button : Button = $CanvasLayer/MarginContainer/HBoxContainer/SaveLoad/LoadButton
 @onready var save_name_line : LineEdit = $CanvasLayer/MarginContainer/HBoxContainer/SaveLoad/EditSaveName
 
+@onready var saved_settings_list : ItemList = $CanvasLayer/MarginContainer/HBoxContainer/SaveLoad/SavedSettingsList
+
+var selected_shader_name : String
 
 ##Beginning of save-related variables
 const PRESET_FOLDER := "user://presets"
@@ -51,6 +54,7 @@ func _ready() -> void:
 	#Save/loading subscription below:
 	save_button.connect("pressed", _save_shader)
 	load_button.connect("pressed", _load_shader)
+	saved_settings_list.connect("item_selected", _shader_selected)
 	
 	#Save/load code below:
 	if not DirAccess.dir_exists_absolute(PRESET_FOLDER):
@@ -58,7 +62,20 @@ func _ready() -> void:
 	update_file_list()
 	
 func update_file_list():
-	pass
+	var packed_array_of_presets : PackedStringArray = DirAccess.get_files_at(PRESET_FOLDER)
+	#for file_name : String in packed_array_of_presets:
+		#print(file_name.get_basename())
+	var legible_saved_file_list : Array[String]
+	for file_name : String in packed_array_of_presets:
+		if file_name.ends_with(PRESET_EXTENSION):
+			legible_saved_file_list.append(file_name.get_basename())
+	saved_settings_list.clear()
+	for item in legible_saved_file_list:
+		saved_settings_list.add_item(item)
+
+func _shader_selected(index)->void:
+	selected_shader_name = saved_settings_list.get_item_text(index)
+	print(selected_shader_name)
 	
 #func _save_shader()->void:
 	##print("Save button pressed!")
