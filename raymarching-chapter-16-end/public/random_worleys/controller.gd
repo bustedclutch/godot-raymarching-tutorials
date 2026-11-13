@@ -18,17 +18,17 @@ extends Node
 ##Beginning of save-related variables
 const PRESET_FOLDER := "user://presets"
 const PRESET_EXTENSION := ".json"
-const WORLEY_KEYS := {
-	"pretty_name" : "unnamed",
-	"f0" : "-1.0",
-	"f1" : "1.0",
-	"f2" : "0.0",
-	"f3" : "0.0",
-	"f4" : "0.0",
-	"exponent" : "1.0",
-	"normalize_factor" : "1.0",
-	"normalized_bool" : false,
-}
+#const WORLEY_KEYS := {
+	#"pretty_name" : "unnamed",
+	#"f0" : "-1.0",
+	#"f1" : "1.0",
+	#"f2" : "0.0",
+	#"f3" : "0.0",
+	#"f4" : "0.0",
+	#"exponent" : "1.0",
+	#"normalize_factor" : "1.0",
+	#"normalized_bool" : false,
+#}
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
@@ -60,11 +60,38 @@ func _ready() -> void:
 func update_file_list():
 	pass
 	
-func _save_shader()->void:
-	#print("Save button pressed!")
-	print(f0_line.text)
-	pass
+#func _save_shader()->void:
+	##print("Save button pressed!")
+	##print(f0_line.text)
+	#var worley_array_of_values : Array = [save_name_line, f0_line, f1_line, f2_line, f3_line, f4_line, exponent_line, normalize_factor_line]
+	#var temporary_saving_dictionary : Dictionary
+	#for variable : LineEdit in worley_array_of_values:
+		#temporary_saving_dictionary.set(variable.name, str(variable.text))
+	#print(temporary_saving_dictionary)
 	
+func _save_shader()->void:
+	var dictionary_to_save : Dictionary = {
+		"pretty_name" : save_name_line.text,
+		"f0" : f0_line.text,
+		"f1" : f1_line.text,
+		"f2" : f2_line.text,
+		"f3" : f3_line.text,
+		"f4" : f4_line.text,
+		"exponent" : exponent_line.text,
+		"normalize_factor" : normalize_factor_line.text
+	}
+	#print(dictionary_to_save)
+	var jsoned_dictionary : String = JSON.stringify(dictionary_to_save, "\t", false)
+	var file_name := save_name_line.text.validate_filename() + PRESET_EXTENSION
+	var full_path := PRESET_FOLDER.path_join(file_name)
+	var file : FileAccess = FileAccess.open(full_path, FileAccess.WRITE)
+	if file == null:
+		push_error("The save_shader function ran into a problem with " + str(FileAccess.get_open_error()))
+		return
+	file.store_string(jsoned_dictionary)
+	file.close()
+
+
 func _load_shader()->void:
 	pass
 

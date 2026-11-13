@@ -105,19 +105,22 @@ Identifying the extension in use will be handy later probably:
 
 	const PRESET_EXTENSION := ".json"
 
-Along with declaring a constant dictionary that can be a template/default/check/something:
 
-	const WORLEY_KEYS := {
-		"pretty_name" : "unnamed",
-		"f0" : "-1.0",
-		"f1" : "1.0",
-		"f2" : "0.0",
-		"f3" : "0.0",
-		"f4" : "0.0",
-		"exponent" : "1.0",
-		"normalize_factor" : "1.0",
-		"normalized_bool" : false,
-	}
+DELETE BELOW SECTION IF IT REMAINS UNUSED
+
+				Along with declaring a constant dictionary that can be a template/default/check/something:
+
+					const WORLEY_KEYS := {
+						"pretty_name" : "unnamed",
+						"f0" : "-1.0",
+						"f1" : "1.0",
+						"f2" : "0.0",
+						"f3" : "0.0",
+						"f4" : "0.0",
+						"exponent" : "1.0",
+						"normalize_factor" : "1.0",
+						"normalized_bool" : false,
+					}
 
 
 
@@ -288,6 +291,110 @@ Now, pushing the save button will cause -1 to appear in the terminal, without qu
 	print(f0_line.text is String)
 
 The user interface has largely traded in strings this whole time, so that's fine.
+
+MY FIRST FAILED ATTEMPT AT SAVING THE VARIOUS LINEEDIT CONTENTS AS A DICTIONARY 
+
+We need to capture all of those variables and their contents in a dictionary. I could write out each variable by hand, but... I'm going to attempt a DRY-principled loop. If all of the variables we care about were part of a pre-ordained array, then... I could just loop through it.
+
+[save_name_line, f0_line, f1_line, f2_line, f3_line, f4_line, exponent_line, normalize_factor_line]
+
+Every one of these is a LineEdit, so I can type the thing I'm iterating on in the for loop. I also need to create the dictionary I'll be saving momentarily.
+
+I initially tried this, but the results were not what I wanted:
+
+	func _save_shader()->void:
+		var worley_array_of_values : Array = [save_name_line, f0_line, f1_line, f2_line, f3_line, f4_line, exponent_line, normalize_factor_line]
+		var temporary_saving_dictionary : Dictionary
+		for variable : LineEdit in worley_array_of_values:
+			temporary_saving_dictionary.set(variable, str(variable.text))
+		print(temporary_saving_dictionary)
+
+The terminal was producing Godot's internal identifiers for the variables. I actually needed the variable names themselves. The reason I can't do this is kind of fun, and gets at how computers work--the variable has no idea what its name is by the time I'm running the program. That name is scattered into the wind. It doesn't know that it's called "f0_line" or "variable" or any of that.
+
+That array I've created is also useless for this purpose.
+
+DOING IT BY HAND 
+
+I try not to obsess too hard about some magical way to iterate through everything. I've got places to be. So here we are instead:
+
+	func _save_shader()->void:
+		var dictionary_to_save : Dictionary = {
+			"pretty_name" : save_name_line.text,
+			"f0" : f0_line.text,
+			"f1" : f1_line.text,
+			"f2" : f2_line.text,
+			"f3" : f3_line.text,
+			"f4" : f4_line.text,
+			"exponent" : exponent_line.text,
+			"normalize_factor" : normalize_factor_line.text
+		}
+		print(dictionary_to_save)
+
+NOW TURN IT INTO A JSON
+
+This is surprisingly easy, just by adding this line:
+
+	var jsoned_dictionary : String = JSON.stringify(dictionary_to_save, "/t", false)
+
+The second argument is a tabbed indent which prevents the string from being one long hard to read line.
+
+The third argument prevents JSON.stringify from automatically sorting things alphabetically. I don't want things coming back out in a different order than I put them in, though I'm not sure it matters.
+
+
+IDENTIFYING A SAFE PLACE TO SAVE IT 
+
+Already established up top was the folder and extension:
+	const PRESET_FOLDER := "user://presets"
+	const PRESET_EXTENSION := ".json"
+
+And then the DirAccess code in _ready has already created that folder:
+
+	_ready():
+
+		#Stuff that happened a long time ago
+
+		if not DirAccess.dir_exists_absolute(PRESET_FOLDER):
+		DirAccess.make_dir_recursive_absolute(PRESET_FOLDER)
+
+So now we just need a file name itself. Some stuff to deal with:
+-The file name should come from the pretty name the user typed
+-The name should be cleaned up in case it has slashes or whatever
+-Things should abort if the file already exists (or add a number or something)
+
+Strings have a "validate_filename()" method on them which cleans up strings and turns them into functional names. Thus:
+
+	var file_name := save_name_line.text.validate_filename() + PRESET_EXTENSION
+
+Strings also have a ".path_join()" method which allows you to cleanly marry path segments together, in this case, a directory location (the first segment) and the file name (the second segment).
+
+	var full_path := PRESET_FOLDER.path_join(file_name)
+
+As a sidenote, literally nothing about this is obvious or intuitive. I suspect 90% of Godot users look this up every time they do it or reuse old code. Here's the code to write the file:
+
+	var file : FileAccess = FileAccess.open(full_path, FileAccess.WRITE)
+	if file == null:
+		push_error("The save_shader function ran into a problem with " + str(FileAccess.get_open_error()))
+		return
+	file.store_string(jsoned_dictionary)
+	file.close()
+
+Although as a beginner you'd just end up copying and pasting this every time, a few thoughts:
+-You're creating an object with the FileAccess type.
+-The word "open" might feel like a misnomer for creating a file that doesn't exist yet.
+-Remember to close() the file, like saying goodbye to a Ouija board, or the file haunts you or something
+
+Claude produced/alleges this helpful table in terms of what happens depending on what you initially tell FileAccess to do:
+
+	Mode          If the file is missing      If the file exists
+	----------    ------------------------    ------------------------------
+	READ          fails, returns null         opens it for reading
+	WRITE         creates it                  wipes it, then writes
+	READ_WRITE    fails, returns null         opens it without wiping
+	WRITE_READ    creates it                  wipes it, then opens it
+
+LETS TEST THIS BAD BOY 
+
+
 
 TO DO LIST: FINISH SAVE/LOAD BUTTONS, WRITE EXTENSIONS SECTION. 
 
