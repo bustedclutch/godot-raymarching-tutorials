@@ -6,11 +6,11 @@ WHY ARE SAVING AND LOADING INTERFACES SO TERRIBLE?
 
 You only need to build it once and people often treat it as an afterthought. But saving player progress is one of the most important parts of your game. You can probably think of a game you stopped playing because your save file got unintentionally wiped, or because saving and loading was tedious.
 
-Godot has several built in mechanisms for saving and loading.
+Godot has several built-in mechanisms for saving and loading.
 
 MULTIPLE SAVE GAMES DIVERGED IN A WOOD
 
-In the signals chapter, I waxed philisophical about how I felt like everyone tends to only explain one method of signaling without boring the reader with the details of all the possible options. 
+In the signals chapter, I waxed philosophical about how I felt like everyone tends to only explain one method of signaling without boring the reader with the details of all the possible options. 
 
 If you like being bored with all of the possible options, you've come to the right place!
 
@@ -42,7 +42,7 @@ You can use FileAccess and have it write a file that isn't binary: JSON. JSON, i
 
 Godot actually handles the conversion in and out of JSON for you, so... you don't have to learn another language. Yay!
 
-Thus, although you *could* save a variable as-is, and write it straight to the hard drive with fileaccess, it's more common to stringify it into JSON and *then* write it to the hard drive with fileaccess. If you stringify it first, then you can open the file later in a text editor and read it to analyze for problems.
+Thus, although you *could* save a variable as-is, and write it straight to the hard drive with FileAccess, it's more common to stringify it into JSON and *then* write it to the hard drive with FileAccess. If you stringify it first, then you can open the file later in a text editor and read it to analyze for problems.
 
 Storing things in JSON can also make things more accessible for modders. Not so much because the mods will be touching the JSON files your game makes, but more likely because they'll save data to their own JSON files, and your game will already have a mechanism for moving that data in and out of the game.
 
@@ -97,7 +97,7 @@ Note that if you were to just write this:
 
 	const PRESET_FOLDER := user://presets
 
-You'll get an error that says "Expected end of statement after constant declaration, found ":" instead. Perhaps the error should instead be "put quotes around that, clown!" So put quotes around it:
+You'll get an error that says "Expected end of statement after constant declaration, found ':' instead." Perhaps the error should instead be "put quotes around that, clown!" So put quotes around it:
 
 	const PRESET_FOLDER := "user://presets"
 
@@ -161,15 +161,15 @@ DECLARE SOME VARIABLES FOR THE TEXT OF THE LINEEDITS
 
 Twice now, I've declared the full paths of all of these LineEdit boxes--something that I should have abstracted from the outset. Is there an easy "abstractify" button in Godot to take all references to a node that are currently in a script, and turn them into a variable?
 
-Not at this time. If I had given the LineEdit nodes unique names, then I could have reached them in the script with the "Access as Unique Name" feature by rightclicking the node and then dragging it into the script.
+Not at this time. If I had given the LineEdit nodes unique names, then I could have reached them in the script with the "Access as Unique Name" feature by right-clicking the node and then dragging it into the script.
 
 You can continue to reuse the node paths, or embark on the sidequest below about declaring them as variables and refactoring. It's worth it if you don't know how to use multicursor, because multicursor is amazing.
 
 VSCODE, GODOT TOOLS, AND MULTI CURSOR TO THE RESCUE (AND WHAT ABOUT CLAUDE?)
 
-VSCode can be a bit of gateway drug to vibecoding, since it's tempting to install Claude and take him up on the opportunity to write everything for you. You can decide the ethics for that yourself, but learning to code has been a lifelong dream of mine, so if you feel the same way, consider keeping him firmly planted in the "supportive coach/bug catcher/advisor/teacher" role.
+VSCode can be a bit of a gateway drug to vibecoding, since it's tempting to install Claude and take him up on the opportunity to write everything for you. You can decide the ethics for that yourself, but learning to code has been a lifelong dream of mine, so if you feel the same way, consider keeping him firmly planted in the "supportive coach/bug catcher/advisor/teacher" role.
 
-Claude can be a bit dangerous for refactors, particularly since you can use multicursor to handle a lot for you. If you want to ethically use claude, do a github commit/push before and after your refactor, do the refactor yourself, and have Claude check it for errors.
+Claude can be a bit dangerous for refactors, particularly since you can use multicursor to handle a lot for you. If you want to ethically use Claude, do a github commit/push before and after your refactor, do the refactor yourself, and have Claude check it for errors.
 
 HOW TO MULTICURSOR
 
@@ -186,7 +186,7 @@ The below code block is where I declared all the signals. I could re-use this co
 	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/ExponentSlider/HSlider.value_changed.connect(exponent_slider_updater)
 	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/RandomizeButton.pressed.connect(randomize_f_values)
 
-The first job is stripping the end content that comes after the period in each line. I highlight a period, and then push CTRL+D to grab all the remaining periods. Then I hit SHIFT+END (the shortcut that highlights everything up to the end of the line), and hit "delete" or "backspace" on the keyboard to nuke all the the ending baggage at once: 
+The first job is stripping the end content that comes after the period in each line. I highlight a period, and then push CTRL+D to grab all the remaining periods. Then I hit SHIFT+END (the shortcut that highlights everything up to the end of the line), and hit "delete" or "backspace" on the keyboard to nuke all the ending baggage at once: 
 	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F0/LineEdit
 	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F1/LineEdit
 	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F2/LineEdit
@@ -195,7 +195,7 @@ The first job is stripping the end content that comes after the period in each l
 	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/Exponent/LineEdit
 	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/NormalizeFactor/LineEdit
 	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/NormalizeXButton
-	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/ExponentSlider/HSlide
+	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/ExponentSlider/HSlider
 	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/RandomizeButton
 
 Now I need to add the variable declarations at the beginning of each line. So I select $CanvasLayer on the first line, hit CTRL+D to select the remaining lines, move the cursors to the left with the arrow key, and type "@onready var x_line". The term "x_line" is just a placeholder for now.
@@ -208,7 +208,7 @@ Now I need to add the variable declarations at the beginning of each line. So I 
 	@onready var x_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/Exponent/LineEdit
 	@onready var x_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/NormalizeFactor/LineEdit
 	@onready var x_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/NormalizeXButton
-	@onready var x_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/ExponentSlider/HSlide
+	@onready var x_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/ExponentSlider/HSlider
 	@onready var x_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/RandomizeButton
 
 After that, highlight the first "x_line", run a Find operation with Ctrl+F, and then Escape to close the Find menu. Type each variable name, and push F3 to bounce forward to the next placeholder. This lets you skip from placeholder to placeholder:
@@ -231,7 +231,7 @@ You often want to leave the first appearance of something intact, and replace al
 Skipping:
 You can also skip ahead to the next match by using CTRL+K.
 
-I asked Claude for a mnemonic for CTRL+K and CTRL+D, and he suggested "aDD the next match" and "sKip the next match", which is fun reminder of how weirdly terrible Claude is at mnemonics.
+I asked Claude for a mnemonic for CTRL+K and CTRL+D, and he suggested "aDD the next match" and "sKip the next match", which is a fun reminder of how weirdly terrible Claude is at mnemonics.
 
 WON'T AI BE DOING THIS FOR ME?
 
@@ -257,13 +257,13 @@ The save button needs to fire a signal that calls the save function. This means 
 	@onready var load_button : Button = $CanvasLayer/MarginContainer/HBoxContainer/SaveLoad/LoadButton
 	@onready var save_name_line : LineEdit = $CanvasLayer/MarginContainer/HBoxContainer/SaveLoad/EditSaveName
 
-The save and load buttons need to call save and load functions. They have a signal built in for that. In case you've forgotten what that signal looks like, you can click the "SaveButton" node in the node tree in the top left panel of Godot, and then the Signals tab to the in the far right panel that's normally behind the Inspector tab. The signal is "pressed". So add a subscription to the _ready function:
+The save and load buttons need to call save and load functions. They have a signal built in for that. In case you've forgotten what that signal looks like, you can click the "SaveButton" node in the node tree in the top left panel of Godot, and then the Signals tab in the far right panel that's normally behind the Inspector tab. The signal is "pressed". So add a subscription to the _ready function:
 
 	#Save/loading subscription below:
 	save_button.connect("pressed", _save_shader)
 	load_button.connect("pressed", _load_shader)
 
-Those will show up in red until you add a stubs for each callable:
+Those will show up in red until you add stubs for each callable:
 
 	func _save_shader()->void:
 		pass
@@ -271,7 +271,7 @@ Those will show up in red until you add a stubs for each callable:
 	func _load_shader()->void:
 		pass
 
-If you want to confirm you're subscription is working, toss in a print function:
+If you want to confirm your subscription is working, toss in a print function:
 
 	func _save_shader()->void:
 		print("Save button pressed!")
@@ -394,7 +394,7 @@ Claude produced/alleges this helpful table in terms of what happens depending on
 	READ_WRITE    fails, returns null         opens it without wiping
 	WRITE_READ    creates it                  wipes it, then opens it
 
-LETS TEST THIS BAD BOY 
+LET'S TEST THIS BAD BOY 
 
 This worked "the first time" when I coded it in, except this is when I noticed I had put in a forward slash /t instead of a backslash \t for the tabbed indent of the JSON.stringify() thing. But other than that it was fine.
 
@@ -409,7 +409,7 @@ Replace the update_file_list function with this:
 
 A regular array can hold anything in its slots, whereas an Array that's typed as a string array by writing Array[String] is a more flexible array that holds only strings, and finally a PackedStringArray moves faster and uses less memory than all three but is the least flexible of the trio.
 
-"Packed" shows up a lot in Godot, and it seems to mean pretty much the same thing everywhere--less flexible, more performant. One of the learning curves of Godot is just knowing which of the built-ins use them. Godot's designers seem to tilt toward making everything perform insanely fast, so, "packed" is rather common and it's best not to be afraid of it. In computer science, data travels in chunks of a specific size, everywhere, all the time, and "packing" means smashing those chunks together as tightly as you can in only one place. Like, pretend you're storing things in a box at home, and you're packing your kitchen utensils in a box. In some cases, you might know exactly how many utensils are going in, and pack them into two adjacent boxes. But maybe you don't know, so you pack some of the utensils in a box, along with a piece of paper where you can write, "look in the red box in the attic for the rest of the utensils". Part of what makes a computer fast or slow is how good the programmer relies on the first method as opposed to the second. 
+"Packed" shows up a lot in Godot, and it seems to mean pretty much the same thing everywhere--less flexible, more performant. One of the learning curves of Godot is just knowing which of the built-ins use them. Godot's designers seem to tilt toward making everything perform insanely fast, so, "packed" is rather common and it's best not to be afraid of it. In computer science, data travels in chunks of a specific size, everywhere, all the time, and "packing" means smashing those chunks together as tightly as you can in only one place. Like, pretend you're storing things in a box at home, and you're packing your kitchen utensils in a box. In some cases, you might know exactly how many utensils are going in, and pack them into two adjacent boxes. But maybe you don't know, so you pack some of the utensils in a box, along with a piece of paper where you can write, "look in the red box in the attic for the rest of the utensils". Part of what makes a computer fast or slow is how often the programmer relies on the first method as opposed to the second. 
 
 I read a lot of tutorials that mentioned Packed things, but nobody ever told me what it was, so in case you're like me I'm telling you now. Now you know. It's possible to speed up games by packing the data efficiently, but whether that makes a meaningful difference depends on the data and the game.
 
@@ -562,7 +562,7 @@ The Randomize button's code isn't gorgeous, but it does work. It 1. Creates rand
 
 If I was doing this all over again, I would have set up the shader parameter names in a fixed array, so that I could iterate through them in a for loop with every function that dealt with them. I'll do it right on the next project.
 
-I also wrote a shader_setter(value, control_name) function, which... kinda does a lot of what Randomize does already. Shader_setter is doing this: 
+I also wrote a shader_setter(value, control_name) function, which... kinda does a lot of what Randomize does already. The shader_setter function is doing this: 
 
 	func shader_setter(value, control_name):
 		var uniform_name = control_name
@@ -600,7 +600,7 @@ And then rather than some glamorous loop, I just typed a bunch of stuff out.
 	shader_setter(parsed_shader_preset["f3"], "f3")
 	f4_line.text = parsed_shader_preset["f4"]
 	shader_setter(parsed_shader_preset["f4"], "f4")
-	exponent_line.text = parsed_shader_preset["f4"]
+	exponent_line.text = parsed_shader_preset["exponent"]
 	shader_setter(parsed_shader_preset["exponent"], "exponent")
 	normalize_factor_line.text = parsed_shader_preset["normalize_factor"]
 	shader_setter(parsed_shader_preset["normalize_factor"], "normalize_factor")
@@ -611,17 +611,17 @@ IT'S NOT PRETTY BUT IT WORKS
 
 When I was first learning, I would often stop to redesign my architecture all the time to follow the "don't repeat yourself" principle. 
 
-There's other principles that run in tandom with DRY, such as the not-really-a-joke "WET" for "write everything twice", representing the principle that you should wait until you're writing things multiple times before coming up with abstractions.
+There's other principles that run in tandem with DRY, such as the not-really-a-joke "WET" for "write everything twice", representing the principle that you should wait until you're writing things multiple times before coming up with abstractions.
 
 If you're a beginner, like me, I have a better principle: Do not interrupt everything you're doing to follow any principle. Just get it done. 
 
-This is perhaps because before programming I was/am an artist, and our principle there is very simple: The artist who makes a hundred clay pots is *always* better than the artist who spends a hundred times as much time making one clay pot. There are times, in art, for fanatical detail and slowness, but these are typically procedural works, like pointilism or camera lucida portraiture, and it's usually not your first rodeo.
+This is perhaps because before programming I was/am an artist, and our principle there is very simple: The artist who makes a hundred clay pots is *always* better than the artist who spends a hundred times as much time making one clay pot. There are times, in art, for fanatical detail and slowness, but these are typically procedural works, like pointillism or camera lucida portraiture, and it's usually not your first rodeo.
 
 EXTENSIONS 
 
 If you want to keep messing around with this, there's a variety of things you could play with:
 -Instantly loading on a double click, to practice signal wiring
--Guarding against overrwriting existing files, to practice guards and FileAccess
+-Guarding against overwriting existing files, to practice guards and FileAccess
 -Adding numbers to new save files that use an existing name
 -A screen-space analysis that readjusts the exponent factor so that you always have a normalized result after randomizing, if these chapters have been too easy and you want something more difficult (and noticeably useful)
 -Add a UI control that governs an animated effect (again, ideal if these chapters were too easy)
@@ -633,7 +633,7 @@ CONCLUSION
 
 My understanding from other developers is that having a save game that is easy to read and edit saves a massive amount of time at... pretty much all stages of development. You can rig up a game that needs to be tested halfway through, create a zillion save files with slightly different tunings, read the results, and give a functioning save editor to your editors. It also forces the scope of what you're saving into something mercifully narrow.
 
-What I find most interesting about this chapter: I never see shader editors showing up in player-facing UI's. Everyone just gets a color selector, and often, you're limited to a few color swatches. And yet: Players *obsess* over clothing and residence options for their characters. As this chapter shows, even as a beginner, you can expose shader-level details to the player, and you can still restrict those options to fall useful boundaries.
+What I find most interesting about this chapter: I never see shader editors showing up in player-facing UIs. Everyone just gets a color selector, and often, you're limited to a few color swatches. And yet: Players *obsess* over clothing and residence options for their characters. As this chapter shows, even as a beginner, you can expose shader-level details to the player, and you can still restrict those options to fall within useful boundaries.
 
 COMING IN THE NEXT CHAPTER 
 
@@ -648,7 +648,7 @@ ERROR CHECK
 EXTENSIONS 
 -Refactoring to clean up references, possibly by using unique names
 -Instantly loading on a double click 
--Guarding against overrwriting existing files
+-Guarding against overwriting existing files
 -Adding numbers to new save files that use an existing name 
 -A screen-space analysis that readjusts the exponent factor so that you always have a normalized result after randomizing
 -Saving the toggle button for norming over the x-axis
