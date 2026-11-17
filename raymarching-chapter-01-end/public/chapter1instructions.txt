@@ -82,7 +82,7 @@ Shaders are scripted in a different location of the UI for two reasons: First, y
 
 A QUICK NOTE ABOUT CAPITALIZATION 
 
-Most authors assume this is obvious, but it was not obvious when I started: EVERYTHING you code is usually case-sensitive. That means Vector3d and Vector3D and vector3d are all different. Only one of those three works. The capital D at the end is the easiest one to miss, in my opinion.
+Most authors assume this is obvious, but it was not obvious when I started: EVERYTHING you code is usually case-sensitive. That means Node3d and Node3D and node3d are all different. Only one of those three works. The capital D at the end is the easiest one to miss, in my opinion.
 
 Initially, you will find What Gets Capitalized to be confusing and frustrating. Later on, you will, shockingly, find it surprisingly helpful for remembering what type of data is in which category, because Godot uses different case systems for nodes vs code. This allows you to read and write about Godot in a way that keeps you sane, because you know, instantly from reading, whether someone is talking about a node or a reference to a node in code, which are very different things.
 
