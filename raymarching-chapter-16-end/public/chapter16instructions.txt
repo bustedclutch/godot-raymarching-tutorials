@@ -22,9 +22,11 @@ SAVE OPTION SUMMARY: THE CONFIGFILE CLASS
 
 https://docs.godotengine.org/en/stable/classes/class_configfile.html
 
-There's the ConfigFile class, which saves things to an INI file. That's a very basic text file (with the .ini extension) with what is usually a long list of settings, like monitor resolution, UI size, and so on. 
+Remember cracking open the folder of a game you've been playing to edit its INI file so you can tweak settings like monitor resolution? This is that. But ".cfg" instead of ".ini", by convention anyway.
 
-It's usually reserved for precisely that kind of thing. These INI files are not only human readable, but typically lack any kind of hierarchical formatting or coding like you might see in a JSON file (or an HTML file if you're more familiar with those). These INI files invite the user to go in and make changes themselves, perhaps because the game has stopped launching with a visible resolution, or it's showing up on the wrong monitor, or using the wrong driver, and so on. They often avoid private data so they can be uploaded for bug reports.
+Godot writes to such a file with the ConfigFile class, a text format similar to what you've seen in the INI files of yore. You'd use it to write a super basic text file with what is usually a long list of settings, like monitor resolution, UI size, and so on. The convention is a lowercase ".cfg" extension. (For obsessive readers, and to get Claude to stop harrassing me about this, file extensions are deployed in lowercase letters but often discussed in writing like this using CAPITAL LETTERS for readability.)
+
+It's usually reserved for precisely that kind of thing. These CFG files are not only human readable, but typically lack any kind of hierarchical formatting or coding like you might see in a JSON file (or an HTML file if you're more familiar with those). These CFG files invite the user to go in and make changes themselves, perhaps because the game has stopped launching with a visible resolution, or it's showing up on the wrong monitor, or using the wrong driver, and so on. They often avoid private data so they can be uploaded for bug reports.
 
 Nothing's stopping you from shoving other kinds of data into it, but it would be weird. I won't use it here, but I said I'd mention everything.
 
@@ -32,15 +34,15 @@ SAVE OPTION SUMMARY: FILEACCESS WITHOUT JSON
 
 https://docs.godotengine.org/en/latest/classes/class_fileaccess.html
 
-The FileAccess class is a conventional way of saving and opening pretty much anything. By itself, it won't be something a person can read, because it writes in binary.
+The FileAccess class is a conventional way of saving and opening pretty much anything. It can write anything, text, or binary, organized or disorganized. Floats, for example, will write as binary by default, which you won't enjoy reading.
 
-SAVE OPTION SUMMARY: FILEACCESS WITH JSON
+SAVE OPTION SUMMARY: FILEACCESS, ORGANIZED WITH JSON TEXT
 
 https://docs.godotengine.org/en/latest/classes/class_json.html
 
-You can use FileAccess and have it write a file that isn't binary: JSON. JSON, if you're entirely unfamiliar with it, looks like HTML or like a heavily nested dictionary. It's technically code, but there's no logic, it's just a bunch of keys and values, nested however you want. 
+You can use FileAccess and have it write a file that isn't binary: JSON. JSON, if you're entirely unfamiliar with it, has the vibe and simplicity of HTML without javascript or a heavily nested dictionary. JSON has no logic, it's just a bunch of keys and values, nested however you want. It has the vibe of very old-school html files where there is no javascript, and a web browser is able to load an elegantly formatted page without creating a security hazard.
 
-Godot actually handles the conversion in and out of JSON for you, so... you don't have to learn another language. Yay!
+Godot also handles the conversion in and out of JSON for you, so... you don't have to learn another language. You don't need to crack a book or video open about JSON to use it. Unless you have to write the formatting yourself, reading it is usually self explanatory. Yay!
 
 Thus, although you *could* save a variable as-is, and write it straight to the hard drive with FileAccess, it's more common to stringify it into JSON and *then* write it to the hard drive with FileAccess. If you stringify it first, then you can open the file later in a text editor and read it to analyze for problems.
 
@@ -54,7 +56,7 @@ SAVE OPTION SUMMARY: RESOURCESAVER
 
 https://docs.godotengine.org/en/latest/classes/class_resourcesaver.html
 
-This is arguably the most "Godot-native" method of saving a file, because it's capable of taking a bunch of variables and saving them into one file as a Resource, using the same format that the other Godot scene files are written in (.tres and .res). The .tres format is also human-readable text. ResourceSaver has a major security hazard, which I'll address below.
+This is arguably the most "Godot-native" method of saving a file, because it's capable of taking a bunch of variables and saving them into one file as a Resource, using a format that the other Godot scene files load and use already (.tres and .res). The .tres format is also human-readable text. ResourceSaver has a major security hazard, which I'll address below.
 
 SO WHAT'S BEST?
 
@@ -64,12 +66,13 @@ So you'll see arguments for the other two contenders: 1. a JSON file with FileAc
 
 Saving things as a resource has the obvious advantage that you can shove a ton of native Godot variables into one save file with minimal effort. If you're an indie dev making a small game, that's probably fine, but it comes with an enormous security hazard. ResourceSaver and its twin ResourceLoader deal in .tres and .res files, so if a player loads someone else's save file or whatever, it can run code on their machine. 
 
-JSON, on the other hand, is far more difficult to hide something nefarious in. Also, JSON is still required for things like multiplayer packets and modding. So I'm rolling with JSON.
+JSON, on the other hand, is far more difficult to hide something nefarious in. Also, JSON is still often useful for things like multiplayer packets and modding. So I'm rolling with JSON.
 
 THE RUBBER DUCKY OUTLINE
 
 I need to...
-identify a folder within the editor for where saved files go.
+learn exactly where saved files go (some user data folder)
+identify a subfolder within the default user data folder for where this kind of save file should go
 identify the save file as a variable.
 the _ready function should create the subfolder if it doesn't exist
 the _ready function should display any existing presets
@@ -137,7 +140,9 @@ DirAccess is FileAccess but for folders! The "recursive" bit will cause Godot to
 
 TEST IT 
 
-In the spirit of "test at every possible juncture", I ran the code here to make sure the folder actually got created. I couldn't find it. Mainly because I'm new to Linux, and Linux hides the userdata folder by default. 
+In the spirit of "test at every possible juncture", I ran the code here to make sure the folder actually got created. I couldn't find it. Mainly because I'm new to Linux, and Linux hides the userdata folder by default, because it's part of a hidden parent folder that starts with a period, typically at  ~/.local/share/godot/app_userdata/<project> .
+
+Although Linux usually defaults to hiding folders and files that start with a period, you can turn that setting off, and I recommend showing hidden files for any operating system when you're game devving. The shortcut at this time in Linux is CTRL+H.
 
 GODOT CAN OPEN THE FOLDER FOR YOU 
 
@@ -159,9 +164,11 @@ I don't actually know yet what the save files will look like, so I'm just making
 
 DECLARE SOME VARIABLES FOR THE TEXT OF THE LINEEDITS
 
-Twice now, I've declared the full paths of all of these LineEdit boxes--something that I should have abstracted from the outset. Is there an easy "abstractify" button in Godot to take all references to a node that are currently in a script, and turn them into a variable?
+Twice now, I've declared the full paths of all of these LineEdit boxes--something that I should have abstracted from the outset. Is there an easy "abstractify" button in Godot to take all references to a node that are currently in a script, and replace those references with a reference to a cutely-named variable?
 
-Not at this time. If I had given the LineEdit nodes unique names, then I could have reached them in the script with the "Access as Unique Name" feature by right-clicking the node and then dragging it into the script.
+Not a painless one! Which is why in pretty much every Godot book I've come across, the authors declare literally every node they use in the script using @onready language at the top of the script.
+
+Your main option for that is find-and-replacing your existing references with multicursor. If I had given the LineEdit nodes unique names, then I could have reached them in the script with the "Access as Unique Name" feature by right-clicking the node and then dragging it into the script. (Another quick way of getting nodes into a script is holding down CTRL before you drag a node into a script, which brings in both the variable declaration language AND the node's path. Knowing that would have saved me a lot of typing over the past year.)
 
 You can continue to reuse the node paths, or embark on the sidequest below about declaring them as variables and refactoring. It's worth it if you don't know how to use multicursor, because multicursor is amazing.
 
@@ -173,7 +180,7 @@ Claude can be a bit dangerous for refactors, particularly since you can use mult
 
 HOW TO MULTICURSOR
 
-The below code block is where I declared all the signals. I could re-use this code block to declare a bunch of variables, but I would need to strip the signal declaration at the end of each line. Is there an easy way of doing that? Yes.
+The below code block is where I subscribed all the signals. I could re-use this code block to declare a bunch of variables, but I would need to strip the signal subscriptions at the end of each line. Is there an easy way of doing that? Yes.
 
 	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F0/LineEdit.text_changed.connect(shader_setter.bind("F0"))
 	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F1/LineEdit.text_changed.connect(shader_setter.bind("F1"))
@@ -229,7 +236,7 @@ Removing cursors:
 You often want to leave the first appearance of something intact, and replace all the others. The simple way to do this is to just highlight the second one and start CTRL+D'ing from there, but you can also ALT+click to remove a cursor if one is placed where you don't want it.
 
 Skipping:
-You can also skip ahead to the next match by using CTRL+K.
+You can also skip ahead to the next match by using CTRL+K and then CTRL+D pressed in order.
 
 I asked Claude for a mnemonic for CTRL+K and CTRL+D, and he suggested "aDD the next match" and "sKip the next match", which is a fun reminder of how weirdly terrible Claude is at mnemonics.
 
@@ -309,9 +316,11 @@ I initially tried this, but the results were not what I wanted:
 			temporary_saving_dictionary.set(variable, str(variable.text))
 		print(temporary_saving_dictionary)
 
-The terminal was producing Godot's internal identifiers for the variables. I actually needed the variable names themselves. The reason I can't do this is kind of fun, and gets at how computers work--the variable has no idea what its name is by the time I'm running the program. That name is scattered into the wind. It doesn't know that it's called "f0_line" or "variable" or any of that.
+The terminal was producing Godot's internal identifiers for the nodes--when making games where you have to run logic on what node collided with what other node, that's exactly what you need, but that's definitely not what I care about here. I need the variable names themselves, or something like it. 
 
-That array I've created is also useless for this purpose.
+Whether or not one can access the name of a variable at runtime is a kind of interesting computer science question. In many languages, variable names get obliterated when the code is compiled, such that a variable named "long_name_variable" becomes "[rbp-4]". And in some languages, the names themselves remain accessible, in some circumstances. 
+
+Claude alleges that Godot's variable names for member variables (the ones that aren't local to a function that you declare up top) remain accessible at runtime, but I was struggling to make that work, and wrote off the concept as feeling finicky and fragile. So I did it by hand.
 
 DOING IT BY HAND 
 
@@ -351,12 +360,12 @@ Already established up top was the folder and extension:
 
 And then the DirAccess code in _ready has already created that folder:
 
-	_ready():
+	func _ready():
 
 		#Stuff that happened a long time ago
 
 		if not DirAccess.dir_exists_absolute(PRESET_FOLDER):
-		DirAccess.make_dir_recursive_absolute(PRESET_FOLDER)
+			DirAccess.make_dir_recursive_absolute(PRESET_FOLDER)
 
 So now we just need a file name itself. Some stuff to deal with:
 -The file name should come from the pretty name the user typed
@@ -383,7 +392,37 @@ As a sidenote, literally nothing about this is obvious or intuitive. I suspect 9
 Although as a beginner you'd just end up copying and pasting this every time, a few thoughts:
 -You're creating an object with the FileAccess type.
 -The word "open" might feel like a misnomer for creating a file that doesn't exist yet.
--Remember to close() the file, like saying goodbye to a Ouija board, or the file haunts you or something
+-It's best practice to close() the file, like saying goodbye to a Ouija board, to eliminate the risk of any opened file haunting you. That said, Godot's scripting language handles garbage collection/reference counting for you.
+
+AN ASIDE ABOUT GARBAGE COLLECTION AND REFERENCE COUNTING (SKIPPABLE FOR THOSE FAMILIAR)
+
+All programming involves the creation of stored data, and erasing that data. Well, it's not so much "erased" as "freed" such that it can be replaced with something else.
+
+With some programming languages, you have to manually write in when stored data needs to be freed, or... you literally just keep storing more and more stuff into perpetuity. Miss one thing anywhere, and you create what's called a "memory leak". This is why a lot of programs slowly slow down until they're immovable.
+
+Some languages approach this problem with what's called "garbage collection", which is like a little janitor running around all the time, checking to confirm every variable is still in use by someone somewhere. And if it isn't, it gets nuked. The janitor moves intermittently; in gaming, this can mean the game slows down in moments of the janitor's choosing.
+
+Godot handles (most) of that with a reference counting system. Godot tracks the number of references to a variable. If three nodes, or three scripts, or three whatevers refer to that variable's data, it stays live. Those nodes might get freed, or those scripts might conclude, or functions may finish, until the count hits zero. At that point, the data gets nuked. At least, when it's a reference-counted object and not a node.
+
+The refcounted system, as far as I know, is separate from the node system. Nodes must be freed manually. This is why in a bullet-hell game you manually write code to queue_free() a fireball when it leaves the map so your game doesn't crash after five minutes and 10 million fireballs. Freeing is easy though because like with all Godot nodes, they follow the parent-child system, so freeing a parent frees the children.
+
+What does this mean for you? Well, not tons. For the most part, it's a massive problem for people working in other languages that you can often ignore because it doesn't exist for you. That said, perhaps precisely because you almost never have to worry about it, it's easy to forget that you *sometimes* need to worry about it. You have to worry about freeing nodes, for example. It's also possible for two refcounted objects to refer to each other, and nothing else, and live on in unintended forever-ness, like a sad couple that stays together only because neither of them can tolerate revising their public persona on social media.
+
+More often, you'll encounter tutorials or explanations online that refer to "RefCounted" like scripts that extend "RefCounted" instead of [insert node here]. Also, a script that doesn't say "extends" extends "RefCounted".
+
+Pure code and logic and data and stuff that doesn't need to be in the node tree can live in RefCounted--once the counter hits zero of anything getting referred to it, it gets nuked. 
+
+This is why there's two major-parent classes in Godot: Node and RefCounted. Nodes need to be freed manually and are generally reserved for what's on the scene tree. RefCounted is good for data that you want obliterated for you when things stop referring to it. In my bullet-hell game example, perhaps there's a RefCounted extension that's tracking how many bullets, how much damage given and taken, and a zillion other stats for that level, and you want that data to vanish on its own once the game stops referring to it. That's RefCounted.
+
+You'll see both uses however--people who are experienced programmers will use RefCounted, whereas the inexperienced will often use Nodes for literally everything. Or just because. I, for example, created a Node in a game jam called "GlobalScripts" and to which I attached a "global_scripts.gd" script and which was an extension of "Node", just because it was a jam and I wanted everything visible in front of me. There's an entire UI in Godot for global scripts, but when you only have hours to make a game, you take shortcuts.
+
+The data-only variables you're declaring within your scripts get nuked as part of Godot's refcounted sytem, but things you instantiate as nodes are not and must be freed manually.
+
+I'm sure someone somewhere has written up a better summary of what these two systems are, but I didn't encounter it in my own reading.
+
+Both of these inherit from Object, and there are siblings to RefCounted and Node that you've probably already seen, such as "Input" and "OS", along with less common engine ones like RenderingServer.
+
+BACK TO FILEACCESS
 
 Claude produced/alleges this helpful table in terms of what happens depending on what you initially tell FileAccess to do:
 
@@ -407,9 +446,9 @@ Replace the update_file_list function with this:
 	func update_file_list():
 		var packed_array_of_presets : PackedStringArray = DirAccess.get_files_at(PRESET_FOLDER)
 
-A regular array can hold anything in its slots, whereas an Array that's typed as a string array by writing Array[String] is a more flexible array that holds only strings, and finally a PackedStringArray moves faster and uses less memory than all three but is the least flexible of the trio.
+A regular array can hold anything in its slots, whereas an Array that's typed as a string array by writing Array[String] is a less flexible array that holds only strings, and finally a PackedStringArray moves faster and uses less memory than all three but is the least flexible of the trio.
 
-"Packed" shows up a lot in Godot, and it seems to mean pretty much the same thing everywhere--less flexible, more performant. One of the learning curves of Godot is just knowing which of the built-ins use them. Godot's designers seem to tilt toward making everything perform insanely fast, so, "packed" is rather common and it's best not to be afraid of it. In computer science, data travels in chunks of a specific size, everywhere, all the time, and "packing" means smashing those chunks together as tightly as you can in only one place. Like, pretend you're storing things in a box at home, and you're packing your kitchen utensils in a box. In some cases, you might know exactly how many utensils are going in, and pack them into two adjacent boxes. But maybe you don't know, so you pack some of the utensils in a box, along with a piece of paper where you can write, "look in the red box in the attic for the rest of the utensils". Part of what makes a computer fast or slow is how often the programmer relies on the first method as opposed to the second. 
+"Packed" shows up a lot in Godot, and it seems to mean pretty much the same thing everywhere--less flexible, more performant. One of the learning curves of Godot is just knowing which of the built-ins use them. Godot's designers seem to tilt toward making everything perform insanely fast, so, "packed" is rather common and it's best not to be afraid of it. In computer science, data travels in chunks of a specific size, everywhere, all the time, and "packing" means smashing those chunks together as tightly as you can in only one place. Like, pretend you're storing things in a box at home, and you're packing your kitchen utensils in a box. In some cases, you might know exactly how many utensils are going in, and pack them into adjacent boxes, and have them elegantly squished up next to each other within those boxes. But maybe you don't know, so you pack some of the utensils in a box, along with a piece of paper where you can write, "look in the red box in the attic for the rest of the kitchen utensils". Part of what makes a computer fast or slow is how often the programmer (or their engine) relies on the first method as opposed to the second. 
 
 I read a lot of tutorials that mentioned Packed things, but nobody ever told me what it was, so in case you're like me I'm telling you now. Now you know. It's possible to speed up games by packing the data efficiently, but whether that makes a meaningful difference depends on the data and the game.
 
@@ -424,7 +463,7 @@ Claude suggested the "get_basename" method which may end up being what we want--
 
 There's a very similar method, "get_extension()", which returns the extension.
 
-The tldr: is that ends_with is inherently a test returns a boolean that includes a period, and get_extension returns the actual extension without a period. They're both case-sensitive.
+The tldr: is that ends_with is inherently a test, a test that returns a boolean, based on whether the string you passed in is the grand conclusion of the string you called it from. Conversely, get_extension just returns the actual extension without a period. Use whichever floats your boat, but note that get_extension is case sensitive, and any tests you run with ends_with may also be case-sensitive, so, mind your cases. (I spent the first month of Godot failing at it because I was constantly failing at using capital letters in the right place, such as Vector3D vs Vector3d vs vector3d.)
 
 These are methods running on String variables, so there's not any witchcraft happening with files themselves.
 
@@ -437,7 +476,7 @@ Declare an array of legible file names, and iterate through the file names with 
 			if file_name.ends_with(PRESET_EXTENSION):
 				legible_saved_file_list.append(file_name.get_basename())
 
-There's now an array that can be loaded into the SavedSettingList node, which is an ItemList node.
+There's now an array that can be loaded into the SavedSettingsList node, which is an ItemList node.
 
 I haven't declared it up top yet, so add it to the running bevy of @onready variable declarations:
 
@@ -463,13 +502,13 @@ Finished update_file_list looks like this:
 		for item in legible_saved_file_list:
 			saved_settings_list.add_item(item)
 
-That's actually all we need. The ItemList stores things by index (0, 1, 2, 3...) but each of those items carries a .name property with it that can be used later to get the file name.
+That's actually all we need. The ItemList stores things by index (0, 1, 2, 3...). You can access the text for each item at the index using get_item_text(index), which we'll do below.
 
 LOADING FILES
 
 Now we need to load stuff. Click the ItemList node, then check out the ItemList signals tab hiding under the Inspector panel to see your options for clicking things in the list. There's actually several.
 
-I'm going to roll with "item_clicked" but there's several useful options, like multi-selection and double-clicking. Like, you could make double-clicking load something instantly.
+I'm going to roll with "item_selected" but there's several useful options, like multi-selection and double-clicking. Like, you could make double-clicking load something instantly. For this particular UI, clicking once on the item and then clicking the load button fits "item_selected", as Godot's defaults handle a single click as a selection. (Remember, hovering over the signals within Godot tells you both what triggers the signals, and what additional output they ship out for use in functions that receive the signal.)
 
 I'm going to add a variable at the top of the script to identify the legible file name of whatever has been selected:
 
