@@ -463,7 +463,7 @@ Claude suggested the "get_basename" method which may end up being what we want--
 
 There's a very similar method, "get_extension()", which returns the extension.
 
-The tldr: is that ends_with is inherently a test, a test that returns a boolean, based on whether the string you passed in is the grand conclusion of the string you called it from. Conversely, get_extension just returns the actual extension without a period. Use whichever floats your boat, but note that get_extension is case sensitive, and any tests you run with ends_with may also be case-sensitive, so, mind your cases. (I spent the first month of Godot failing at it because I was constantly failing at using capital letters in the right place, such as Vector3D vs Vector3d vs vector3d.)
+The tldr: is that ends_with is inherently a test, a test that returns a boolean, based on whether the string you passed in is the grand conclusion of the string you called it from. Conversely, get_extension just returns the actual extension without a period. Use whichever floats your boat, but note that get_extension is case sensitive, and any tests you run with ends_with may also be case-sensitive, so, mind your cases. (I spent the first month of Godot failing at it because I was constantly failing at using capital letters in the right place, such as Node3D vs Node3d vs node3d.)
 
 These are methods running on String variables, so there's not any witchcraft happening with files themselves.
 
