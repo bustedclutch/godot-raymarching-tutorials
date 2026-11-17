@@ -107,10 +107,49 @@ func _save_shader()->void:
 		return
 	file.store_string(jsoned_dictionary)
 	file.close()
+	update_file_list()
 
 
 func _load_shader()->void:
-	pass
+	#-Grab the selected_shader_name , something like "CrystalHive"
+	var shader_path : String = selected_shader_name 
+	#-Add the PRESET_EXTENSION to the end of it, so that becomes "CrystalHive.json"
+	shader_path = shader_path + PRESET_EXTENSION
+	#-Add the folder path to the beginning, which will create a full path like "user://presets/CrystalHive.json"
+	shader_path = PRESET_FOLDER.path_join(shader_path)
+	#print(shader_path)
+	#-Use FileAccess to load the file as text and plop it into a variable
+	var unparsed_JSON_shader_text : String = FileAccess.get_file_as_string(shader_path)
+	print(unparsed_JSON_shader_text)
+	#print(unparsed_JSON_shader_text)
+	#-Use the JSON class to parse the file into what we hope will be a dictionary 
+	var parsed_shader_preset = JSON.parse_string(unparsed_JSON_shader_text)
+	#print(parsed_shader_preset)
+	#-Confirm it's a dictionary 
+	if parsed_shader_preset is Dictionary:
+		print("Congrats, it's a dictionary!")
+		print(parsed_shader_preset)
+	else:
+		print("Dictionary failed to load from JSON parser")
+		return
+	#-Assign all the values to the LineEdits (this step doesn't yet trigger the values to update the shader)
+	#-Apply those values to the shader
+	f0_line.text = parsed_shader_preset["f0"]
+	shader_setter(parsed_shader_preset["f0"], "f0")
+	f1_line.text = parsed_shader_preset["f1"]
+	shader_setter(parsed_shader_preset["f1"], "f1")
+	f2_line.text = parsed_shader_preset["f2"]
+	shader_setter(parsed_shader_preset["f2"], "f2")
+	f3_line.text = parsed_shader_preset["f3"]
+	shader_setter(parsed_shader_preset["f3"], "f3")
+	f4_line.text = parsed_shader_preset["f4"]
+	shader_setter(parsed_shader_preset["f4"], "f4")
+	exponent_line.text = parsed_shader_preset["f4"]
+	shader_setter(parsed_shader_preset["exponent"], "exponent")
+	normalize_factor_line.text = parsed_shader_preset["normalize_factor"]
+	shader_setter(parsed_shader_preset["normalize_factor"], "normalize_factor")
+	
+
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta: float) -> void:

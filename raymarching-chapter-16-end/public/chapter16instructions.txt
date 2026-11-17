@@ -497,19 +497,161 @@ And then make a _shader_selected function that relies on that index to update th
 
 LOADING SHADER JSON FILES 
 
+Clicking the load button needs to fire the load shader function, but it already does that, if you caught the instruction above to add this subscription to the _ready function:
 
+	load_button.connect("pressed", _load_shader)
+
+The load shader function needs to do the following:
+
+-Grab the selected_shader_name , something like "CrystalHive"
+-Add the PRESET_EXTENSION to the end of it, so that becomes "CrystalHive.json"
+-Add the folder path to the beginning, which will create a full path like "user://presets/CrystalHive.json"
+-Use FileAccess to load the file as text and plop it into a variable
+-Use the JSON class to parse the file into what we hope will be a dictionary 
+-Confirm it's a dictionary 
+-Assign all the values to the LineEdits (this step doesn't yet trigger the values to update the shader)
+-Apply those values to the shader
+
+When my pseudocode gets this long I tend to copy/paste the whole block in, comment it, and go line by line.
+
+HOW IT'S GOING SO FAR
+
+Here's how I approached it going up through preparing the dictionary:
+
+	func _load_shader()->void:
+		#-Grab the selected_shader_name , something like "CrystalHive"
+		var shader_path : String = selected_shader_name 
+		#-Add the PRESET_EXTENSION to the end of it, so that becomes "CrystalHive.json"
+		shader_path = shader_path + PRESET_EXTENSION
+		#-Add the folder path to the beginning, which will create a full path like "user://presets/CrystalHive.json"
+		shader_path = PRESET_FOLDER.path_join(shader_path)
+		#print(shader_path)
+		#-Use FileAccess to load the file as text and plop it into a variable
+		var unparsed_JSON_shader_text = FileAccess.get_file_as_string(shader_path)
+		#-Use the JSON class to parse the file into what we hope will be a dictionary 
+		var parsed_shader_preset = JSON.parse_string(unparsed_JSON_shader_text)
+		#-Confirm it's a dictionary 
+		if parsed_shader_preset is Dictionary:
+			print("Congrats, it's a dictionary!")
+			print(parsed_shader_preset)
+
+Several things could go wrong here--when I tried to load a malformed save file I had created earlier, that broke, which confused me for a bit as I thought it was the code above that was the problem. 
+
+APPLYING THE VALUES 
+
+It's one thing to have the values, it's another to shove them into the lines and apply them. There's already a Randomize button that's coded to do just that, so I'll copy and paste that button's code to see what we can copy from it:
+
+	func randomize_f_values() ->void:
+		var f0 = weighted_random_number(3.0, 10)
+		var f1 = weighted_random_number(3.0, 5)
+		var f2 = weighted_random_number(3.0, 4)
+		var f3 = weighted_random_number(3.0, 3)
+		var f4 = weighted_random_number(3.0, 2)
+		$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F0/LineEdit.text = str(f0)
+		$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F1/LineEdit.text = str(f1)
+		$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F2/LineEdit.text = str(f2)
+		$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F3/LineEdit.text = str(f3)
+		$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F4/LineEdit.text = str(f4)
+		shader_material.set_shader_parameter("f0", f0)
+		shader_material.set_shader_parameter("f1", f1)
+		shader_material.set_shader_parameter("f2", f2)
+		shader_material.set_shader_parameter("f3", f3)
+		shader_material.set_shader_parameter("f4", f4)
+
+The Randomize button's code isn't gorgeous, but it does work. It 1. Creates random values, 2. Updates the LineEdit boxes using hard addresses for f0 through f4, and finally, 3. Sets the shader parameters itself. 
+
+If I was doing this all over again, I would have set up the shader parameter names in a fixed array, so that I could iterate through them in a for loop with every function that dealt with them. I'll do it right on the next project.
+
+I also wrote a shader_setter(value, control_name) function, which... kinda does a lot of what Randomize does already. Shader_setter is doing this: 
+
+	func shader_setter(value, control_name):
+		var uniform_name = control_name
+		uniform_name = uniform_name.to_lower()
+		if value is String:
+			value = value.to_float()
+
+			shader_material.set_shader_parameter(uniform_name, value)
+		elif value is bool:
+			shader_material.set_shader_parameter(uniform_name, value)
+		else:
+			push_warning("The shader_setter function received an unhandled type for " + uniform_name)
+			print("The shader_setter function has pushed a warning.")
+
+It's worth printing the output dictionary from Load, since that illustrates the shape I'm working in:
+
+{ "pretty_name": "HardCells", "f0": "0.2", "f1": "0.5", "f2": "1", "f3": "0", "f4": "0", "exponent": "-6.4", "normalize_factor": "1" }
+
+FINISHING LOAD SHADER WITH UNGLAMOROUS HARD REFERENCES
+
+I added these two lines to the bottom of _load_shader to confirm the pattern works:
+
+	f0_line.text = parsed_shader_preset["f0"]
+	shader_setter(parsed_shader_preset["f0"], "f0")
+
+And then rather than some glamorous loop, I just typed a bunch of stuff out.
+
+	f0_line.text = parsed_shader_preset["f0"]
+	shader_setter(parsed_shader_preset["f0"], "f0")
+	f1_line.text = parsed_shader_preset["f1"]
+	shader_setter(parsed_shader_preset["f1"], "f1")
+	f2_line.text = parsed_shader_preset["f2"]
+	shader_setter(parsed_shader_preset["f2"], "f2")
+	f3_line.text = parsed_shader_preset["f3"]
+	shader_setter(parsed_shader_preset["f3"], "f3")
+	f4_line.text = parsed_shader_preset["f4"]
+	shader_setter(parsed_shader_preset["f4"], "f4")
+	exponent_line.text = parsed_shader_preset["f4"]
+	shader_setter(parsed_shader_preset["exponent"], "exponent")
+	normalize_factor_line.text = parsed_shader_preset["normalize_factor"]
+	shader_setter(parsed_shader_preset["normalize_factor"], "normalize_factor")
+	
+To make this easy, remember you can hit CTRL+F to find, close the find mini-window, then hit F3 to go through each repeat to change. I initially did a search for "f0" and then replaced the copied and pasted lines with f1-4, exponent, and the normalize_factor.
+
+IT'S NOT PRETTY BUT IT WORKS 
+
+When I was first learning, I would often stop to redesign my architecture all the time to follow the "don't repeat yourself" principle. 
+
+There's other principles that run in tandom with DRY, such as the not-really-a-joke "WET" for "write everything twice", representing the principle that you should wait until you're writing things multiple times before coming up with abstractions.
+
+If you're a beginner, like me, I have a better principle: Do not interrupt everything you're doing to follow any principle. Just get it done. 
+
+This is perhaps because before programming I was/am an artist, and our principle there is very simple: The artist who makes a hundred clay pots is *always* better than the artist who spends a hundred times as much time making one clay pot. There are times, in art, for fanatical detail and slowness, but these are typically procedural works, like pointilism or camera lucida portraiture, and it's usually not your first rodeo.
+
+EXTENSIONS 
+
+If you want to keep messing around with this, there's a variety of things you could play with:
+-Instantly loading on a double click, to practice signal wiring
+-Guarding against overrwriting existing files, to practice guards and FileAccess
+-Adding numbers to new save files that use an existing name
+-A screen-space analysis that readjusts the exponent factor so that you always have a normalized result after randomizing, if these chapters have been too easy and you want something more difficult (and noticeably useful)
+-Add a UI control that governs an animated effect (again, ideal if these chapters were too easy)
+-Saving the toggle button's state for norming over the x-axis
+-Create a backup system for save files, perhaps to elsewhere on the drive, or for files that get corrupted on an overwrite
+-Expose a shader editor to your players in your own game, so that their wardrobe choices aren't just limited to colors
+
+CONCLUSION
+
+My understanding from other developers is that having a save game that is easy to read and edit saves a massive amount of time at... pretty much all stages of development. You can rig up a game that needs to be tested halfway through, create a zillion save files with slightly different tunings, read the results, and give a functioning save editor to your editors. It also forces the scope of what you're saving into something mercifully narrow.
+
+What I find most interesting about this chapter: I never see shader editors showing up in player-facing UI's. Everyone just gets a color selector, and often, you're limited to a few color swatches. And yet: Players *obsess* over clothing and residence options for their characters. As this chapter shows, even as a beginner, you can expose shader-level details to the player, and you can still restrict those options to fall useful boundaries.
+
+COMING IN THE NEXT CHAPTER 
 
 
 
 
 TO DO LIST:
-FINISH LOADING 
 TYPO CHECK 
 ERROR CHECK 
-EXTENSIONS SECTION
+
 
 EXTENSIONS 
 -Refactoring to clean up references, possibly by using unique names
 -Instantly loading on a double click 
+-Guarding against overrwriting existing files
+-Adding numbers to new save files that use an existing name 
+-A screen-space analysis that readjusts the exponent factor so that you always have a normalized result after randomizing
+-Saving the toggle button for norming over the x-axis
 
-
+CORRECTIONS:
+	Saving needs to update the file list.
