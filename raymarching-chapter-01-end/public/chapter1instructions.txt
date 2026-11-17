@@ -80,6 +80,12 @@ Below "Mesh" in the Inspector, you should now have the ability to select Surface
 
 Shaders are scripted in a different location of the UI for two reasons: First, you need to actively watch the 3D viewport for changes to the appearance of your shaders in order to write them. Second, you'll need to be able to have your Gdscipt scripts and your shader code next to each other when you start shipping variables from gdscript to GLSL. 
 
+A QUICK NOTE ABOUT CAPITALIZATION 
+
+Most authors assume this is obvious, but it was not obvious when I started: EVERYTHING you code is usually case-sensitive. That means Vector3d and Vector3D and vector3d are all different. Only one of those three works. The capital D at the end is the easiest one to miss, in my opinion.
+
+Initially, you will find What Gets Capitalized to be confusing and frustrating. Later on, you will, shockingly, find it surprisingly helpful for remembering what type of data is in which category, because Godot uses different case systems for nodes vs code. This allows you to read and write about Godot in a way that keeps you sane, because you know, instantly from reading, whether someone is talking about a node or a reference to a node in code, which are very different things.
+
 A POSSIBLE DETOUR INTO SHADER FUNDAMENTALS
 
 If you're new to shaders entirely, here's a quick intro, though a far better intro is Freya Holmer's YouTube intro. Although she's writing in Unity, it all applies to Godot, though you might find the below section useful as I discuss a few Godot-specific translations. If you already have a basic understanding of shaders and want to skip ahead to the raymarcher, go for it. 
