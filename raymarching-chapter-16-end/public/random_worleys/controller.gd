@@ -144,7 +144,7 @@ func _load_shader()->void:
 	shader_setter(parsed_shader_preset["f3"], "f3")
 	f4_line.text = parsed_shader_preset["f4"]
 	shader_setter(parsed_shader_preset["f4"], "f4")
-	exponent_line.text = parsed_shader_preset["f4"]
+	exponent_line.text = parsed_shader_preset["exponent"]
 	shader_setter(parsed_shader_preset["exponent"], "exponent")
 	normalize_factor_line.text = parsed_shader_preset["normalize_factor"]
 	shader_setter(parsed_shader_preset["normalize_factor"], "normalize_factor")
