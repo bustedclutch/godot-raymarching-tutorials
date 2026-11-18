@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://dlpna7e61hp3"]
+
+[ext_resource type="Script" uid="uid://b7m507dia7xtf" path="res://public/hash/hash.gd" id="1_rtyhg"]
+
+[node name="Hash" type="Node3D" unique_id=475256403]
+script = ExtResource("1_rtyhg")

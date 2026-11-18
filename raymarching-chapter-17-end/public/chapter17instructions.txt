@@ -1,0 +1,121 @@
+REFRESHING THE MEMORY
+
+The last chapter created a save/load interface for the shader.
+
+I've kinda forgotten about the shader and what each part of it does, so I think it's worth going through it at a thousand foot scale.
+
+From a teaching/learning perspective, it's helpful to 1. Forget something and 2. Relearn it. This has a specific neurological impact that causes the memories to stay longer.
+
+I think I've said this before, but when re-reading a shader, I start with the fragment() function, and see if I can make sense of it from that. If you try to read all the surrounding helpers first, you'll... go insane.
+
+The fragment() portion isn't super long:
+
+	void fragment() {
+		vec2 uv = uv_math(UV, scale);
+		vec3 col = vec3(0.);
+		uint uv_grid_id_x = grid_id_x(uv);
+		uint uv_grid_id_y = grid_id_y(uv);
+		float worley_distances[5] = float[5](MAX_DISTANCE,MAX_DISTANCE,MAX_DISTANCE,MAX_DISTANCE,MAX_DISTANCE);
+		vec2 local_current_pos = vec2(fract(uv.x),fract(uv.y));
+		for (int local_y = -1; local_y<=1; local_y++){
+			for (int local_x = -1; local_x<=1; local_x++){
+				//get this cell's uint identifiers. 
+				uint cell_uint_x = uint(int(uv_grid_id_x) + local_x);
+				uint cell_uint_y = uint(int(uv_grid_id_y) + local_y);
+				//pass this cell's uint identifiers in to get a local point
+				vec2 random_loc_p = random_local_point(cell_uint_x,cell_uint_y);
+				//update the random point with the neighborhood address
+				random_loc_p.x += float(local_x);
+				random_loc_p.y += float(local_y);
+				//get the distance from the neighborhood cell random point
+				//to the current local position in UV space
+				float dist = distance(random_loc_p, local_current_pos);
+				//update the winner's podium with the result 
+				winners_podium(dist, worley_distances);
+			}
+		}
+		float result = f0*worley_distances[0] + f1*worley_distances[1] + f2*worley_distances[2] + f3*worley_distances[3] + f4*worley_distances[4];
+		result = abs(result);
+		if (normalized_bool){
+			result = result / (UV.x*normalize_factor);
+		}
+		result = pow(result, exponent);
+		col = vec3(result);
+		
+		col = col + grid_line(uv, scale);
+		ALBEDO = col; ALPHA = 1.0;
+	}
+
+When I first wrote this, I only commented a few of the headier lines. For relearning purposes and to turn my brain back on (I've been writing in gdscript for the last few weeks), I'll add commentary to each line. 
+
+	void fragment() {
+		vec2 uv = uv_math(UV, scale);
+		vec3 col = vec3(0.);
+		uint uv_grid_id_x = grid_id_x(uv);
+		uint uv_grid_id_y = grid_id_y(uv);
+		float worley_distances[5] = float[5](MAX_DISTANCE,MAX_DISTANCE,MAX_DISTANCE,MAX_DISTANCE,MAX_DISTANCE);
+		vec2 local_current_pos = vec2(fract(uv.x),fract(uv.y));
+		for (int local_y = -1; local_y<=1; local_y++){
+			for (int local_x = -1; local_x<=1; local_x++){
+				//get this cell's uint identifiers. 
+				uint cell_uint_x = uint(int(uv_grid_id_x) + local_x);
+				uint cell_uint_y = uint(int(uv_grid_id_y) + local_y);
+				//pass this cell's uint identifiers in to get a local point
+				vec2 random_loc_p = random_local_point(cell_uint_x,cell_uint_y);
+				//update the random point with the neighborhood address
+				random_loc_p.x += float(local_x);
+				random_loc_p.y += float(local_y);
+				//get the distance from the neighborhood cell random point
+				//to the current local position in UV space
+				float dist = distance(random_loc_p, local_current_pos);
+				//update the winner's podium with the result 
+				winners_podium(dist, worley_distances);
+			}
+		}
+		float result = f0*worley_distances[0] + f1*worley_distances[1] + f2*worley_distances[2] + f3*worley_distances[3] + f4*worley_distances[4];
+		result = abs(result);
+		if (normalized_bool){
+			result = result / (UV.x*normalize_factor);
+		}
+		result = pow(result, exponent);
+		col = vec3(result);
+		
+		col = col + grid_line(uv, scale);
+		ALBEDO = col; ALPHA = 1.0;
+	}
+
+
+THE FIRST HALF WITH COMMENTARY
+
+	void fragment() {
+		vec2 uv = uv_math(UV, scale); //Converts UV constant to useful uv's adjusted for scale/monitor
+		vec3 col = vec3(0.); //Declares a color vector3 and zero it out
+		uint uv_grid_id_x = grid_id_x(uv); //Helper finds the X cell number using uv
+		uint uv_grid_id_y = grid_id_y(uv); //Helper finds the Y cell number using uv
+		float worley_distances[5] = float[5](MAX_DISTANCE,MAX_DISTANCE,MAX_DISTANCE,MAX_DISTANCE,MAX_DISTANCE);
+		//Declare an array of floats, each with a default sentinel value set by MAX-DISTANCE constant
+		vec2 local_current_pos = vec2(fract(uv.x),fract(uv.y)); //Finds the local coordinate within the current grid cell
+		for (int local_y = -1; local_y<=1; local_y++){ //Neighbor-checking loop. Loop through three rows, bottom row first
+			for (int local_x = -1; local_x<=1; local_x++){ //Loop through three columns, left column first
+				//Remember that the math below is about *test* cells, usually not the cell the current pixel lives in.
+				//Though you're also going to test the distances in the cell the pixel resides in.
+				uint cell_uint_x = uint(int(uv_grid_id_x) + local_x); //Get test cell's uint identifiers for x 
+				uint cell_uint_y = uint(int(uv_grid_id_y) + local_y); //Get test cell's uint identifiers for y
+				vec2 random_loc_p = random_local_point(cell_uint_x,cell_uint_y); //Pass the neighbor cell's uint identifiers in to get a random local point
+				//The rlp helper receives two uints and returns a vec2 for a *local* location, just between 0 and 1 for x and y.
+				//The pseudo-random point is consistent for any given cell in the grid.
+				random_loc_p.x += float(local_x); //Update the random point with the neighborhood address. This is -1, 0, or 1.
+				//Because those are integers, you have to cast it as a float first. The result is something like -1.23442
+				random_loc_p.y += float(local_y); //Same for y.
+				//get the distance from the neighborhood cell random point
+				//to the current local position in UV space
+				float dist = distance(random_loc_p, local_current_pos); //Find the distance from your current position, expressed
+				//in local terms (0.323, 0.889) and the tested cell's point (1.2023, -1.323).
+				winners_podium(dist, worley_distances); //worley_distances isn't scoped within the loop--the winner's podium
+				//function thus reaches outside of the loop to update the array as the loop runs to get the correct values
+			}
+		}
+
+I don't think the rest needs commentary; this first 2/3 is what really gets hit with a hammer to add a third dimension.
+
+ADDING A THIRD DIMENSION

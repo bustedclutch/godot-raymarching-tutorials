@@ -1,0 +1,24 @@
+[gd_scene format=3 uid="uid://bnhqwd24sibsi"]
+
+[ext_resource type="Shader" uid="uid://danbxqhjaasbe" path="res://public/simple_raymarcher.gdshader" id="1_a1dfs"]
+
+[sub_resource type="QuadMesh" id="QuadMesh_odm11"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_jekxt"]
+render_priority = 0
+shader = ExtResource("1_a1dfs")
+
+[sub_resource type="SphereMesh" id="SphereMesh_bxmgd"]
+
+[node name="BasicRaymarchingVisualization" type="Node3D" unique_id=2124946624]
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=29824163]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1)
+mesh = SubResource("QuadMesh_odm11")
+surface_material_override/0 = SubResource("ShaderMaterial_jekxt")
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=630523184]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 3)
+
+[node name="MeshInstance3D2" type="MeshInstance3D" parent="." unique_id=1798837010]
+mesh = SubResource("SphereMesh_bxmgd")

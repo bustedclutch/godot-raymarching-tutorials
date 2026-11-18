@@ -1,0 +1,41 @@
+[gd_scene format=3 uid="uid://dpsbuieb1l54t"]
+
+[ext_resource type="Shader" uid="uid://dlibk3woxt5ks" path="res://public/basic_graphing_calculator.gdshader" id="1_0covg"]
+[ext_resource type="Shader" uid="uid://wictddcxpf5b" path="res://public/graphing_calculator_with_scale_grid.gdshader" id="2_8xllp"]
+[ext_resource type="Shader" uid="uid://sqd40nasgghs" path="res://public/graphing_calculator_grid_function.gdshader" id="3_eygn0"]
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_4o5mg"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_0covg"]
+render_priority = 0
+shader = ExtResource("1_0covg")
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_eygn0"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_1oxaq"]
+render_priority = 0
+shader = ExtResource("2_8xllp")
+shader_parameter/scale = 3.0
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_1oxaq"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_hwqo3"]
+render_priority = 0
+shader = ExtResource("3_eygn0")
+shader_parameter/scale = 3.0
+
+[node name="GraphingCalculator" type="Node3D" unique_id=941888503]
+
+[node name="BasicGraphingCalculator" type="MeshInstance3D" parent="." unique_id=1498224724]
+mesh = SubResource("PlaneMesh_4o5mg")
+surface_material_override/0 = SubResource("ShaderMaterial_0covg")
+
+[node name="GraphingCalcScaleAndGrid" type="MeshInstance3D" parent="." unique_id=88067849]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.2090526, 0, 0)
+mesh = SubResource("PlaneMesh_eygn0")
+surface_material_override/0 = SubResource("ShaderMaterial_1oxaq")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=1529815502]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5213704, 0, 0)
+mesh = SubResource("PlaneMesh_1oxaq")
+surface_material_override/0 = SubResource("ShaderMaterial_hwqo3")

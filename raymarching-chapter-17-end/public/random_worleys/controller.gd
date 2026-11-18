@@ -1,0 +1,201 @@
+extends Node
+
+@export var shaded_object : MeshInstance3D
+@onready var shader_material = shaded_object.get_active_material(0)
+@onready var f0_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F0/LineEdit
+@onready var f1_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F1/LineEdit
+@onready var f2_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F2/LineEdit
+@onready var f3_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F3/LineEdit
+@onready var f4_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F4/LineEdit
+@onready var exponent_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/Exponent/LineEdit
+@onready var normalize_factor_line := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/NormalizeFactor/LineEdit
+@onready var normalize_toggle_button := $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/NormalizeXButton
+@onready var save_button : Button = $CanvasLayer/MarginContainer/HBoxContainer/SaveLoad/SaveButton
+@onready var load_button : Button = $CanvasLayer/MarginContainer/HBoxContainer/SaveLoad/LoadButton
+@onready var save_name_line : LineEdit = $CanvasLayer/MarginContainer/HBoxContainer/SaveLoad/EditSaveName
+
+@onready var saved_settings_list : ItemList = $CanvasLayer/MarginContainer/HBoxContainer/SaveLoad/SavedSettingsList
+
+var selected_shader_name : String
+
+##Beginning of save-related variables
+const PRESET_FOLDER := "user://presets"
+const PRESET_EXTENSION := ".json"
+#const WORLEY_KEYS := {
+	#"pretty_name" : "unnamed",
+	#"f0" : "-1.0",
+	#"f1" : "1.0",
+	#"f2" : "0.0",
+	#"f3" : "0.0",
+	#"f4" : "0.0",
+	#"exponent" : "1.0",
+	#"normalize_factor" : "1.0",
+	#"normalized_bool" : false,
+#}
+
+# Called when the node enters the scene tree for the first time.
+func _ready() -> void:
+	##Below line ineffective, as it doesn't carry the name of the node emitting the signal.
+	#$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F0/LineEdit.text_changed.connect(shader_setter)
+	
+#	Corrected code to bind the control names along with the signal.
+#	WARNING: Below code uses capital names! Use to_lower() later when creating uniform names.
+	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F0/LineEdit.text_changed.connect(shader_setter.bind("F0"))
+	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F1/LineEdit.text_changed.connect(shader_setter.bind("F1"))
+	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F2/LineEdit.text_changed.connect(shader_setter.bind("F2"))
+	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F3/LineEdit.text_changed.connect(shader_setter.bind("F3"))
+	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F4/LineEdit.text_changed.connect(shader_setter.bind("F4"))
+	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/Exponent/LineEdit.text_changed.connect(shader_setter.bind("Exponent"))
+	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/NormalizeFactor/LineEdit.text_changed.connect(shader_setter.bind("Normalize_Factor"))
+	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/NormalizeXButton.toggled.connect(shader_setter.bind("Normalized_Bool"))
+	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/ExponentSlider/HSlider.value_changed.connect(exponent_slider_updater)
+	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/RandomizeButton.pressed.connect(randomize_f_values)
+	
+	#Save/loading subscription below:
+	save_button.connect("pressed", _save_shader)
+	load_button.connect("pressed", _load_shader)
+	saved_settings_list.connect("item_selected", _shader_selected)
+	
+	#Save/load code below:
+	if not DirAccess.dir_exists_absolute(PRESET_FOLDER):
+		DirAccess.make_dir_recursive_absolute(PRESET_FOLDER)
+	update_file_list()
+	
+func update_file_list():
+	var packed_array_of_presets : PackedStringArray = DirAccess.get_files_at(PRESET_FOLDER)
+	#for file_name : String in packed_array_of_presets:
+		#print(file_name.get_basename())
+	var legible_saved_file_list : Array[String]
+	for file_name : String in packed_array_of_presets:
+		if file_name.ends_with(PRESET_EXTENSION):
+			legible_saved_file_list.append(file_name.get_basename())
+	saved_settings_list.clear()
+	for item in legible_saved_file_list:
+		saved_settings_list.add_item(item)
+
+func _shader_selected(index)->void:
+	selected_shader_name = saved_settings_list.get_item_text(index)
+	print(selected_shader_name)
+	
+#func _save_shader()->void:
+	##print("Save button pressed!")
+	##print(f0_line.text)
+	#var worley_array_of_values : Array = [save_name_line, f0_line, f1_line, f2_line, f3_line, f4_line, exponent_line, normalize_factor_line]
+	#var temporary_saving_dictionary : Dictionary
+	#for variable : LineEdit in worley_array_of_values:
+		#temporary_saving_dictionary.set(variable.name, str(variable.text))
+	#print(temporary_saving_dictionary)
+	
+func _save_shader()->void:
+	var dictionary_to_save : Dictionary = {
+		"pretty_name" : save_name_line.text,
+		"f0" : f0_line.text,
+		"f1" : f1_line.text,
+		"f2" : f2_line.text,
+		"f3" : f3_line.text,
+		"f4" : f4_line.text,
+		"exponent" : exponent_line.text,
+		"normalize_factor" : normalize_factor_line.text
+	}
+	#print(dictionary_to_save)
+	var jsoned_dictionary : String = JSON.stringify(dictionary_to_save, "\t", false)
+	var file_name := save_name_line.text.validate_filename() + PRESET_EXTENSION
+	var full_path := PRESET_FOLDER.path_join(file_name)
+	var file : FileAccess = FileAccess.open(full_path, FileAccess.WRITE)
+	if file == null:
+		push_error("The save_shader function ran into a problem with " + str(FileAccess.get_open_error()))
+		return
+	file.store_string(jsoned_dictionary)
+	file.close()
+	update_file_list()
+
+
+func _load_shader()->void:
+	#-Grab the selected_shader_name , something like "CrystalHive"
+	var shader_path : String = selected_shader_name 
+	#-Add the PRESET_EXTENSION to the end of it, so that becomes "CrystalHive.json"
+	shader_path = shader_path + PRESET_EXTENSION
+	#-Add the folder path to the beginning, which will create a full path like "user://presets/CrystalHive.json"
+	shader_path = PRESET_FOLDER.path_join(shader_path)
+	#print(shader_path)
+	#-Use FileAccess to load the file as text and plop it into a variable
+	var unparsed_JSON_shader_text : String = FileAccess.get_file_as_string(shader_path)
+	print(unparsed_JSON_shader_text)
+	#print(unparsed_JSON_shader_text)
+	#-Use the JSON class to parse the file into what we hope will be a dictionary 
+	var parsed_shader_preset = JSON.parse_string(unparsed_JSON_shader_text)
+	#print(parsed_shader_preset)
+	#-Confirm it's a dictionary 
+	if parsed_shader_preset is Dictionary:
+		print("Congrats, it's a dictionary!")
+		print(parsed_shader_preset)
+	else:
+		print("Dictionary failed to load from JSON parser")
+		return
+	#-Assign all the values to the LineEdits (this step doesn't yet trigger the values to update the shader)
+	#-Apply those values to the shader
+	f0_line.text = parsed_shader_preset["f0"]
+	shader_setter(parsed_shader_preset["f0"], "f0")
+	f1_line.text = parsed_shader_preset["f1"]
+	shader_setter(parsed_shader_preset["f1"], "f1")
+	f2_line.text = parsed_shader_preset["f2"]
+	shader_setter(parsed_shader_preset["f2"], "f2")
+	f3_line.text = parsed_shader_preset["f3"]
+	shader_setter(parsed_shader_preset["f3"], "f3")
+	f4_line.text = parsed_shader_preset["f4"]
+	shader_setter(parsed_shader_preset["f4"], "f4")
+	exponent_line.text = parsed_shader_preset["exponent"]
+	shader_setter(parsed_shader_preset["exponent"], "exponent")
+	normalize_factor_line.text = parsed_shader_preset["normalize_factor"]
+	shader_setter(parsed_shader_preset["normalize_factor"], "normalize_factor")
+	
+
+
+# Called every frame. 'delta' is the elapsed time since the previous frame.
+func _process(delta: float) -> void:
+	pass
+
+func shader_setter(value, control_name):
+	var uniform_name = control_name
+	uniform_name = uniform_name.to_lower()
+	if value is String:
+		value = value.to_float()
+
+		shader_material.set_shader_parameter(uniform_name, value)
+	elif value is bool:
+		shader_material.set_shader_parameter(uniform_name, value)
+	else:
+		push_warning("The shader_setter function received an unhandled type for " + uniform_name)
+		print("The shader_setter function has pushed a warning.")
+
+func exponent_slider_updater(updated_value:float):
+	var exponent_node = $CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/Exponent/LineEdit
+	var updated_value_as_string = str(updated_value)
+	exponent_node.text = updated_value_as_string
+	shader_material.set_shader_parameter("exponent", updated_value)
+	
+func weighted_random_number(exponent:float, multiplier:float):
+	var x = randf_range(-1.0, 1.0) #random float between -1 and 1
+	var sign_of_x = sign(x) #store the sign of x as -1, 0, or 1
+	var x_weighted_to_center = pow(abs(x),exponent) #pull the result closer to zero based on
+	# strength of exponent
+	return sign_of_x * x_weighted_to_center * multiplier #restore sign and use multiplier to produce
+	#numbers outside of the -1 to 1 range.
+	
+func randomize_f_values() ->void:
+	var f0 = weighted_random_number(3.0, 10)
+	var f1 = weighted_random_number(3.0, 5)
+	var f2 = weighted_random_number(3.0, 4)
+	var f3 = weighted_random_number(3.0, 3)
+	var f4 = weighted_random_number(3.0, 2)
+	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F0/LineEdit.text = str(f0)
+	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F1/LineEdit.text = str(f1)
+	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F2/LineEdit.text = str(f2)
+	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F3/LineEdit.text = str(f3)
+	$CanvasLayer/MarginContainer/HBoxContainer/ShaderSettings/F4/LineEdit.text = str(f4)
+	shader_material.set_shader_parameter("f0", f0)
+	shader_material.set_shader_parameter("f1", f1)
+	shader_material.set_shader_parameter("f2", f2)
+	shader_material.set_shader_parameter("f3", f3)
+	shader_material.set_shader_parameter("f4", f4)
+	
