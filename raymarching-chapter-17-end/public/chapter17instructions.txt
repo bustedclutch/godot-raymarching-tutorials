@@ -1,14 +1,39 @@
+INTRODUCTION: THINKING ABOUT DIMENSIONS 
+
+First off, as part of growing up in shader land, I'm going to switch from saying "pseudorandom number that's not truly random because it's a deterministic result of a hash function" to the easier to type "stochastic". I had a genius friend in college, Staci, who started a philosophy degree after retiring from a successful runway model career (at 22!) and she referred to uncommon words that meant to blow your own horn as, dismissively, "$11 cocktail party words". (This was back when $11 cocktails were expensive.) So, don't start throwing around the word stochastic, or do I guess, if the cocktails are expensive.
+
+Worley noise functions by measuring the distance from your current position to a point in a 9 cell cell neighborhood. (We expanded on it by playing with the coefficients of the various distances to points that were further out, but we can ignore that for now.)
+
+There's a couple of contenders for how you could animate the patterns produced by Worley noise. And by animate, I mean really animate it, not just have the entire shader slide or spin or expand or shrink. We want the pattern itself to shift.
+
+	CONTENDER 1: Directly moving the points themselves
+	Although the points are stochastic, we could just slide them around within their cells by manipulating their coordinates before the distance function gets evaluated.
+
+	CONTENDER 2: Adding a third dimension 
+	The noise pattern could go from being a sheet of paper to a thick piece of balogna. And as time progresses, you slice further and further into it. 
+
+	CONTENDER 3: Domain warping
+	Alter the uv numbers before any of the Worley math runs. You just add a line like this after the uv_math helper runs:
+		uv = uv+ 0.3 * sin(uv.yx * 2.0 + TIME);
+	"Domain warping" is a glamorous phrase for "playing with the input before it gets fed into the bigger function doing most of the work".
+
+	CONTENDER 4: Whatever else you discover/find/invent
+
+The destination is raymarching, and raymarching is actively perceived in three dimensions as the viewer moves around the object. So I'm going to make an actual third dimension. Sometime down the road, I'll need to address how to fake a fourth, for animated smoke and clouds.
+
+IS THIS EXPENSIVE?
+
+This will take us from a nine cell neighborhood to a twenty-seven cell neighborhood. Like moving from a tic-tac-toe board to a rubic's cube. Is this expensive? If it's only run once, no. If it's run at every raymarching step, then... yes. But I'll worry about that later.
+
 REFRESHING THE MEMORY
 
 The last chapter created a save/load interface for the shader.
 
-I've kinda forgotten about the shader and what each part of it does, so I think it's worth going through it at a thousand foot scale.
+This chapter is about adding a third dimension to the currently two dimensional Worley shader, but I've forgotten how the shader works since I coded it. One of the things I do to get back into a project I've forgotten and become scared of is to just go through it line by line, adding comments for each what line does, until I feel like I've remembered enough to move forward.
 
-From a teaching/learning perspective, it's helpful to 1. Forget something and 2. Relearn it. This has a specific neurological impact that causes the memories to stay longer.
+Generally speaking, I start with the fragment() shader when I do this. Reading the helper functions first (the functions called by fragment()) is like reading the footnotes first of a book, so I'll only look into those where needed.
 
-I think I've said this before, but when re-reading a shader, I start with the fragment() function, and see if I can make sense of it from that. If you try to read all the surrounding helpers first, you'll... go insane.
-
-The fragment() portion isn't super long:
+The fragment() portion of the shader isn't super long:
 
 	void fragment() {
 		vec2 uv = uv_math(UV, scale);
@@ -46,46 +71,12 @@ The fragment() portion isn't super long:
 		ALBEDO = col; ALPHA = 1.0;
 	}
 
-When I first wrote this, I only commented a few of the headier lines. For relearning purposes and to turn my brain back on (I've been writing in gdscript for the last few weeks), I'll add commentary to each line. 
-
-	void fragment() {
-		vec2 uv = uv_math(UV, scale);
-		vec3 col = vec3(0.);
-		uint uv_grid_id_x = grid_id_x(uv);
-		uint uv_grid_id_y = grid_id_y(uv);
-		float worley_distances[5] = float[5](MAX_DISTANCE,MAX_DISTANCE,MAX_DISTANCE,MAX_DISTANCE,MAX_DISTANCE);
-		vec2 local_current_pos = vec2(fract(uv.x),fract(uv.y));
-		for (int local_y = -1; local_y<=1; local_y++){
-			for (int local_x = -1; local_x<=1; local_x++){
-				//get this cell's uint identifiers. 
-				uint cell_uint_x = uint(int(uv_grid_id_x) + local_x);
-				uint cell_uint_y = uint(int(uv_grid_id_y) + local_y);
-				//pass this cell's uint identifiers in to get a local point
-				vec2 random_loc_p = random_local_point(cell_uint_x,cell_uint_y);
-				//update the random point with the neighborhood address
-				random_loc_p.x += float(local_x);
-				random_loc_p.y += float(local_y);
-				//get the distance from the neighborhood cell random point
-				//to the current local position in UV space
-				float dist = distance(random_loc_p, local_current_pos);
-				//update the winner's podium with the result 
-				winners_podium(dist, worley_distances);
-			}
-		}
-		float result = f0*worley_distances[0] + f1*worley_distances[1] + f2*worley_distances[2] + f3*worley_distances[3] + f4*worley_distances[4];
-		result = abs(result);
-		if (normalized_bool){
-			result = result / (UV.x*normalize_factor);
-		}
-		result = pow(result, exponent);
-		col = vec3(result);
-		
-		col = col + grid_line(uv, scale);
-		ALBEDO = col; ALPHA = 1.0;
-	}
+In the next section, I comment each line of most of the fragment shader. But if you don't remember what each line does, it's worth taking a stab at commenting it yourself.
 
 
-THE FIRST HALF WITH COMMENTARY
+COMMENTARY FOR MOST OF THE FRAGMENT SHADER 
+
+The first 2/3 of this shader is where the Worley'ness is happening. We won't need to alter the superficial adjustments made in the final third. Here's the first 2/3 and their comments:
 
 	void fragment() {
 		vec2 uv = uv_math(UV, scale); //Converts UV constant to useful uv's adjusted for scale/monitor
@@ -105,17 +96,129 @@ THE FIRST HALF WITH COMMENTARY
 				//The rlp helper receives two uints and returns a vec2 for a *local* location, just between 0 and 1 for x and y.
 				//The pseudo-random point is consistent for any given cell in the grid.
 				random_loc_p.x += float(local_x); //Update the random point with the neighborhood address. This is -1, 0, or 1.
-				//Because those are integers, you have to cast it as a float first. The result is something like -1.23442
+				//Because those are integers, you have to cast it as a float first. The result is something like -0.23442
 				random_loc_p.y += float(local_y); //Same for y.
 				//get the distance from the neighborhood cell random point
 				//to the current local position in UV space
 				float dist = distance(random_loc_p, local_current_pos); //Find the distance from your current position, expressed
-				//in local terms (0.323, 0.889) and the tested cell's point (1.2023, -1.323).
+				//in local terms (0.323, 0.889) and the tested cell's point (1.2023, 0.323).
 				winners_podium(dist, worley_distances); //worley_distances isn't scoped within the loop--the winner's podium
-				//function thus reaches outside of the loop to update the array as the loop runs to get the correct values
+				//function thus reaches outside of the loop to update the array as the loop runs to get the correct values.
+				//It's only able to do this because winners_podium declared its parameter as "inout".
 			}
 		}
+		////COMMENTARY STOPPED HERE, but feel free to add some of your own to refresh your memory
+		float result = f0*worley_distances[0] + f1*worley_distances[1] + f2*worley_distances[2] + f3*worley_distances[3] + f4*worley_distances[4];
+		result = abs(result);
+		if (normalized_bool){
+			result = result / (UV.x*normalize_factor);
+		}
+		result = pow(result, exponent);
+		col = vec3(result);
+		
+		col = col + grid_line(uv, scale);
+		ALBEDO = col; ALPHA = 1.0;
+	}
 
-I don't think the rest needs commentary; this first 2/3 is what really gets hit with a hammer to add a third dimension.
+This commentary looks challenging to read without the colorful Godot UI, so consider pasting it into Godot for readability, or turn colors on via a Visual Studio Code extension.
 
 ADDING A THIRD DIMENSION
+
+I'm just going to go through every reference to the X and Y dimensions, and make a rough plan for dealing with them.
+
+ADDING A THIRD DIMENSION PART 1: THE CURRENT CELL IDENTIFIER 
+
+The first mention is when the UV's is used to find the grid identifiers for the current position. That's this:
+
+	uint uv_grid_id_x = grid_id_x(uv);
+	uint uv_grid_id_y = grid_id_y(uv);
+
+The first brain noodle is: How do we ensure that as UV's go up up up, that there's a Z dimension that has the same proportions? 
+
+It's worth consulting the helper function, grid_id_x(), to see what kind of data that function receives, and what kind of data it spits out, so that we can play matchy matchy with the input and output, as well as the helper function that's doing uv math:
+
+	uint grid_id_x(vec2 xy){
+		float x_vec = xy.x;
+		float x_floor = floor(x_vec);
+		return uint(int(x_floor));
+	}
+
+	vec2 uv_math(vec2 xy, float local_scale){
+		vec2 uv = xy;
+		uv = uv * 2.0 - 1.0;
+		uv = uv * vec2(1.0, -1.0);
+		uv = uv * local_scale;
+		return uv;
+	}
+
+The tldr; of this pipeline is that the UV, a number between 0 and 1, normalized to fall between -1 and 1, gets flipped, and then multiplied by a scale, which at the moment, is 3.0. The flipping isn't relevant. But to add a raw Z value, something based on TIME, location, or perhaps a smoothly flowing pseudorandom number, we will likely have to do two things to the raw Z value:
+1. (Possibly) normalize the Z number to run -1 to 1, and 
+2. (Possibly) scale Z it by the same number getting applied to the UV's.
+
+I say possibly because it depends on where Z is coming from. In the event X and Y and Z are all coming from known locations in 3D space, we don't have to do any of this. So in that regard, the raymarcher version of this is easier. But for this chapter, I shoving a square peg into a round hole, and making some arbitrary Z value fit the vibe of the UV coordinates.
+
+Matchy-matchiness will then hopefully be achieved.
+
+ADDING A THIRD DIMENSION PART 2: Get the whole and fractional parts of Z
+
+The shader currently evaluates where you (the current pixel) are within this line:
+
+vec2 local_current_pos = vec2(fract(uv.x),fract(uv.y)); //Finds the local coordinate within the current grid cell
+
+And it doesn't get the whole part of Z at all.
+
+We'll need both; the whole part for the hash, and the fractional part for the distance math. We need to separate the 3.122523 into 3 and 0.122523.
+
+ADDING A THIRD DIMENSION PART 3: THE FOR LOOP'S DECLARATION
+
+So, right now we can see in the for-loop that it only cycles through an X and Y dimension:
+
+	for (int local_y = -1; local_y<=1; local_y++){
+			for (int local_x = -1; local_x<=1; local_x++){
+				//Loop checking happens
+
+ We can add a Z dimension as a third loop.
+
+ADDING A THIRD DIMENSION PART 3a: The loop finds the test cell identifier
+
+The for loop grabs the test cell's identifiers for all dimensions getting tested:
+
+		uint cell_uint_x = uint(int(uv_grid_id_x) + local_x);
+		uint cell_uint_y = uint(int(uv_grid_id_y) + local_y);
+
+That's just a simple grab for Z with the same pattern.
+
+ADDING A THIRD DIMENSION PART 3b: The loop finds a random local point using integers
+
+	vec2 random_loc_p = random_local_point(cell_uint_x,cell_uint_y)
+
+This one will actually get a little spicy, because it's a return to bitwise hashing. We'll need a new helper function that accepts three integers instead of two, and returns a vec3 instead of a vec2.
+
+ADDING A THIRD DIMENSION PART 3c: Giving the point a neighborhood address instead of a local one
+
+This code gave the point an address on the entire tic tac toe board rather than its xy location within an individual cell, by adding -1, 0, or 1. 
+
+	random_loc_p.x += float(local_x);
+	random_loc_p.y += float(local_y); 
+
+A third line in the same format will do the same for the Z dimension, so this is another easy change.
+
+HOW WILL WE SEE WHAT'S GOING ON?
+
+If we want to confirm that Z isn't skewing, we'll need to switch it out with either the X or Y coordinate of the UV at the top of the shader. But put a pin in that for now.
+
+SUMMARY
+
+So we need to:
+-Create a Z 
+--Normalize and scale Z, if needed
+--Separate Z into whole and fractional parts
+
+-Add a loop for Z
+--Figure out how to incorporate the whole part of Z into the hash 
+--Clone the X and Y lines but with Z instead for the rest
+
+-Experiment with visualizations
+--Animating Z?
+--Switching Z with X, or Z with Y, to confirm there is no skewing
+

@@ -10,7 +10,7 @@ config_version=5
 
 [application]
 
-config/name="Raymarching Chapter 16 End"
+config/name="Raymarching Chapter 17 End"
 run/main_scene="uid://bxk5828x5qqil"
 config/features=PackedStringArray("4.6", "Forward Plus")
 

@@ -118,6 +118,7 @@ vec2 random_local_point(uint grid_id_x, uint grid_id_y){
 void fragment() {
 	vec2 uv = uv_math(UV, scale); //Converts UV constant to useful uv's adjusted for scale/monitor
 	vec3 col = vec3(0.); //Declares a color vector3 and zero it out
+	//uv = uv+ 0.3 * sin(uv.yx * 2.0 + TIME); //Domain warping example
 	uint uv_grid_id_x = grid_id_x(uv); //Helper finds the X cell number using uv
 	uint uv_grid_id_y = grid_id_y(uv); //Helper finds the Y cell number using uv
 	float worley_distances[5] = float[5](MAX_DISTANCE,MAX_DISTANCE,MAX_DISTANCE,MAX_DISTANCE,MAX_DISTANCE);
@@ -133,14 +134,15 @@ void fragment() {
 			//The rlp helper receives two uints and returns a vec2 for a *local* location, just between 0 and 1 for x and y.
 			//The pseudo-random point is consistent for any given cell in the grid.
 			random_loc_p.x += float(local_x); //Update the random point with the neighborhood address. This is -1, 0, or 1.
-			//Because those are integers, you have to cast it as a float first. The result is something like -1.23442
+			//Because those are integers, you have to cast it as a float first. The result is something like -0.23442
 			random_loc_p.y += float(local_y); //Same for y.
 			//get the distance from the neighborhood cell random point
 			//to the current local position in UV space
 			float dist = distance(random_loc_p, local_current_pos); //Find the distance from your current position, expressed
-			//in local terms (0.323, 0.889) and the tested cell's point (1.2023, -1.323).
+			//in local terms (0.323, 0.889) and the tested cell's point (1.2023, 0.323).
 			winners_podium(dist, worley_distances); //worley_distances isn't scoped within the loop--the winner's podium
-			//function thus reaches outside of the loop to update the array as the loop runs to get the correct values
+			//function thus reaches outside of the loop to update the array as the loop runs to get the correct values.
+			//It's only able to do this because winners_podium declared its parameter as "inout".
 		}
 	}
 	float result = f0*worley_distances[0] + f1*worley_distances[1] + f2*worley_distances[2] + f3*worley_distances[3] + f4*worley_distances[4];
